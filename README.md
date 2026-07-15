@@ -1,18 +1,49 @@
-# STEERING
+<p align="center">
+  <img
+    src="docs/assets/steering-hero.png"
+    alt="STEERING - scattered knowledge converging into clear engineering direction"
+    width="100%"
+  />
+</p>
 
-**System for Translating Evolving Engineering Research into Intelligence using Graphs**
+<h1 align="center">STEERING</h1>
 
-STEERING is a local-first knowledge and architecture-recall system for AI engineers. Give it the
-X, LinkedIn, GitHub, paper, documentation, or webpage links you encounter; it preserves the source,
-extracts evidence-backed engineering knowledge, and recalls diverse options when you design a system
-or training plan later.
+<p align="center"><strong>Turn scattered Frontier AI discoveries into engineering direction.</strong></p>
 
-The goal is to turn the valuable tools, research, techniques, and practical ideas you encounter into
-a personal engineering resource that reliably returns useful options during architecture and model
-development, then helps you test those options against your real constraints.
+<p align="center">
+  <sub><strong>System for Translating Evolving Engineering Research into Intelligence using Graphs</strong></sub>
+</p>
 
-> Status: `0.1.0` alpha. The core local workflow is implemented, but resolver and internal extension
-> contracts may change before a stable release.
+<p align="center">
+  <a href="https://github.com/Otto-Destiny/steering/actions/workflows/ci.yml"><img src="https://github.com/Otto-Destiny/steering/actions/workflows/ci.yml/badge.svg" alt="CI status" /></a>
+  <img src="https://img.shields.io/badge/version-0.1.0-176b4d" alt="Version 0.1.0" />
+  <img src="https://img.shields.io/badge/python-3.11%2B-3776ab?logo=python&logoColor=white" alt="Python 3.11 or newer" />
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-176b4d" alt="Apache 2.0 license" /></a>
+  <img src="https://img.shields.io/badge/local--first-yes-17211b" alt="Local-first" />
+</p>
+
+<p align="center">
+  <a href="#quickstart"><strong>Quickstart</strong></a>
+  &nbsp;&middot;&nbsp;
+  <a href="#what-01-includes"><strong>Features</strong></a>
+  &nbsp;&middot;&nbsp;
+  <a href="docs/architecture.md"><strong>Architecture</strong></a>
+  &nbsp;&middot;&nbsp;
+  <a href="#connect-an-ai-coding-agent"><strong>MCP</strong></a>
+  &nbsp;&middot;&nbsp;
+  <a href="CONTRIBUTING.md"><strong>Contributing</strong></a>
+</p>
+
+---
+
+STEERING is a local-first engineering memory for the AI work you do not want to lose. Capture the X
+and LinkedIn posts, papers, repositories, documentation, and practical techniques you encounter. It
+turns them into source-backed knowledge, then recalls useful options and tradeoffs while you design
+systems, plan model training, or work through a difficult engineering decision.
+
+> [!NOTE]
+> **STEERING is currently at `0.1.0` alpha.** The complete local workflow is implemented; resolver and
+> internal extension contracts may change before the stable release.
 
 ## What 0.1 includes
 
