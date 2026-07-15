@@ -36,10 +36,13 @@
 
 ---
 
-STEERING is a local-first engineering memory for the AI work you do not want to lose. Capture the X
-and LinkedIn posts, papers, repositories, documentation, and practical techniques you encounter. It
-turns them into source-backed knowledge, then recalls useful options and tradeoffs while you design
-systems, plan model training, or work through a difficult engineering decision.
+AI engineering moves too fast to rely on memory alone. Every day, you come across new ideas, papers,
+shared tricks, and upgrades on X, LinkedIn, GitHub, and arXiv. STEERING continuously transforms
+evolving research into structured engineering intelligence connected through a knowledge graph.
+Every new discovery becomes connected, searchable, and architecture-ready, so your coding agents
+always design with current knowledge. Query it from Claude Code, Codex, or any MCP-compatible agent.
+Build with today's best ideas, not yesterday's. STEERING is the missing intelligence layer for AI
+engineering today, so every architecture starts from the current frontier.
 
 > [!NOTE]
 > **STEERING is currently at `0.1.0` alpha.** The complete local workflow is implemented; resolver and
