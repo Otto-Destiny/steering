@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "candidate_id": "nvidia-agent-skills",
+  "capture_method": "logged_in_visible_playwright",
+  "root_url": "https://x.com/DivyanshT91162/status/2075060803410210817",
+  "root_author_handle": "DivyanshT91162",
+  "root_post_id": "2075060803410210817",
+  "capture_policy": {
+    "self_replies_bundled": true,
+    "other_authors_excluded": true,
+    "media_downloaded": false,
+    "documents_downloaded": false,
+    "max_thread_span_hours": 48
+  },
+  "thread": {
+    "post_count": 2,
+    "raw_same_author_post_count": 2,
+    "posts": [
+      {
+        "post_id": "2075060803410210817",
+        "handle": "DivyanshT91162",
+        "status_url": "https://x.com/DivyanshT91162/status/2075060803410210817",
+        "posted_at": "2026-07-09T03:33:42.000Z",
+        "author_label": "divyansh tiwari\n@DivyanshT91162",
+        "text": "NVIDIA just gave AI agent builders a massive head start.\n\nThe company has open-sourced its AI agent skills, making the same reusable building blocks available for everyone to study, customize, and integrate into their own AI workflows.\n\nPerfect if you're building:\n\n→ AI agents\n→ Workflow automation\n→ Tool calling systems\n→ Multi-agent orchestration\n→ AI engineering projects\n\nInstead of starting from scratch, you can reuse production-ready agent skills and build on top of them.\n\n2.3k+ GitHub stars and 100% open source.\n\nRepo",
+        "media": [
+          {
+            "url": "https://pbs.twimg.com/media/HMwYzKQbwAAb9nM?format=jpg&name=small",
+            "alt": "Image"
+          }
+        ]
+      },
+      {
+        "post_id": "2075060856090407092",
+        "handle": "DivyanshT91162",
+        "status_url": "https://x.com/DivyanshT91162/status/2075060856090407092",
+        "posted_at": "2026-07-09T03:33:55.000Z",
+        "author_label": "divyansh tiwari\n@DivyanshT91162\n·\nJul 9",
+        "text": "Repo:",
+        "media": []
+      }
+    ],
+    "discarded_same_author_posts": []
+  },
+  "source_selection": {
+    "selected_source": null,
+    "ranked_sources": [],
+    "linked_social_sources": []
+  }
+}

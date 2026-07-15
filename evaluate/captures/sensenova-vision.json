@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "candidate_id": "sensenova-vision",
+  "capture_method": "logged_in_visible_playwright",
+  "root_url": "https://x.com/AdinaYakup/status/2074833900782666087",
+  "root_author_handle": "AdinaYakup",
+  "root_post_id": "2074833900782666087",
+  "capture_policy": {
+    "self_replies_bundled": true,
+    "other_authors_excluded": true,
+    "media_downloaded": false,
+    "documents_downloaded": false,
+    "max_thread_span_hours": 48
+  },
+  "thread": {
+    "post_count": 2,
+    "raw_same_author_post_count": 2,
+    "posts": [
+      {
+        "post_id": "2074833900782666087",
+        "handle": "AdinaYakup",
+        "status_url": "https://x.com/AdinaYakup/status/2074833900782666087",
+        "posted_at": "2026-07-08T12:32:05.000Z",
+        "author_label": "Adina Yakup\n@AdinaYakup",
+        "text": "SenseNova-Vision  SenseTime's new model treats all of computer vision as generation \n\n- 7B\n- CC BY-NC 4.0 ( non commercial )\n- Model/ 50M instruction corpus/ benchmark/ paper/ demo, all open",
+        "media": [
+          {
+            "url": "https://pbs.twimg.com/media/HMtJ72fXkAIVVQ2?format=jpg&name=small",
+            "alt": "Image"
+          }
+        ]
+      },
+      {
+        "post_id": "2074833940305563731",
+        "handle": "AdinaYakup",
+        "status_url": "https://x.com/AdinaYakup/status/2074833940305563731",
+        "posted_at": "2026-07-08T12:32:14.000Z",
+        "author_label": "Adina Yakup\n@AdinaYakup\n·\nJul 8",
+        "text": "",
+        "media": []
+      }
+    ],
+    "discarded_same_author_posts": []
+  },
+  "source_selection": {
+    "selected_source": {
+      "url": "https://huggingface.co/collections/sensenova/sensenova-vision",
+      "artifact_type": "model_or_dataset",
+      "found_in_post_id": "2074833940305563731",
+      "link_text": "SenseNova-Vision - a sensenova Collection"
+    },
+    "ranked_sources": [
+      {
+        "url": "https://huggingface.co/collections/sensenova/sensenova-vision",
+        "artifact_type": "model_or_dataset",
+        "found_in_post_id": "2074833940305563731",
+        "link_text": "SenseNova-Vision - a sensenova Collection"
+      }
+    ],
+    "linked_social_sources": []
+  }
+}

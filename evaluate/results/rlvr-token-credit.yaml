@@ -1,0 +1,96 @@
+schema_version: 1
+candidate_id: rlvr-token-credit
+evaluation_status: ready_for_human_review_with_partial_social_capture
+
+ingestion:
+  social_source: https://x.com/VukRosic99/status/2075854354796433812
+  capture_method: dataset_export_plus_linked_primary_source
+  thread_capture_status: partial_unavailable
+  bundled_self_posts: null
+  self_replies_inspected: false
+  other_authors_excluded: null
+  selected_artifact:
+    type: paper
+    canonical_url: https://arxiv.org/abs/2604.03128
+    full_text_used: https://arxiv.org/html/2604.03128
+  retained_binary_artifacts: []
+  note: The exported root post was truncated and author self-replies were unavailable; the paper was processed independently and no image analysis was used.
+
+knowledge:
+  artifact:
+    title: Self-Distilled RLVR
+    short_name: RLSD
+    kind: paper
+    version: arXiv:2604.03128v2
+    published_at: '2026-04-03'
+    authors: [Chenxu Yang, Chuanyu Qin, Qingyi Si, Minghui Chen, Naibin Gu, Dingyu Yao, Zheng Lin, Weiping Wang, Jiaqi Wang, Nan Duan]
+    maturity: work_in_progress_preprint
+
+  concise_idea: >-
+    Use a privileged self-teacher only to scale each token's update magnitude while preserving the verifier-derived RLVR reward as the update direction, producing finer credit without directly imitating privileged outputs.
+  problem_addressed: >-
+    Standard GRPO broadcasts one sequence-level advantage to every token, while naive on-policy self-distillation can leak inaccessible reference information and destabilize training.
+  method:
+    - Generate on-policy trajectories and score their final outcomes with a verifier.
+    - Run the same model with a ground-truth answer as privileged context to estimate token-level evidence ratios.
+    - Use the environment advantage to determine positive or negative update direction.
+    - Clip and apply the evidence ratio only as a stop-gradient multiplier on update magnitude.
+  capabilities:
+    - Token-differentiated credit within an RLVR trajectory without a separate larger teacher.
+    - Compatibility as a replacement for uniform GRPO advantage in the studied setup.
+    - Environment-anchored update direction intended to avoid privileged-output imitation.
+  requirements:
+    - On-policy RLVR/GRPO training, verifiable outcomes, and ground-truth final answers.
+    - One additional self-teacher forward pass for token-level ratios.
+    - Careful clipping, teacher synchronization, and held-out leakage diagnostics.
+
+  evidence:
+    - claim: RLSD improved average multimodal reasoning accuracy over the base model and GRPO.
+      result: Average accuracy across five benchmarks was 56.18, versus 51.49 for the base model and 53.86 for GRPO.
+      context: Author-reported Qwen3-VL-8B-Instruct experiments.
+      source_location: https://arxiv.org/abs/2604.03128
+    - claim: RLSD provides denser credit while avoiding the collapse observed for naive self-distillation.
+      result: The paper reports sustained improvement over 200 steps, while OPSD peaked early and degraded with privileged-information leakage.
+      context: Limited work-in-progress experiments; not independent validation.
+      source_location: https://arxiv.org/abs/2604.03128
+
+  limitations:
+    - The current paper explicitly reports limited experiments centered on multimodal reasoning with one Qwen model family.
+    - It requires correct privileged answers and a reliable outcome verifier; noisy supervision can corrupt both direction and magnitude.
+    - The evidence-ratio interpretation becomes noisy when privileged conditioning is too long or model capacity is insufficient.
+    - An additional forward pass and large on-policy rollout workload increase training compute.
+
+  engineering_relevance:
+    applicability: Relevant when GRPO training on verifiable reasoning tasks is limited by uniform within-trajectory credit assignment.
+    not_a_fit_for: Open-ended tasks without reliable correctness labels, or teams unable to monitor reference leakage and training stability.
+    adoption_posture: experimental_candidate_not_default_recommendation
+
+  evidence_quality:
+    support_type: author_work_in_progress_preprint_with_theory_and_limited_experiments
+    independently_validated: false
+    confidence: medium
+
+  adoption_readiness:
+    implementation_available: null
+    license: null
+    compute_infrastructure:
+      training: {device: NVIDIA H200, count: 32, memory_per_device: 140 GB}
+      inference: {device: null, count: null, memory_per_device: null}
+    minimum_validation: >-
+      Reproduce GRPO and OPSD baselines, then compare accuracy, entropy, convergence, leakage prompts, verifier errors, and added forward-pass cost on the target model and task.
+
+source_reconciliation:
+  authoritative_source: https://arxiv.org/abs/2604.03128
+  issues:
+    - status: needs_review
+      social_statement: Letting the model teach itself with a privileged reference provides token-level credit beyond GRPO's uniform advantage.
+      source_statement: The paper finds direct privileged-teacher distribution matching unstable and leakage-prone; RLSD uses the teacher only for clipped update magnitude while the verifier fixes direction.
+      explanation: The idea is supported only with this crucial constraint; naive privileged self-distillation is a diagnosed failure mode, not the recommended method.
+
+graph_ready:
+  primary_entity: {id: method:rlsd, name: Self-Distilled RLVR, type: paper}
+  topics: [reinforcement_learning, rlvr, token_credit_assignment, self_distillation]
+  relations:
+    - {subject: method:rlsd, predicate: extends, object: method:grpo}
+    - {subject: method:rlsd, predicate: derives_direction_from, object: signal:environment-reward}
+    - {subject: method:rlsd, predicate: derives_magnitude_from, object: signal:privileged-evidence-ratio}

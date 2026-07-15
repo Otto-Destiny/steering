@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Projects · STEERING{% endblock %}
+{% block content %}
+  <header class="page-heading"><p class="eyebrow">Project memory</p><h1>Projects</h1><p>Keep architecture decisions and experiment outcomes attached to the work they informed.</p></header>
+  <section class="two-column">
+    <div class="card-list">{% for project in projects %}<article class="card"><h2><a href="/projects/{{ project.id }}">{{ project.name }}</a></h2><p>{{ project.description or 'No description yet.' }}</p><p class="meta">{{ project.constraints|join(', ') }}</p></article>{% else %}<div class="empty"><p>No projects yet.</p></div>{% endfor %}</div>
+    <form class="panel form-stack" method="post" action="/projects"><h2>Create project</h2><label>Name <input name="name" required maxlength="300"></label><label>Description <textarea name="description" rows="3" maxlength="10000"></textarea></label><label>Constraints <span class="hint">one per line</span><textarea name="constraints" rows="4"></textarea></label><button class="button primary" type="submit">Create project</button></form>
+  </section>
+{% endblock %}

@@ -3,3 +3,56 @@ PLAN.md
 conversations.md
 title.md
 IMPROVEMENT_IDEAS.md
+mystory.md
+
+# Raw private Telegram exports
+evaluate/ChatExport_*/
+evaluate/chat_export.json
+
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# Local browser sessions and transient capture state
+evaluate/.browser-profile/
+evaluate/.capture-status.json
+evaluate/.work/
+
+# Python caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.tox/
+.nox/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Environments and builds
+.venv/
+dist/
+build/
+*.egg-info/
+pip-wheel-metadata/
+
+# Local application state
+.work/
+.steering/
+*.lbug
+*.lbug.wal
+*.lbug.lock
+browser-profile/
+playwright-report/
+test-results/
+*.log
+
+# Editors and operating systems
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

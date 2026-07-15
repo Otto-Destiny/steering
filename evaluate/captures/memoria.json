@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "candidate_id": "memoria",
+  "capture_method": "logged_in_visible_playwright",
+  "root_url": "https://x.com/DanKornas/status/2073056611770228927",
+  "root_author_handle": "DanKornas",
+  "root_post_id": "2073056611770228927",
+  "capture_policy": {
+    "self_replies_bundled": true,
+    "other_authors_excluded": true,
+    "media_downloaded": false,
+    "documents_downloaded": false
+  },
+  "thread": {
+    "post_count": 3,
+    "posts": [
+      {
+        "post_id": "2073056611770228927",
+        "handle": "DanKornas",
+        "status_url": "https://x.com/DanKornas/status/2073056611770228927",
+        "posted_at": "2026-07-03T14:49:46.000Z",
+        "author_label": "Dan Kornas\n@DanKornas",
+        "text": "AI agent memory needs a rollback button.\n\nMemoria is a persistent memory layer for AI agents that brings Git-style version control to long-term memory.\n\nIt helps you make agent memory safer to change by tracking every memory mutation through snapshots, branches, merges, audit trails, and point-in-time rollback, backed by MatrixOne’s Copy-on-Write engine.\n\nKey features:\n\n• Git-style memory versioning – snapshot, branch, merge, and roll back memory changes instead of treating memory as an append-only blob\n• Hybrid retrieval – combines vector and full-text search so agents can find memories by meaning and keywords\n• Self-governing memory – detects contradictions, quarantines low-confidence memories, and keeps provenance trails\n• Private deployment options – use Memoria Cloud or self-host with Docker, with a local embedding option for keeping data on your machine\n• MCP-compatible setup – works with agent tools like Cursor, Claude Code, Codex, Gemini CLI, Kiro, and OpenClaw\n\nIt’s open-source under the Apache License 2.0.\n\nLink in the reply",
+        "media": [
+          {
+            "url": "https://pbs.twimg.com/media/HMT5_2MXoAAFhwC?format=jpg&name=360x360",
+            "alt": "Image"
+          }
+        ]
+      },
+      {
+        "post_id": "2073056767009845274",
+        "handle": "DanKornas",
+        "status_url": "https://x.com/DanKornas/status/2073056767009845274",
+        "posted_at": "2026-07-03T14:50:23.000Z",
+        "author_label": "Dan Kornas\n@DanKornas\n·\nJul 3",
+        "text": "GitHub: \nhttps://\ngithub.com/matrixorigin/M\nemoria\n…\n---\n If you’re into AI, ML, agents, and building real systems, join my newsletter (it’s free): \nhttp://\ndankornas.substack.com",
+        "media": []
+      },
+      {
+        "post_id": "2073299651998982590",
+        "handle": "DanKornas",
+        "status_url": "https://x.com/DanKornas/status/2073299651998982590",
+        "posted_at": "2026-07-04T06:55:31.000Z",
+        "author_label": "Dan Kornas\n@DanKornas\n·\nJul 4",
+        "text": "Yes. The audit trail is the part I’d want before trusting this in a real agent.\n\nWithout source + revert, one bad memory just becomes hidden state.",
+        "media": []
+      }
+    ]
+  },
+  "source_selection": {
+    "selected_source": {
+      "url": "https://github.com/matrixorigin/Memoria",
+      "artifact_type": "repository",
+      "found_in_post_id": "2073056767009845274",
+      "link_text": "https://\ngithub.com/matrixorigin/M\nemoria\n…"
+    },
+    "ranked_sources": [
+      {
+        "url": "https://github.com/matrixorigin/Memoria",
+        "artifact_type": "repository",
+        "found_in_post_id": "2073056767009845274",
+        "link_text": "https://\ngithub.com/matrixorigin/M\nemoria\n…"
+      },
+      {
+        "url": "http://dankornas.substack.com",
+        "artifact_type": "author_explanation",
+        "found_in_post_id": "2073056767009845274",
+        "link_text": "http://\ndankornas.substack.com"
+      }
+    ]
+  }
+}

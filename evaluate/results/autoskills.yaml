@@ -1,0 +1,92 @@
+schema_version: 1
+candidate_id: autoskills
+evaluation_status: ready_for_human_review_with_partial_social_capture
+
+ingestion:
+  social_source: https://x.com/tom_doerr/status/2075889282145751269
+  capture_method: dataset_export_plus_direct_primary_link
+  thread_capture_status: partial_unavailable
+  bundled_self_posts: null
+  self_replies_inspected: false
+  other_authors_excluded: null
+  selected_artifact:
+    type: repository
+    canonical_url: https://github.com/midudev/autoskills
+    full_text_used: repository_readme
+  retained_binary_artifacts: []
+  note: The root post directly linked the official repository; author self-replies were unavailable and the image was unnecessary.
+
+knowledge:
+  artifact:
+    title: autoskills
+    short_name: autoskills
+    kind: open_source_tool
+    version: null
+    published_at: null
+    authors: [midudev]
+    maturity: active_open_source_cli
+
+  concise_idea: >-
+    A zero-config CLI that detects a project's technologies and installs matching agent-skill files from a maintainer-curated, hash-verified registry.
+  problem_addressed: >-
+    Developers otherwise have to discover, assess, and install relevant agent skills manually for every project's technology stack.
+  method:
+    - Scan package manifests, Gradle files, and configuration files for supported technologies.
+    - Match detected technologies against a repository-local audited skill registry.
+    - Download only selected skill bundles and verify their SHA-256 hashes.
+    - Write installed-source and bundle-hash records to skills-lock.json.
+  capabilities:
+    - Automatic selection across documented frontend, backend, mobile, cloud, testing, and AI stacks.
+    - Dry-run and confirmation-free modes.
+    - Registry-based prompt-injection and supply-chain screening with integrity verification.
+  requirements:
+    - Node.js 22 or newer.
+    - A project whose stack can be inferred from supported manifests and configuration files.
+    - Human review of installed instructions before granting an agent sensitive permissions.
+
+  evidence:
+    - claim: One command detects a project stack and installs matched skills.
+      result: The README documents npx autoskills, manifest/config scanning, registry matching, selective download, and local installation.
+      context: Official repository behavior description.
+      source_location: https://github.com/midudev/autoskills
+    - claim: Runtime installation avoids arbitrary upstream repositories.
+      result: Skills are maintained in a local registry, scanned, recorded by SHA-256, verified on download, and locked with provenance metadata.
+      context: Maintainer-documented security design, not an independent audit guarantee.
+      source_location: https://github.com/midudev/autoskills
+
+  limitations:
+    - Stack detection is limited to recognized files and technologies and can miss custom or ambiguous project structure.
+    - Registry curation and scanning reduce risk but do not prove that an instruction is correct, current, or safe for a specific repository.
+    - Hash verification protects integrity after curation; it does not make the curated source inherently trustworthy.
+    - The CC BY-NC 4.0 license restricts commercial use unless separate permission is obtained.
+
+  engineering_relevance:
+    applicability: Useful for quickly bootstrapping project-specific agent guidance when the detected stack is covered by the registry.
+    not_a_fit_for: Commercial use without licensing clearance, unsupported stacks, or security-sensitive repositories requiring manually approved instructions only.
+    adoption_posture: experimental_candidate_not_default_recommendation
+
+  evidence_quality:
+    support_type: official_repository_with_documented_security_controls
+    independently_validated: false
+    confidence: medium
+
+  adoption_readiness:
+    implementation_available: true
+    license: CC-BY-NC-4.0
+    compute_infrastructure:
+      training: {device: null, count: null, memory_per_device: null}
+      inference: {device: null, count: null, memory_per_device: null}
+    minimum_validation: >-
+      Run dry-run first, review every proposed skill and its permissions, verify the lockfile and hashes, test stack-detection edge cases, and resolve commercial-license compatibility.
+
+source_reconciliation:
+  authoritative_source: https://github.com/midudev/autoskills
+  issues: []
+
+graph_ready:
+  primary_entity: {id: tool:autoskills, name: autoskills, type: open_source_tool}
+  topics: [agent_skills, developer_tooling, stack_detection, supply_chain_security]
+  relations:
+    - {subject: tool:autoskills, predicate: detects, object: concept:project-technology-stack}
+    - {subject: tool:autoskills, predicate: installs, object: artifact:agent-skill}
+    - {subject: tool:autoskills, predicate: verifies_with, object: mechanism:sha256-manifest}

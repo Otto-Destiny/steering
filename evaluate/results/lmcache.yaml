@@ -1,0 +1,103 @@
+schema_version: 1
+candidate_id: lmcache
+evaluation_status: ready_for_human_review
+
+ingestion:
+  social_source: https://www.linkedin.com/posts/akshay-pachaar_14x-faster-and-90-cheaper-llm-inference-activity-7480336695922475009-8Jp4
+  capture_method: linkedin_public_metadata_from_telegram_export
+  bundled_self_posts: 1
+  other_authors_excluded: null
+  selected_artifact:
+    type: repository
+    canonical_url: https://github.com/LMCache/LMCache
+    full_text_used: https://github.com/LMCache/LMCache#readme
+  retained_binary_artifacts: []
+  note: LinkedIn comments were unavailable; the official project repository was identified directly. Images were unnecessary.
+
+knowledge:
+  artifact:
+    title: LMCache
+    short_name: LMCache
+    kind: open_source_kv_cache_management_layer
+    version: v0.5.1
+    published_at: '2026-07-06'
+    authors: [LMCache contributors]
+    maturity: released_with_production_deployment_documentation
+  concise_idea: >-
+    Decouple KV-cache lifetime from one inference-engine process and reuse cached model states across
+    requests, sessions, and engines through tiered GPU, CPU, local, and remote storage.
+  problem_addressed: >-
+    Repeated prefill of long shared prefixes or RAG documents wastes accelerator compute and increases
+    time to first token, while engine-local KV cache is lost on eviction, restart, or scale-out.
+  method:
+    - Run cache management independently of the inference engine.
+    - Offload and retrieve KV blocks through a tiered storage hierarchy and pluggable transfer backends.
+    - Reuse exact prefixes or apply CacheBlend selective recomputation for non-prefix reuse.
+    - Expose cache-hit, lifecycle, health, performance, and user-level observability metrics.
+  capabilities:
+    - Persistent reuse across requests, sessions, engine instances, and engine restarts.
+    - CPU RAM, SSD, Redis/Valkey, Mooncake, InfiniStore, S3-compatible, NIXL, and GDS backends.
+    - Prefill/decode disaggregation and KV transfer over NVLink, RDMA, or TCP.
+    - Pluggable compression, token dropping, and serialization transformations.
+  requirements:
+    - A supported LLM serving engine and sufficient cache-hit reuse in the workload.
+    - Storage and transport sized for KV volume, bandwidth, latency, and retention needs.
+    - Cache observability, eviction policy, and correctness validation for model/config changes.
+  evidence:
+    - claim: LMCache avoids repeated prefill work by persisting and reusing KV states.
+      result: The official repository documents tiered offload and reuse across requests, sessions, and engine instances.
+      context: Maintainer-documented architecture and implementation.
+      source_location: Official repository README, About and Key features
+    - claim: It can reuse non-prefix document states.
+      result: CacheBlend selectively recomputes tokens to recover quality when cached blocks occur at other prompt positions.
+      context: Maintainer documentation referencing the published CacheBlend system.
+      source_location: Official repository README, Key features
+  limitations:
+    - Benefit depends on cache-hit rate, shared content, prefix length, transfer bandwidth, and storage latency.
+    - KV artifacts are model-, layer-, and configuration-specific and require careful invalidation.
+    - A separate cache daemon and tiered backends add capacity planning, observability, security, and failure modes.
+    - Non-prefix reuse may require recomputation to recover quality rather than producing a free exact hit.
+    - The selected README does not substantiate the social post's universal 14x speed or 90% cost-reduction headline.
+  engineering_relevance:
+    applicability: >-
+      Strong candidate for high-volume long-context, agentic, multi-turn, and RAG serving where many
+      requests reuse substantial content and TTFT is constrained by prefill.
+    not_a_fit_for: >-
+      Less compelling for short, mostly unique prompts, low request volume, or deployments where KV
+      transfer and storage cost exceed saved prefill compute.
+    adoption_posture: production_oriented_candidate_requires_trace_driven_benchmark
+  evidence_quality:
+    support_type: official_repository_and_maintainer_documentation
+    independently_validated: false
+    confidence: medium
+  adoption_readiness:
+    implementation_available: true
+    license: Apache-2.0
+    compute_infrastructure:
+      training: {device: null, count: null, memory_per_device: null}
+      inference:
+        device: GPU_with_optional_CPU_and_storage_tiers
+        count: null
+        memory_per_device: null
+    minimum_validation: Replay production prompt traces and measure hit rate, TTFT, throughput, answer quality, cache traffic, storage use, and total cost against engine-native caching.
+
+source_reconciliation:
+  authoritative_source: https://github.com/LMCache/LMCache
+  issues:
+    - status: needs_review
+      social_statement: LMCache makes inference 14x faster and 90% cheaper.
+      source_statement: The official README describes workload-dependent TTFT and throughput improvements but does not present those figures as general guarantees.
+      explanation: Preserve the headline only as a benchmark-specific social claim until its exact model, workload, baseline, and cost accounting are verified.
+    - status: needs_review
+      social_statement: One GPU discards roughly 15 TB of reusable cache per day.
+      source_statement: The selected official README does not provide this figure.
+      explanation: Do not store the number as established evidence without its primary benchmark source.
+
+graph_ready:
+  primary_entity: {id: "tool:lmcache", name: LMCache, type: tool}
+  topics: [inference_optimization, kv_cache, latency, cost_optimization]
+  relations:
+    - {subject: "tool:lmcache", predicate: persists, object: "artifact:kv_cache"}
+    - {subject: "tool:lmcache", predicate: reduces, object: "operation:repeated_prefill"}
+    - {subject: "tool:lmcache", predicate: uses, object: "architecture:tiered_cache_storage"}
+    - {subject: "tool:lmcache", predicate: supports, object: "technique:cacheblend"}

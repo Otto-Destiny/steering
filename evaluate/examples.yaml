@@ -1,0 +1,2117 @@
+schema_version: 1
+dataset_status: preprocessed_provisional
+purpose: Seed corpus for STEERING ingestion, graph construction, retrieval, and architecture-recall evaluation.
+important_limitations:
+- Gold expectations still require human validation before scoring model output.
+- Public X oEmbed and LinkedIn metadata do not include complete comment threads.
+- Recency and repetition are not evidence of quality.
+summary:
+  cases: 51
+  source_candidates: 61
+cases:
+- id: latent-test-time-compute
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - reasoning
+  - test_time_compute
+  - latent_reasoning
+  - inference_cost
+  sources:
+  - candidate_id: candidate-001
+    url: https://x.com/i/status/2071726309214925206
+    canonical_url: https://x.com/che_shr_cat/status/2071726309214925206
+    platform: x
+    author: Grigory Sapunov
+    title: 1/ A 5M-parameter model just beat frontier LLMs on hard logical puzzles at less than 1/100,000th of the inference
+      cost. How? By scaling test-time compute in con
+    text: 1/ A 5M-parameter model just beat frontier LLMs on hard logical puzzles at less than 1/100,000th of the inference
+      cost. How? By scaling test-time compute in continuous latent space rather than discrete token space. Let's unpack how
+      this works. 🧵 pic.twitter.com/fYZIyEFqpI
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '30837'
+    saved_at:
+    - '2026-07-01T09:21:59'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: agent-native-memory
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - agent_memory
+  - memory_lifecycle
+  - long_running_agents
+  sources:
+  - candidate_id: candidate-002
+    url: https://x.com/i/status/2072401658102100306
+    canonical_url: https://x.com/akshay_pachaar/status/2072401658102100306
+    platform: x
+    author: Akshay 🚀
+    title: Are We Ready For An Agent-Native Memory System? First, what does that even mean? It's memory built for an agent
+      that keeps running, not a store you bolt on at t
+    text: Are We Ready For An Agent-Native Memory System? First, what does that even mean? It's memory built for an agent
+      that keeps running, not a store you bolt on at the end. It has to hold facts across sessions, update them when they
+      change, drop the stale ones, and hand back the… https://t.co/GYKJVQHi5S pic.twitter.com/wvA0Bb38Jq
+    discovered_urls:
+    - https://x.com/akshay_pachaar/status/2058976178908885210
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '30865'
+    saved_at:
+    - '2026-07-02T04:28:22'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: agentic-webgpu-kernels
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - inference_optimization
+  - kernel_generation
+  - webgpu
+  - on_device_ai
+  sources:
+  - candidate_id: candidate-004
+    url: https://x.com/i/status/2072416614188974274
+    canonical_url: https://x.com/googlegemma/status/2072416614188974274
+    platform: x
+    author: Google Gemma
+    title: “Agentic kernel optimization is the future of on-device inference” @xenovacom used Fable 5 to write kernels that
+      pushed Gemma 4 to a massive 255 tok/s on WebGPU
+    text: “Agentic kernel optimization is the future of on-device inference” @xenovacom used Fable 5 to write kernels that
+      pushed Gemma 4 to a massive 255 tok/s on WebGPU with M4. He shared the demo, so you can try in your browser!! pic.twitter.com/xPuh5OLGEt
+    discovered_urls:
+    - https://x.com/xenovacom?ref_src=twsrc%5Etfw
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '30867'
+    saved_at:
+    - '2026-07-02T10:24:30'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: leanrag
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - rag
+  - knowledge_graphs
+  - hierarchical_retrieval
+  sources:
+  - candidate_id: candidate-005
+    url: https://x.com/i/status/2072580759970259208
+    canonical_url: https://x.com/DanKornas/status/2072580759970259208
+    platform: x
+    author: Dan Kornas
+    title: Your RAG pipeline doesn’t need to retrieve the same evidence twice. LeanRAG is an open-source RAG framework that
+      uses knowledge graphs, semantic aggregation, an
+    text: Your RAG pipeline doesn’t need to retrieve the same evidence twice. LeanRAG is an open-source RAG framework that
+      uses knowledge graphs, semantic aggregation, and hierarchical retrieval to generate grounded answers from structured
+      evidence. It helps you build less redundant… pic.twitter.com/MH50xiBkhf
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '30868'
+    saved_at:
+    - '2026-07-02T10:35:09'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: automem
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - agent_memory
+  - trainable_memory
+  - metamemory
+  sources:
+  - candidate_id: candidate-007
+    url: https://x.com/i/status/2072716688483831885
+    canonical_url: https://x.com/omarsar0/status/2072716688483831885
+    platform: x
+    author: elvis
+    title: '// AutoMem // I quite like this idea of metamemory. (bookmark it) This new research from Stanford treats agent''s
+      memory management as a trainable skill instead '
+    text: // AutoMem // I quite like this idea of metamemory. (bookmark it) This new research from Stanford treats agent's
+      memory management as a trainable skill instead of a fixed module. The model decides what to encode, when to retrieve,
+      and how to organize its own notes, with… pic.twitter.com/0Ee7wqzgwF
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '30900'
+    saved_at:
+    - '2026-07-02T19:41:50'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: memoria
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - agent_memory
+  - version_control
+  - rollback
+  - auditability
+  sources:
+  - candidate_id: candidate-011
+    url: https://x.com/i/status/2073056611770228927
+    canonical_url: https://x.com/DanKornas/status/2073056611770228927
+    platform: x
+    author: Dan Kornas
+    title: 'AI agent memory needs a rollback button. Memoria is a persistent memory layer for AI agents that brings Git-style
+      version control to long-term memory. It helps '
+    text: AI agent memory needs a rollback button. Memoria is a persistent memory layer for AI agents that brings Git-style
+      version control to long-term memory. It helps you make agent memory safer to change by tracking every memory mutation
+      through snapshots, branches, merges, audit… pic.twitter.com/yvDnPVZ9DR
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '30916'
+    saved_at:
+    - '2026-07-03T19:57:04'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: local-cpu-tts
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - text_to_speech
+  - local_inference
+  - cpu_inference
+  - voice_cloning
+  sources:
+  - candidate_id: candidate-014
+    url: https://x.com/i/status/2074139543289348234
+    canonical_url: https://x.com/DataChaz/status/2074139543289348234
+    platform: x
+    author: Charly Wargnier
+    title: ANOTHER MASSIVE WIN FOR LOCAL AI 🚀 ICYMI @kyutai_labs quietly dropped a super lightweight Text-to-Speech application
+      designed to run efficiently on CPUs. Only 1
+    text: ANOTHER MASSIVE WIN FOR LOCAL AI 🚀 ICYMI @kyutai_labs quietly dropped a super lightweight Text-to-Speech application
+      designed to run efficiently on CPUs. Only 100M parameters. No GPU needed. Zero API fees 🤯 It completely bypasses the
+      usual token-transformer bottlenecks to… pic.twitter.com/yQfKBi4p2G
+    discovered_urls:
+    - https://x.com/kyutai_labs?ref_src=twsrc%5Etfw
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31021'
+    saved_at:
+    - '2026-07-06T17:42:21'
+  - candidate_id: candidate-067
+    url: https://www.linkedin.com/posts/usmanyousaaf_another-massive-win-for-local-ai-a-super-share-7480604610727051264-jQNS
+    canonical_url: https://www.linkedin.com/posts/usmanyousaaf_another-massive-win-for-local-ai-a-super-activity-7480604611892969472-OjlG
+    platform: linkedin
+    author: null
+    title: Lightweight Text-to-Speech Application for CPUs | Usman Yousaf posted on the topic | LinkedIn
+    text: 'ANOTHER MASSIVE WIN FOR LOCAL AI A super lightweight Text-to-Speech application designed to run efficiently on
+      CPUs. Only 100M parameters. No GPU needed. Zero API fees It completely bypasses the usual token-transformer bottlenecks
+      to deliver wildly fast performance: → 6x faster than real-time on a Mac → ~200ms latency to the first audio chunk →
+      Voice cloning from just 5 seconds of audio → 6 languages out of the box Best of all? It''s 100% free and open-source.
+      Repo in :https://lnkd.in/dVx_KHcw'
+    discovered_urls:
+    - https://lnkd.in/dVx_KHcw
+    resolution_status: resolved
+    resolution_note: LinkedIn public metadata; comments were not inspected.
+    telegram_message_ids:
+    - '31159'
+    saved_at:
+    - '2026-07-11T08:10:18'
+  link_audit:
+    status: public_outbound_link_found
+    comments_inspected: false
+    public_outbound_urls:
+    - https://lnkd.in/dVx_KHcw
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: tencentdb-agent-memory
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - agent_memory
+  - local_first
+  - token_efficiency
+  sources:
+  - candidate_id: candidate-016
+    url: https://x.com/i/status/2074122800961614184
+    canonical_url: https://x.com/HowToPrompt__/status/2074122800961614184
+    platform: x
+    author: How To Prompt
+    title: China has killed the entire vector database industry. They open-sourced TencentDB Agent Memory. It gives any AI
+      agent long-term memory that runs 100% locally. N
+    text: 'China has killed the entire vector database industry. They open-sourced TencentDB Agent Memory. It gives any AI
+      agent long-term memory that runs 100% locally. No Pinecone. No cloud APIs. No repeating yourself every session. - 61%
+      fewer tokens - PersonaMem accuracy: 48% → 76%… pic.twitter.com/F2ZLOFwn24'
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31023'
+    saved_at:
+    - '2026-07-06T17:53:26'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: understand-anything
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - code_intelligence
+  - knowledge_graphs
+  - multi_agent_systems
+  sources:
+  - candidate_id: candidate-017
+    url: https://x.com/i/status/2074084604097765643
+    canonical_url: https://x.com/DAIEvolutionHub/status/2074084604097765643
+    platform: x
+    author: Kshitij Mishra | AI & Tech
+    title: Someone built a tool that turns any codebase into an interactive knowledge graph you can explore, search, and ask
+      questions about. It's called Understand Anythi
+    text: Someone built a tool that turns any codebase into an interactive knowledge graph you can explore, search, and ask
+      questions about. It's called Understand Anything. Here's what actually happens when you run it => Six agents analyze
+      your project in parallel. A knowledge graph… pic.twitter.com/WuaJMWTAOa
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31024'
+    saved_at:
+    - '2026-07-06T17:59:02'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: tabfm
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - tabular_ml
+  - foundation_models
+  - zero_shot_learning
+  sources:
+  - candidate_id: candidate-019
+    url: https://x.com/i/status/2074063363634557262
+    canonical_url: https://x.com/ModelScope2022/status/2074063363634557262
+    platform: x
+    author: ModelScope
+    title: TabFM is here for zero-shot tabular prediction. 📊 🔗 https://t.co/Lu9j2aYNkG 🏆 On TabArena, it was evaluated across
+      51 datasets and beats heavily tuned supervise
+    text: 'TabFM is here for zero-shot tabular prediction. 📊 🔗 https://t.co/Lu9j2aYNkG 🏆 On TabArena, it was evaluated across
+      51 datasets and beats heavily tuned supervised baselines, including gradient-boosted trees, without task-specific fine-tuning.
+      What it does: • Classification… pic.twitter.com/4xpK74yKKZ'
+    discovered_urls:
+    - https://modelscope.ai/models/google/tabfm-1.0.0-pytorch
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31026'
+    saved_at:
+    - '2026-07-06T18:08:40'
+  link_audit:
+    status: public_outbound_link_found
+    comments_inspected: false
+    public_outbound_urls:
+    - https://modelscope.ai/models/google/tabfm-1.0.0-pytorch
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: justgrpo
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - reinforcement_learning
+  - post_training
+  - diffusion_models
+  - reasoning
+  sources:
+  - candidate_id: candidate-020
+    url: https://x.com/i/status/2074028265292075128
+    canonical_url: https://x.com/Chinazhidx/status/2074028265292075128
+    platform: x
+    author: 智东西China AI News
+    title: '🚨BREAKING: A paper by Tsinghua’s Huang Gao team and Alibaba Group wins #ICML2026 Outstanding Paper Award The paper
+      introduces JustGRPO, a minimalist algorithm a'
+    text: '🚨BREAKING: A paper by Tsinghua’s Huang Gao team and Alibaba Group wins #ICML2026 Outstanding Paper Award The paper
+      introduces JustGRPO, a minimalist algorithm achieving 89.1% accuracy on GSM8K math reasoning, while preserving parallel
+      decoding capability in diffusion models. pic.twitter.com/LfR9ZtvKf5'
+    discovered_urls:
+    - https://x.com/hashtag/ICML2026?src=hash&ref_src=twsrc%5Etfw
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31027'
+    saved_at:
+    - '2026-07-06T18:12:29'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: mineru-coreai
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - document_ai
+  - ocr
+  - on_device_ai
+  - structured_extraction
+  sources:
+  - candidate_id: candidate-022
+    url: https://x.com/i/status/2074052522088743381
+    canonical_url: https://x.com/JackdeS11/status/2074052522088743381
+    platform: x
+    author: MLBoy_DaisukeMajima
+    title: 'MinerU2.5-Pro (1.2B doc OCR) reading whole pages fully on-device on iPhone 17 Pro. Page photo → structured text:
+      headings, paragraphs, tables. Nothing leaves th'
+    text: 'MinerU2.5-Pro (1.2B doc OCR) reading whole pages fully on-device on iPhone 17 Pro. Page photo → structured text:
+      headings, paragraphs, tables. Nothing leaves the phone. Stock Qwen2-VL on Apple Core AI. Apache-2.0. 🤗 https://t.co/rUOpo7kcW6
+      📦 https://t.co/etaWWaaN0c pic.twitter.com/1GR70AchVk'
+    discovered_urls:
+    - https://huggingface.co/mlboydaisuke/MinerU2.5-Pro-CoreAI
+    - https://github.com/john-rocky/coreai-model-zoo
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31029'
+    saved_at:
+    - '2026-07-06T18:48:33'
+  link_audit:
+    status: public_outbound_link_found
+    comments_inspected: false
+    public_outbound_urls:
+    - https://huggingface.co/mlboydaisuke/MinerU2.5-Pro-CoreAI
+    - https://github.com/john-rocky/coreai-model-zoo
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: videorag
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - multimodal_rag
+  - video_retrieval
+  - long_context
+  sources:
+  - candidate_id: candidate-023
+    url: https://x.com/i/status/2073957036799177156
+    canonical_url: https://x.com/tom_doerr/status/2073957036799177156
+    platform: x
+    author: Tom Dörr
+    title: VideoRAG enables chatting with hundreds of hours of video https://t.co/M77iNH79v3 pic.twitter.com/ZaXq8r6MEQ
+    text: VideoRAG enables chatting with hundreds of hours of video https://t.co/M77iNH79v3 pic.twitter.com/ZaXq8r6MEQ
+    discovered_urls:
+    - https://github.com/HKUDS/VideoRAG
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31030'
+    saved_at:
+    - '2026-07-06T18:54:27'
+  link_audit:
+    status: public_outbound_link_found
+    comments_inspected: false
+    public_outbound_urls:
+    - https://github.com/HKUDS/VideoRAG
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: pixelrag
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - visual_retrieval
+  - rag
+  - web_content
+  - document_layout
+  sources:
+  - candidate_id: candidate-025
+    url: https://x.com/i/status/2074133351452336156
+    canonical_url: https://x.com/DAIEvolutionHub/status/2074133351452336156
+    platform: x
+    author: Kshitij Mishra | AI & Tech
+    title: WEB SCRAPING JUST GOT A SERIOUS UPGRADE. PixelRAG doesn't read HTML. It reads the page exactly like you do. 100%
+      open-source. Instead of parsing websites into p
+    text: WEB SCRAPING JUST GOT A SERIOUS UPGRADE. PixelRAG doesn't read HTML. It reads the page exactly like you do. 100%
+      open-source. Instead of parsing websites into plain text, it captures screenshots and lets a vision model retrieve answers
+      directly from the pixels. Why that's a… pic.twitter.com/RWbsRGjBIL
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31033'
+    saved_at:
+    - '2026-07-07T15:34:04'
+  - candidate_id: candidate-069
+    url: https://www.linkedin.com/posts/sarthakrastogi_aiagents-llms-ai-share-7479321397568188416-VHwc
+    canonical_url: https://www.linkedin.com/posts/sarthakrastogi_aiagents-llms-ai-activity-7480055493156139008-Jc0N
+    platform: linkedin
+    author: null
+    title: '#aiagents #llms #ai | Sarthak Rastogi'
+    text: 'This RAG framework is more accurate any other on web data -- because it never reads text. Here''s why (and how
+      to use it) -- Most RAG systems convert documents into plain text before indexing them. That works well... until the
+      answer depends on the document''s layout. Think about tables, charts, diagrams, dashboards, PDFs, presentations, or
+      complex web pages. Flattening everything into text often removes the very information the model needs. A recent open-source
+      project by University of California, Berkeley called PixelRAG takes a different approach. Instead of embedding text,
+      it first renders every page as screenshots, then creates embeddings directly from those images using a vision-language
+      embedding model. They tested it on Wikipedia data (8.28M pages) with a Qwen3-VL embedding model fine-tuned on screenshots.
+      It beats text pipelines by 18.1%, performing better on even text-only benchmarks And because it''s operating directly
+      on images, it also cuts token cost ~3x through visual compression! During retrieval, the system finds the most relevant
+      image tiles, and the VLM reads them just like a human would. This approach preserves visual structure that traditional
+      parsing usually discards. Tables remain tables, charts stay intact, and spatial relationships between elements are retained,
+      making retrieval much more reliable for visually rich documents. It''s an interesting reminder that better RAG isn''t
+      always about larger context windows or smarter chunking. Sometimes the problem is the representation itself. If your
+      knowledge base contains PDFs, reports, dashboards, manuals, presentations, or web pages with complex layouts, pixel-based
+      retrieval is worth exploring. Truly amazing work by Yichuan Wang and team. ♻️ Share it with anyone building RAG systems
+      :) I share tutorials on how to build + improve AI apps and agents, on my newsletter 𝑨𝑰 𝑨𝒈𝒆𝒏𝒕 𝑬𝒏𝒈𝒊𝒏𝒆𝒆𝒓𝒊𝒏𝒈: https://lnkd.in/gaJTcZBR
+      Link to repo: https://lnkd.in/erdQauZU #AIAgents #LLMs #AI'
+    discovered_urls:
+    - https://lnkd.in/gaJTcZBR
+    - https://lnkd.in/erdQauZU
+    resolution_status: resolved
+    resolution_note: LinkedIn public metadata; comments were not inspected.
+    telegram_message_ids:
+    - '31161'
+    saved_at:
+    - '2026-07-11T08:36:21'
+  link_audit:
+    status: public_outbound_link_found
+    comments_inspected: false
+    public_outbound_urls:
+    - https://lnkd.in/gaJTcZBR
+    - https://lnkd.in/erdQauZU
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: zvec
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - vector_database
+  - embedded_database
+  - local_first
+  - retrieval
+  sources:
+  - candidate_id: candidate-026
+    url: https://x.com/i/status/2074144130419065313
+    canonical_url: https://x.com/EngMoElgaraihy/status/2074144130419065313
+    platform: x
+    author: Mo Elgaraihy
+    title: علي بابا بتضرب نار في الـ Vector Databases وتطلق مشروع رسمي هيدمر فواتير الـ RAG والـ Cloud للأبد! رحبوا بـ Zvec
+      البديل المرعب الحين! 🤯🇨🇳⚡ ​العملاق الصيني Aliba
+    text: 'علي بابا بتضرب نار في الـ Vector Databases وتطلق مشروع رسمي هيدمر فواتير الـ RAG والـ Cloud للأبد! رحبوا بـ Zvec
+      البديل المرعب الحين! 🤯🇨🇳⚡ ​العملاق الصيني Alibaba نزل بمشروع مفتوح المصدر بالكامل (Apache 2.0) على GitHub عشان ينهي
+      كابوس البنية التحتية المعقدة للمطورين: ​✅ بدون… pic.twitter.com/KZKj56eikg'
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31034'
+    saved_at:
+    - '2026-07-07T15:34:50'
+  - candidate_id: candidate-082
+    url: https://x.com/i/status/2076237784432390159
+    canonical_url: https://x.com/smratitiwa86867/status/2076237784432390159
+    platform: x
+    author: smrati tiwari
+    title: 🚨 Alibaba just open-sourced a vector database that's built for modern AI apps. It's called Zvec. No complex setup.
+      No database servers. No Docker containers. Ju
+    text: '🚨 Alibaba just open-sourced a vector database that''s built for modern AI apps. It''s called Zvec. No complex setup.
+      No database servers. No Docker containers. Just: "pip install zvec" And you''re ready to build. Why developers are paying
+      attention: • Dense, sparse, and… pic.twitter.com/isVLwmC2Iv'
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31221'
+    saved_at:
+    - '2026-07-12T15:27:26'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: antidoom
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - post_training
+  - reasoning
+  - repetition_control
+  - preference_optimization
+  sources:
+  - candidate_id: candidate-027
+    url: https://www.linkedin.com/posts/today-we-release-antidoom-an-open-source-share-7480259901857128449-Emae
+    canonical_url: https://www.linkedin.com/posts/liquid-ai-inc_today-we-release-antidoom-an-open-source-activity-7480259904096784385-tRby
+    platform: linkedin
+    author: null
+    title: 'Antidoom: Open-Source Method to Remove Doom Loops in Reasoning Models | Liquid AI posted on the topic | LinkedIn'
+    text: 'Today, we release Antidoom, an open-source method that removes a common failure mode in reasoning models: the doom
+      loop. A doom loop happens when a model emits a span, then repeats it again and again until the context window runs out.
+      Small reasoning models hit it most on long thinking traces and hard math and coding problems. The usual fixes are stopgaps.
+      Applying repetition_penalty reweights the entire output distribution and can degrade performance. Reinforcement learning
+      can target repetitive looping, but it needs carefully calibrated rewards and costly online rollouts. Our method takes
+      a more targeted approach. We find the exact token that begins a loop, train the model to prefer coherent alternatives
+      at that one position, and leave the rest of the distribution largely intact. The loop almost always starts on a single
+      overtrained token, and in reasoning traces, those are usually interruptives the model has learned to overproduce: "Wait,"
+      "So," "Alternatively." Antidoom retrains that first token. It runs on Final Token Preference Optimization (FTPO), a
+      preference-optimization algorithm in the DPO family, built to move a handful of tokens with minimal disturbance to the
+      model otherwise: > Trains only the trailing token of a sequence, mid-generation > Spreads probability across multiple
+      chosen tokens, so it doesn''t just replace one overtrained token with another > Uses a KL-like loss in logit space,
+      so training doesn''t disturb the rest of the vocabulary The training teaches the model nothing new about math or code.
+      It clears the looping that blocked answers the model could already produce. > Early LFM2.5-2.6B checkpoint: doom-loop
+      rate fell from 10.2% to 1.4% > Qwen3.5-4B: fell from 22.9% to 1% under greedy sampling > Eval scores rose across the
+      board in both cases, attributable entirely to the drop in looping The whole pipeline runs in a few hours. For a 2-4B
+      model, generating the training set takes about two hours on 8 H100s, and training takes one to two hours on a single
+      H100. If your small reasoning models loop on hard prompts, Antidoom recovers the accuracy those loops were costing you.
+      Generation, detection, and the FTPO trainer are all open source.'
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: LinkedIn public metadata; comments were not inspected.
+    telegram_message_ids:
+    - '31035'
+    saved_at:
+    - '2026-07-07T16:47:51'
+  - candidate_id: candidate-028
+    url: https://www.liquid.ai/blog/antidoom
+    canonical_url: https://www.liquid.ai/blog/antidoom
+    platform: web
+    author: null
+    title: Reducing Doom Loops with Final Token Preference Optimization — Blog
+    text: Antidoom uses Final Token Preference Optimization to cut doom-loop rates in reasoning models by up to 90%, with
+      minimal disruption to model behavior.
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: Public page metadata.
+    telegram_message_ids:
+    - '31036'
+    saved_at:
+    - '2026-07-07T16:51:46'
+  - candidate_id: candidate-029
+    url: https://x.com/i/status/2074495376204210388
+    canonical_url: https://x.com/maximelabonne/status/2074495376204210388
+    platform: x
+    author: Maxime Labonne
+    title: New training technique to reduce doom loops! We applied it to LFM2.5-2.6B (SFT checkpoint) Qwen3.5-4B. By reducing
+      doom loops, it also improves downstream evals
+    text: New training technique to reduce doom loops! We applied it to LFM2.5-2.6B (SFT checkpoint) Qwen3.5-4B. By reducing
+      doom loops, it also improves downstream evals. We open-source the training code and training dataset on @huggingface
+      https://t.co/7MKxD4sYIZ
+    discovered_urls:
+    - https://x.com/huggingface?ref_src=twsrc%5Etfw
+    - https://x.com/liquidai/status/2074494130126811473
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31037'
+    saved_at:
+    - '2026-07-07T22:48:29'
+  link_audit:
+    status: direct_material_present
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: lmcache
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - inference_optimization
+  - kv_cache
+  - latency
+  - cost_optimization
+  sources:
+  - candidate_id: candidate-030
+    url: https://www.linkedin.com/posts/akshay-pachaar_14x-faster-and-90-cheaper-llm-inference-share-7480336693011615744-eBy6
+    canonical_url: https://www.linkedin.com/posts/akshay-pachaar_14x-faster-and-90-cheaper-llm-inference-activity-7480336695922475009-8Jp4
+    platform: linkedin
+    author: null
+    title: LLM Inference Accelerated 14x Faster, 90% Cheaper with LMCache | Akshay Pachaar posted on the topic | LinkedIn
+    text: '14x faster and 90% cheaper LLM inference. (100% open-source, KV cache management) LMCache is an open-source KV
+      cache management layer that plugs into vLLM, SGLang, and TensorRT-LLM. Here''s how it works: LLMs recompute their understanding
+      of the same content on every request. The same system prompts, the same documents, processed from scratch every time,
+      and a single GPU throws away roughly 15 TB of this reusable cache per day. LMCache stores that cache and serves it back
+      on repeat requests, running as a separate process completely outside the inference engine. The engine just asks for
+      the cache blocks it needs. LMCache handles all the heavy data movement across GPU, CPU, disk, and remote storage in
+      parallel, so cache work never steals compute from inference. It also reuses cache beyond exact prefixes. Their CacheBlend
+      technique (EuroSys 2025 Best Paper) keeps RAG documents cached no matter what order they appear in. On H200s with a
+      235B model, that adds up to 14x faster time-to-first-token and 4x faster decoding. And since reuse skips the compute
+      entirely (the same reason providers discount cached tokens by 90%), the cost savings follow directly. The repo has the
+      full architecture breakdown, benchmarks, and a Kubernetes operator for production use. Link in the first comment. ____
+      Share this with your network if you found this insightful ♻️ Follow me (Akshay Pachaar) for more insights and tutorials
+      on AI and Machine Learning!'
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: LinkedIn public metadata; comments were not inspected.
+    telegram_message_ids:
+    - '31064'
+    - '31152'
+    saved_at:
+    - '2026-07-08T00:37:42'
+    - '2026-07-10T21:46:41'
+  - candidate_id: candidate-043
+    url: https://x.com/i/status/2075222711887106519
+    canonical_url: https://x.com/akshay_pachaar/status/2075222711887106519
+    platform: x
+    author: Akshay 🚀
+    title: 14x faster and 90% cheaper LLM inference. (100% open-source, KV cache management) your LLM does the same expensive
+      work over and over. every request, it re-read
+    text: 14x faster and 90% cheaper LLM inference. (100% open-source, KV cache management) your LLM does the same expensive
+      work over and over. every request, it re-reads the same system prompts and the same documents from scratch, even if
+      it processed them one second ago. token prices… https://t.co/lT8X6wgblL pic.twitter.com/2T7hj7z2qm
+    discovered_urls:
+    - https://x.com/akshay_pachaar/status/2074502882812952666
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31083'
+    saved_at:
+    - '2026-07-09T18:20:59'
+  - candidate_id: candidate-076
+    url: https://x.com/i/status/2075962957649899829
+    canonical_url: https://x.com/h100envy/status/2075962957649899829
+    platform: x
+    author: h100envy
+    title: Ex-vLLM core contributor explained how to make LLM inference 10x cheaper in 34 minutes - better than $3000 inference
+      optimization bootcamps. request comes in ->
+    text: Ex-vLLM core contributor explained how to make LLM inference 10x cheaper in 34 minutes - better than $3000 inference
+      optimization bootcamps. request comes in -> check LMCache -> hit? load KV cache from CPU/SSD/remote -> skip prefill
+      -> serve. That loop is why Bloomberg and… https://t.co/olGOZW5lpj pic.twitter.com/0cJGuI4lwF
+    discovered_urls:
+    - https://x.com/h100envy/status/2070852290878009586
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31200'
+    saved_at:
+    - '2026-07-11T17:42:43'
+  link_audit:
+    status: comment_or_reply_link_expected
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: openscience
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - scientific_ai
+  - research_agents
+  - multi_agent_systems
+  - reproducibility
+  sources:
+  - candidate_id: candidate-033
+    url: https://www.linkedin.com/posts/ashishpatel2604_introducing-openscience-a-better-open-source-share-7479869479053582336-hZok
+    canonical_url: https://www.linkedin.com/posts/ashishpatel2604_introducing-openscience-a-better-open-source-activity-7479869480169484289-hKzL
+    platform: linkedin
+    author: null
+    title: 'Introducing OpenScience: Open-Source AI for Science | Ashish Patel 🇮🇳 posted on the topic | LinkedIn'
+    text: 'Introducing OpenScience. A better, open-source Claude Science. • Any model: GLM, Kimi, DeepSeek, Claude, GPT, your
+      own fine-tune. Switching is one flag. • 250+ research skills across ML, comp bio, cheminformatics. All readable, editable,
+      extensible. • No throttling, no gatekeeping, no one vendor deciding what science is okay. • Native Atlas integration:
+      many agents, one shared reproducible research graph. • Runs on your infra. Your data stays yours. Scientific AI should
+      be open. One company shouldn''t own the tools the rest of us discover with, or decide who gets to. 🔗 Link in the comments
+      🔻'
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: LinkedIn public metadata; comments were not inspected.
+    telegram_message_ids:
+    - '31069'
+    saved_at:
+    - '2026-07-08T07:52:39'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: v-splade
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - sparse_retrieval
+  - visual_documents
+  - embeddings
+  - retrieval
+  sources:
+  - candidate_id: candidate-035
+    url: https://huggingface.co/naver/v-splade-quality
+    canonical_url: https://huggingface.co/naver/v-splade-quality
+    platform: huggingface
+    author: null
+    title: naver/v-splade-quality · Hugging Face
+    text: We’re on a journey to advance and democratize artificial intelligence through open source and open science.
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: Public page metadata.
+    telegram_message_ids:
+    - '31071'
+    - '31072'
+    - '31073'
+    saved_at:
+    - '2026-07-08T09:32:32'
+    - '2026-07-08T09:32:37'
+    - '2026-07-08T09:32:41'
+  - candidate_id: candidate-036
+    url: https://x.com/i/status/2074760685536305230
+    canonical_url: https://x.com/tomaarsen/status/2074760685536305230
+    platform: x
+    author: tomaarsen
+    title: NAVER, the original authors of SPLADE, just published V-SPLADE, an inference-free sparse retriever for visual document
+      retrieval. Two models on the same backbon
+    text: 'NAVER, the original authors of SPLADE, just published V-SPLADE, an inference-free sparse retriever for visual document
+      retrieval. Two models on the same backbone (ModernVBERT, 250M params), both Apache 2.0: - naver/v-splade-quality - naver/v-splade-efficient
+      🧵 pic.twitter.com/424S1hZyZT'
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31074'
+    saved_at:
+    - '2026-07-08T09:34:44'
+  link_audit:
+    status: direct_material_present
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: harness-engineering-rsi
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - agent_harness
+  - recursive_improvement
+  - agent_architecture
+  sources:
+  - candidate_id: candidate-037
+    url: https://x.com/i/status/2074489949529776308
+    canonical_url: https://x.com/SakanaAILabs/status/2074489949529776308
+    platform: x
+    author: Sakana AI
+    title: Harness EngineeringからRSIへ AI自身がAIをつくり、改善していく──再帰的自己改善（RSI）はどのように実現するのでしょうか。この問いに対して、Thinking Machines Lab 共同創業者の
+      Lilian Weng 氏（ @lilianweng ）が、モデルを取り巻く実行系＝「ハーネス
+    text: Harness EngineeringからRSIへ AI自身がAIをつくり、改善していく──再帰的自己改善（RSI）はどのように実現するのでしょうか。この問いに対して、Thinking Machines Lab 共同創業者の
+      Lilian Weng 氏（ @lilianweng ）が、モデルを取り巻く実行系＝「ハーネス」の設計こそが現実的な出発点だと論じる… https://t.co/KcWN4vv090 pic.twitter.com/YrjxTrLuCf
+    discovered_urls:
+    - https://x.com/lilianweng?ref_src=twsrc%5Etfw
+    - https://x.com/lilianweng/status/2074372369213428144
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31075'
+    saved_at:
+    - '2026-07-08T09:36:34'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: unlimited-ocr
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - document_ai
+  - ocr
+  - long_context
+  - efficient_attention
+  sources:
+  - candidate_id: candidate-040
+    url: https://www.linkedin.com/posts/arindam2004_baidu-just-open-sourced-an-ocr-model-that-ugcPost-7476976482901409792-Ms5N
+    canonical_url: https://www.linkedin.com/posts/arindam2004_baidu-just-open-sourced-an-ocr-model-that-activity-7476976483903737856--mN9
+    platform: linkedin
+    author: null
+    title: Baidu Open-Sources Unlimited-OCR Model for Long Documents | Arindam Majumder posted on the topic | LinkedIn
+    text: 'Baidu just open-sourced an OCR model that can read 40+ page documents in a single pass. Unlimited-OCR brings: •
+      3B parameters (500M active) • Reads long documents without losing context • Constant KV cache size for better efficiency
+      • New SOTA on OmniDocBench v1.5 & v1.6 The biggest idea is Reference Sliding Window Attention (R-SWA). Instead of trying
+      to remember everything, it keeps the source, recent context, and what''s coming next in focus, much like how humans
+      read. Long-document OCR is getting much better. If you found it helpful, share it with your network. Follow me → @Arindam_1729
+      For more insights and tutorials on LLMs, MCP, and AI Agents.'
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: LinkedIn public metadata; comments were not inspected.
+    telegram_message_ids:
+    - '31079'
+    saved_at:
+    - '2026-07-08T15:06:30'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: simplemem
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - agent_memory
+  - memory_compression
+  - multimodal_memory
+  sources:
+  - candidate_id: candidate-041
+    url: https://x.com/i/status/2075121780235042846
+    canonical_url: https://x.com/DanKornas/status/2075121780235042846
+    platform: x
+    author: Dan Kornas
+    title: Your agent memory should not be a giant chat-history dump SimpleMem is a unified memory stack for LLM agents that
+      stores, compresses, and retrieves long-term me
+    text: Your agent memory should not be a giant chat-history dump SimpleMem is a unified memory stack for LLM agents that
+      stores, compresses, and retrieves long-term memories across text and multimodal inputs. It helps you keep agents context-aware
+      with less repeated history by turning… pic.twitter.com/d8QspVTd3z
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31081'
+    saved_at:
+    - '2026-07-09T16:10:50'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: supermemory
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - agent_memory
+  - context_engine
+  - local_first
+  sources:
+  - candidate_id: candidate-042
+    url: https://github.com/supermemoryai/supermemory
+    canonical_url: https://github.com/supermemoryai/supermemory
+    platform: github
+    author: null
+    title: 'GitHub - supermemoryai/supermemory: Memory and context engine + app that is extremely fast, scalable, and can
+      be run fully locally. The Memory API for the AI era.'
+    text: Memory and context engine + app that is extremely fast, scalable, and can be run fully locally. The Memory API for
+      the AI era. - supermemoryai/supermemory
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: Public page metadata.
+    telegram_message_ids:
+    - '31082'
+    saved_at:
+    - '2026-07-09T16:49:59'
+  link_audit:
+    status: direct_material_present
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: nvidia-agent-skills
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - agent_skills
+  - reusable_agents
+  - developer_tooling
+  sources:
+  - candidate_id: candidate-045
+    url: https://x.com/i/status/2075060803410210817
+    canonical_url: https://x.com/DivyanshT91162/status/2075060803410210817
+    platform: x
+    author: divyansh tiwari
+    title: NVIDIA just gave AI agent builders a massive head start. The company has open-sourced its AI agent skills, making
+      the same reusable building blocks available fo
+    text: 'NVIDIA just gave AI agent builders a massive head start. The company has open-sourced its AI agent skills, making
+      the same reusable building blocks available for everyone to study, customize, and integrate into their own AI workflows.
+      Perfect if you''re building: → AI agents… pic.twitter.com/7p8BXrum0D'
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31085'
+    saved_at:
+    - '2026-07-09T18:48:07'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: moss-transcribe-diarize
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - speech_recognition
+  - diarization
+  - long_context
+  - open_models
+  sources:
+  - candidate_id: candidate-047
+    url: https://x.com/i/status/2075059157443756245
+    canonical_url: https://x.com/MosiAI_Official/status/2075059157443756245
+    platform: x
+    author: MOSI
+    title: '🤗 MOSS-Transcribe-Diarize-0.9B is now open source on @huggingface . Built with an end-to-end audio-to-structured-transcript
+      paradigm: >0.9B open-source ASR mode'
+    text: '🤗 MOSS-Transcribe-Diarize-0.9B is now open source on @huggingface . Built with an end-to-end audio-to-structured-transcript
+      paradigm: >0.9B open-source ASR model >Apache license 2.0 >128k long-context transcription >Up to ~90-min audio input
+      >Speaker labels + timestamps in one… pic.twitter.com/OmEmwlNqcv'
+    discovered_urls:
+    - https://x.com/huggingface?ref_src=twsrc%5Etfw
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31087'
+    saved_at:
+    - '2026-07-09T20:31:48'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: trek-grpo
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - reinforcement_learning
+  - exploration
+  - reasoning
+  - teacher_guidance
+  sources:
+  - candidate_id: candidate-048
+    url: https://x.com/askalphaxiv/status/2075050843221467607
+    canonical_url: https://x.com/askalphaxiv/status/2075050843221467607
+    platform: x
+    author: alphaXiv
+    title: This paper, TREK, makes GRPO better at hard problems by solving its exploration problem. When the student keeps
+      sampling wrong paths, RL has nothing useful to r
+    text: This paper, TREK, makes GRPO better at hard problems by solving its exploration problem. When the student keeps
+      sampling wrong paths, RL has nothing useful to reinforce. So TREK would asks a teacher, or the same model with extra
+      context, to find verified correct solutions. It… pic.twitter.com/NZ3Ekva404
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31136'
+    saved_at:
+    - '2026-07-09T22:41:33'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: multi-agent-deliberation
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - multi_agent_reasoning
+  - deliberation
+  - answer_revision
+  sources:
+  - candidate_id: candidate-050
+    url: https://x.com/leanxbt/status/2075276726872228197
+    canonical_url: https://x.com/leanxbt/status/2075276726872228197
+    platform: x
+    author: leanxbt
+    title: 'This paper completely changed how I think about why several LLMs beat one: Each agent answers alone -> Reads the
+      others'' answers -> Revises its own -> Repeat th'
+    text: 'This paper completely changed how I think about why several LLMs beat one: Each agent answers alone -> Reads the
+      others'' answers -> Revises its own -> Repeat the round -> Converge on a shared answer Here is the 5-step blueprint:
+      Society of minds: several instances of one model… https://t.co/ThtLwxIvyK pic.twitter.com/66s4FcefCo'
+    discovered_urls:
+    - https://x.com/leanxbt/status/2070852461494202609
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31138'
+    saved_at:
+    - '2026-07-09T22:45:49'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: sensenova-vision
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - computer_vision
+  - generative_models
+  - multimodal_models
+  sources:
+  - candidate_id: candidate-052
+    url: https://x.com/AdinaYakup/status/2074833900782666087
+    canonical_url: https://x.com/AdinaYakup/status/2074833900782666087
+    platform: x
+    author: Adina Yakup
+    title: SenseNova-Vision 🔥 SenseTime's new model treats all of computer vision as generation - 7B - CC BY-NC 4.0 ( non
+      commercial ) - Model/ 50M instruction corpus/ ben
+    text: SenseNova-Vision 🔥 SenseTime's new model treats all of computer vision as generation - 7B - CC BY-NC 4.0 ( non commercial
+      ) - Model/ 50M instruction corpus/ benchmark/ paper/ demo, all open 🫶 pic.twitter.com/eArcntuMJ4
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31140'
+    saved_at:
+    - '2026-07-10T01:01:56'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: latent-exploration-decoding
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - reinforcement_learning
+  - reasoning
+  - decoding
+  - exploration
+  sources:
+  - candidate_id: candidate-053
+    url: https://x.com/i/status/2075401621475918104
+    canonical_url: https://x.com/VukRosic99/status/2075401621475918104
+    platform: x
+    author: Vuk Rosić 武克
+    title: 'RL post-training (GRPO) makes reasoning models more accurate but collapses exploration - temperature tuning stops
+      improving pass@n. The interesting finding: onl'
+    text: 'RL post-training (GRPO) makes reasoning models more accurate but collapses exploration - temperature tuning stops
+      improving pass@n. The interesting finding: only the final layer''s distribution collapses. Intermediate layers stay
+      high-entropy. LED (Latent Exploration Decoding,… pic.twitter.com/3WHJ2mCYf5'
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31141'
+    saved_at:
+    - '2026-07-10T09:49:37'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: behavioral-state-decay
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - agent_memory
+  - long_horizon_agents
+  - decision_persistence
+  sources:
+  - candidate_id: candidate-054
+    url: https://x.com/i/status/2075603504543269136
+    canonical_url: https://x.com/omarsar0/status/2075603504543269136
+    platform: x
+    author: elvis
+    title: New research from Meta. (bookmark it) It's on how to fix agents that forget previously made decisions. It's well
+      know that long-horizon agents keep forgetting d
+    text: New research from Meta. (bookmark it) It's on how to fix agents that forget previously made decisions. It's well
+      know that long-horizon agents keep forgetting decisions they already made. Meta researchers give this failure a name,
+      behavioral state decay, where task facts,… pic.twitter.com/sS2ZqBlDUo
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31143'
+    - '31201'
+    saved_at:
+    - '2026-07-10T19:15:19'
+    - '2026-07-11T18:05:33'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: exxperts-memory-governance
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - agent_memory
+  - memory_governance
+  - local_first
+  - human_review
+  sources:
+  - candidate_id: candidate-057
+    url: https://www.linkedin.com/posts/alindnbrg_aiagents-localfirst-aiengineering-share-7481311443418681344-C4Cf
+    canonical_url: https://www.linkedin.com/posts/alindnbrg_aiagents-localfirst-aiengineering-activity-7481311444618321920-qvA4
+    platform: linkedin
+    author: null
+    title: '#aiagents #localfirst #aiengineering | André Lindenberg | 27 comments'
+    text: 'We built exxperts: persistent AI colleagues with memory you govern. The model you talk to can''t write to its own
+      memory. A separate worker that can''t browse, run code, or touch files proposes what to keep from your sessions; anything
+      questionable comes back for your approval. Every change is fingerprinted and archived, earlier versions can be restored,
+      and each room is its own scoped boundary. Rooms, memory, and data are plain files on your machine. PolyForm Noncommercial.
+      #AIAgents #LocalFirst #AIEngineering'
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: LinkedIn public metadata; comments were not inspected.
+    telegram_message_ids:
+    - '31146'
+    saved_at:
+    - '2026-07-10T19:54:59'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: mlcraft
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - ml_agents
+  - research_automation
+  - coding_agents
+  sources:
+  - candidate_id: candidate-058
+    url: https://www.linkedin.com/posts/mxslr_machinelearning-deeplearning-artificialintelligence-share-7480918657804447745-RSGs
+    canonical_url: https://www.linkedin.com/posts/mxslr_machinelearning-deeplearning-artificialintelligence-activity-7480918659046039552-_TN7
+    platform: linkedin
+    author: null
+    title: mlcraft Open Source AI/ML Research Engineer Plugin | Marshall Rasendria Mahendra posted on the topic | LinkedIn
+    text: 'Introducing mlcraft: an open-source plugin that turns your AI coding assistant into a senior AI/ML research engineer.
+      Describe your task in plain language and it runs the full professional workflow for you, the way a careful researcher
+      would. What it does: - Covers 14 ML domains, auto-detected from your prompt: computer vision, medical imaging, NLP and
+      LLM, tabular, time-series, audio and speech, recommendation, generative, reinforcement learning, graph, multimodal,
+      video, 3D, and anomaly detection. - Research first. It reads recent papers, finds the realistic accuracy ceiling, and
+      flags results inflated by data leakage before writing any code. - Metrics and explainability that fit the problem. Binary
+      uses ROC-AUC, detection uses mAP, regression uses RMSE. Grad-CAM for image classifiers, bounding boxes for detection,
+      SHAP for tabular. No forcing the wrong tool. - Honest evaluation. Group, patient, and temporal splits, with thresholds
+      chosen on validation. A valid result beats a fake high number. - Accuracy-improvement loop. If a model is stuck, it
+      diagnoses the bottleneck, researches the specific gap, and combines proven techniques to push toward the ceiling. -
+      Delivers a Kaggle notebook, a Google Colab notebook, or a local GPU run. Open source under MIT. Works in Claude Code
+      and Antigravity. Codex, Cursor, and more coming soon. Repo: https://lnkd.in/g3_cGEPB I would love your feedback and
+      a star. #MachineLearning #DeepLearning #ArtificialIntelligence #DataScience #ComputerVision #MLOps #OpenSource'
+    discovered_urls:
+    - https://lnkd.in/g3_cGEPB
+    resolution_status: resolved
+    resolution_note: LinkedIn public metadata; comments were not inspected.
+    telegram_message_ids:
+    - '31147'
+    saved_at:
+    - '2026-07-10T19:56:49'
+  link_audit:
+    status: public_outbound_link_found
+    comments_inspected: false
+    public_outbound_urls:
+    - https://lnkd.in/g3_cGEPB
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: ml-intern
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - autonomous_ml
+  - training_automation
+  - research_agents
+  sources:
+  - candidate_id: candidate-059
+    url: https://www.linkedin.com/posts/sumanth077_autonomous-ml-engineer-from-huggingface-share-7481352113659379712-btGj
+    canonical_url: https://www.linkedin.com/posts/sumanth077_autonomous-ml-engineer-from-huggingface-activity-7481352116712833024-sOB-
+    platform: linkedin
+    author: null
+    title: HuggingFace ML Intern Automates ML Tasks | Sumanth P posted on the topic | LinkedIn
+    text: 'Autonomous ML engineer from HuggingFace! ml-intern is an agent that reads papers, writes ML code, trains models,
+      and ships production-ready models using the Hugging Face ecosystem. The workflow: You give it a task like "fine-tune
+      Llama on my dataset." It researches the approach, finds relevant papers, writes the training code, executes on cloud
+      compute, and ships the model. Built with deep access to HuggingFace infrastructure. The agent can search documentation,
+      browse papers, access datasets, create training jobs, and push models to the Hub. It also integrates with GitHub for
+      code search and reference implementations. How it works: The agent runs an agentic loop with a max of 300 iterations.
+      Each iteration: LLM generates a plan and tool calls, execution via tool router, results added to context, next iteration.
+      Available tools: • HuggingFace docs and research • HF repos, datasets, and papers • Training job management on HF compute
+      • GitHub code search for reference implementations • Sandbox execution for testing • MCP server integration for custom
+      tools Context management handles message history with auto-compaction at 170k tokens. Sessions upload to HuggingFace
+      for persistence. Approval system for sensitive operations. Training jobs, sandbox execution, and destructive operations
+      require user confirmation before execution. Doom loop detector identifies repeated tool patterns and injects corrective
+      prompts to prevent the agent from getting stuck. Usage modes: Interactive mode: Start a chat session, iterate on the
+      approach with the agent. Headless mode: Single command with auto-approval. Run "ml-intern ''fine-tune llama on my dataset''"
+      and it executes autonomously. Built on smolagents framework. Open source, extensible via MCP servers. I''ve shared the
+      link to the repo in the comments! _____ ♻️ Share this with your network if you found this insightful ➕ If you’re into
+      ML, LLMs, and AI agents, join AI Engineering (it’s free): https://lnkd.in/gfkzKZYk'
+    discovered_urls:
+    - https://lnkd.in/gfkzKZYk
+    resolution_status: resolved
+    resolution_note: LinkedIn public metadata; comments were not inspected.
+    telegram_message_ids:
+    - '31148'
+    saved_at:
+    - '2026-07-10T20:01:16'
+  link_audit:
+    status: public_outbound_link_found
+    comments_inspected: false
+    public_outbound_urls:
+    - https://lnkd.in/gfkzKZYk
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: leann
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - rag
+  - embedding_storage
+  - graph_retrieval
+  - local_first
+  sources:
+  - candidate_id: candidate-061
+    url: https://www.linkedin.com/posts/sumanth077_turn-your-laptop-into-a-powerful-rag-system-share-7472296354451558400-Jyj8
+    canonical_url: https://www.linkedin.com/posts/sumanth077_turn-your-laptop-into-a-powerful-rag-system-activity-7472296357517598720-qzds
+    platform: linkedin
+    author: null
+    title: 'LEANN: Local Embedding Index for AI Agents | Sumanth P posted on the topic | LinkedIn'
+    text: 'Turn your laptop into a powerful RAG system! LEANN can index and search through millions of documents while using
+      97% less storage than traditional solutions without accuracy loss. LEANN achieves this through graph-based selective
+      recomputation with high-degree preserving pruning, computing embeddings on-demand instead of storing them all. Key Features:
+      🔒 Privacy: Everything stays on your laptop with no cloud and no hidden terms. 🪶 Lightweight: Smart graph pruning and
+      CSR format cut down both storage and memory usage. 📦 Portable: Move your knowledge base across devices or share it with
+      others at minimal cost. 📈 Scalable: Handles messy personal data and agent-generated memory that often crash traditional
+      vector DBs. ✨ Accurate: Provides the same search quality as heavyweight solutions while using 97% less storage. It''s
+      100% Open Source Link to the Github Repo in the comments! _____ ♻️ Share this with your network if you found this insightful
+      ➕ If you’re into ML, LLMs, and AI agents, join AI Engineering (it’s free): https://lnkd.in/gP2bSzGZ'
+    discovered_urls:
+    - https://lnkd.in/gP2bSzGZ
+    resolution_status: resolved
+    resolution_note: LinkedIn public metadata; comments were not inspected.
+    telegram_message_ids:
+    - '31150'
+    saved_at:
+    - '2026-07-10T20:58:24'
+  link_audit:
+    status: public_outbound_link_found
+    comments_inspected: false
+    public_outbound_urls:
+    - https://lnkd.in/gP2bSzGZ
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: colibri-moe-offloading
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - local_inference
+  - mixture_of_experts
+  - model_offloading
+  - memory_hierarchy
+  sources:
+  - candidate_id: candidate-063
+    url: https://x.com/i/status/2075731830477877612
+    canonical_url: https://x.com/chenzeling4/status/2075731830477877612
+    platform: x
+    author: Zane Chen
+    title: '744B parameters. On a laptop. With 25GB RAM. Colibri runs GLM-5.2 (744B MoE) in pure C with zero dependencies.
+      The trick: only ~40B params activate per token, s'
+    text: '744B parameters. On a laptop. With 25GB RAM. Colibri runs GLM-5.2 (744B MoE) in pure C with zero dependencies.
+      The trick: only ~40B params activate per token, so it keeps the dense part resident and streams experts from disk on
+      demand. A single 2,400-line C file. No GPU, no… pic.twitter.com/pqQek3XpGS'
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31155'
+    saved_at:
+    - '2026-07-11T07:15:01'
+  - candidate_id: candidate-074
+    url: https://x.com/i/status/2075872446197158361
+    canonical_url: https://x.com/techNmak/status/2075872446197158361
+    platform: x
+    author: Tech with Mak
+    title: A 744B-parameter model is running on 25GB of RAM. No GPU required. The clever part is not making the entire model
+      fit. It is making sure most of the model never
+    text: A 744B-parameter model is running on 25GB of RAM. No GPU required. The clever part is not making the entire model
+      fit. It is making sure most of the model never enters RAM. GLM-5.2 is a Mixture-of-Experts model. It contains 744B parameters,
+      but activates only around 40B for… pic.twitter.com/p3DgkRumN1
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31192'
+    saved_at:
+    - '2026-07-11T11:33:37'
+  - candidate_id: candidate-075
+    url: https://www.linkedin.com/posts/curiouslearner_a-744b-parameter-model-is-running-on-25gb-share-7481655865247379457-R7Mb
+    canonical_url: https://www.linkedin.com/posts/curiouslearner_a-744b-parameter-model-is-running-on-25gb-activity-7481655868288200704-FF_R
+    platform: linkedin
+    author: null
+    title: 744B-Parameter Model Runs on 25GB RAM Without GPU | Mayank A. posted on the topic | LinkedIn
+    text: 'A 744B-parameter model is running on 25GB of RAM. No GPU required. The clever part is not making the entire model
+      fit. It is making sure most of the model never enters RAM. GLM-5.2 is a Mixture-of-Experts model. It contains 744B parameters,
+      but activates only around 40B for each token. Even those active weights do not need to be resident at the same time.
+      Colibrì treats model execution like a memory hierarchy: → The always-needed weights remain in RAM → 21,504 routed experts
+      stay on NVMe → The router selects which experts each layer needs → Those experts are streamed from disk on demand →
+      Frequently used experts are cached in spare RAM The full int4 model still occupies roughly 370GB on disk. But only around
+      9.9GB remains permanently resident, with peak RAM usage during chat reported at approximately 20GB. A useful way to
+      think about it: > RAM holds the hot weights. > NVMe holds the cold weights. > The router decides what must move next.
+      The runtime also records which experts your prompts activate most often and automatically pins the hottest ones in spare
+      RAM. So repeated use can make it faster, not because the model learns new weights, but because the system learns its
+      weight-access pattern. But physics still wins. On the original 25GB machine, cold generation is only around 0.05–0.1
+      tokens per second, because each token can require roughly 11GB of disk reads. This is not fast production inference.
+      It is a proof of something more interesting: For sparse models, model size and resident memory no longer need to match.
+      Inference becomes a systems problem: > Load the right weights. > Cache the hot ones. > Move them before they are needed.
+      One important open question remains: the project has not yet completed a full benchmark of how much its int4 quantization
+      affects model quality. Pure C. No runtime dependencies. Built as a one-person project on a 12-core laptop. Very impressive
+      systems engineering. [GitHub Repo in comments]'
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: LinkedIn public metadata; comments were not inspected.
+    telegram_message_ids:
+    - '31199'
+    saved_at:
+    - '2026-07-11T14:09:35'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: optimizer-aligned-data-selection
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - pretraining
+  - data_curation
+  - optimization
+  - training_efficiency
+  sources:
+  - candidate_id: candidate-066
+    url: https://x.com/i/status/2075765519379271778
+    canonical_url: https://x.com/VukRosic99/status/2075765519379271778
+    platform: x
+    author: Vuk Rosić 武克
+    title: High-quality public text is running out, so pre-training is shifting from more tokens to better tokens. Static
+      filters ignore training dynamics; dynamic selecto
+    text: High-quality public text is running out, so pre-training is shifting from more tokens to better tokens. Static filters
+      ignore training dynamics; dynamic selectors score data in raw gradient space, which assumes SGD - misaligned with AdamW
+      and Muon, whose preconditioners reshape… pic.twitter.com/CF5x2hyLqZ
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31158'
+    saved_at:
+    - '2026-07-11T08:09:36'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: art-openpipe
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - agent_training
+  - reinforcement_learning
+  - tool_use
+  sources:
+  - candidate_id: candidate-068
+    url: https://x.com/i/status/2075817871117316174
+    canonical_url: https://x.com/Alacritic_Super/status/2075817871117316174
+    platform: x
+    author: Praveen Kumar Verma
+    title: 'If you are building AI agents that need to improve through experience, study ART by OpenPipe. Instead of relying
+      only on prompt engineering, ART lets you train '
+    text: If you are building AI agents that need to improve through experience, study ART by OpenPipe. Instead of relying
+      only on prompt engineering, ART lets you train multi-step agents with reinforcement learning using GRPO. It supports
+      tool use, multi-turn conversations, and iterative… pic.twitter.com/UamhQmowcm
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31160'
+    saved_at:
+    - '2026-07-11T08:25:13'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: low-precision-pretraining
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - low_precision_training
+  - pretraining
+  - model_efficiency
+  sources:
+  - candidate_id: candidate-070
+    url: https://x.com/i/status/2075752684821581908
+    canonical_url: https://x.com/DivyanshT91162/status/2075752684821581908
+    platform: x
+    author: divyansh tiwari
+    title: 'NVIDIA just solved a problem that even OpenAI, Google DeepMind, Meta, xAI, and Anthropic have been fighting for
+      years. They trained a 12B parameter AI model on '
+    text: NVIDIA just solved a problem that even OpenAI, Google DeepMind, Meta, xAI, and Anthropic have been fighting for
+      years. They trained a 12B parameter AI model on 10 trillion tokens using only 4-bit precision. And somehow... It became
+      almost as capable as the higher-precision… pic.twitter.com/gN4htUg7e1
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31162'
+    saved_at:
+    - '2026-07-11T08:39:29'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: rlvr-token-credit
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - reinforcement_learning
+  - credit_assignment
+  - reasoning
+  sources:
+  - candidate_id: candidate-071
+    url: https://x.com/i/status/2075854354796433812
+    canonical_url: https://x.com/VukRosic99/status/2075854354796433812
+    platform: x
+    author: Vuk Rosić 武克
+    title: RLVR (GRPO) gives one sequence-level reward per rollout - every token in a long chain-of-thought inherits the same
+      advantage, so a critical deduction and filler
+    text: RLVR (GRPO) gives one sequence-level reward per rollout - every token in a long chain-of-thought inherits the same
+      advantage, so a critical deduction and filler narration get identical credit. Letting the model teach itself with a
+      privileged reference (on-policy… pic.twitter.com/1orXlzwyTj
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31189'
+    saved_at:
+    - '2026-07-11T10:52:08'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: autoskills
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - agent_skills
+  - developer_tooling
+  - stack_detection
+  sources:
+  - candidate_id: candidate-077
+    url: https://x.com/i/status/2075889282145751269
+    canonical_url: https://x.com/tom_doerr/status/2075889282145751269
+    platform: x
+    author: Tom Dörr
+    title: Scans your project to detect your tech stack and automatically installs curated AI agent skills. https://t.co/q0xO6h9iVv
+      pic.twitter.com/zvyXK00LiK
+    text: Scans your project to detect your tech stack and automatically installs curated AI agent skills. https://t.co/q0xO6h9iVv
+      pic.twitter.com/zvyXK00LiK
+    discovered_urls:
+    - https://github.com/midudev/autoskills
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31202'
+    saved_at:
+    - '2026-07-11T18:09:44'
+  link_audit:
+    status: public_outbound_link_found
+    comments_inspected: false
+    public_outbound_urls:
+    - https://github.com/midudev/autoskills
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: parallel-draft-refine
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - reasoning
+  - parallel_decoding
+  - test_time_compute
+  sources:
+  - candidate_id: candidate-079
+    url: https://x.com/i/status/2075700229064597827
+    canonical_url: https://x.com/anirudhg9119/status/2075700229064597827
+    platform: x
+    author: Anirudh Goyal
+    title: Reasoning doesn’t have to mean longer chains of thought. PDR = draft in parallel → distill into a compact workspace
+      → refine, and shift the Pareto frontier. htt
+    text: Reasoning doesn’t have to mean longer chains of thought. PDR = draft in parallel → distill into a compact workspace
+      → refine, and shift the Pareto frontier. https://t.co/4Sca6dFu4Q https://t.co/1udU1vqYCf pic.twitter.com/AHwyg53xd7
+    discovered_urls:
+    - https://arxiv.org/abs/2510.01123
+    - https://x.com/polynoamial/status/2075647948906533297
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31204'
+    saved_at:
+    - '2026-07-11T18:42:56'
+  link_audit:
+    status: public_outbound_link_found
+    comments_inspected: false
+    public_outbound_urls:
+    - https://arxiv.org/abs/2510.01123
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: trace-agentic-training
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - agent_training
+  - capability_targeting
+  - evaluation
+  sources:
+  - candidate_id: candidate-080
+    url: https://x.com/i/status/2074533653900898771
+    canonical_url: https://x.com/hangoo_kang/status/2074533653900898771
+    platform: x
+    author: Hangoo Kang @ ICML ✈️
+    title: '“TRACE: Capability-Targeted Agentic Training” got Spotlight @ ICML AIWILD 🎉 Beats direct RL, GEPA, & synthetic-agent
+      data on SWE-Bench Verified and τ²-Bench. TR'
+    text: '“TRACE: Capability-Targeted Agentic Training” got Spotlight @ ICML AIWILD 🎉 Beats direct RL, GEPA, & synthetic-agent
+      data on SWE-Bench Verified and τ²-Bench. TRACE-Qwen3.6-27B tops GPT-5.2-Codex, GLM 5, & Claude 4.5 Sonnet on SWE-Bench.
+      Co-led with @TarunSures41845 . Thanks to… pic.twitter.com/nRsRzaPNdi'
+    discovered_urls:
+    - https://x.com/TarunSures41845?ref_src=twsrc%5Etfw
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31205'
+    saved_at:
+    - '2026-07-11T18:48:39'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: quantized-reasoning-calibration
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - quantization
+  - reasoning
+  - calibration
+  - inference_efficiency
+  sources:
+  - candidate_id: candidate-083
+    url: https://x.com/i/status/2076331498958193020
+    canonical_url: https://x.com/VukRosic99/status/2076331498958193020
+    platform: x
+    author: Vuk Rosić 武克
+    title: Quantized reasoning models think longer and answer worse - and the fix is one line. Aggressive quantization doesn't
+      just drop accuracy, it inflates the chain-of
+    text: 'Quantized reasoning models think longer and answer worse - and the fix is one line. Aggressive quantization doesn''t
+      just drop accuracy, it inflates the chain-of-thought: 3-bit AWQ takes DeepSeek-R1-Distill-Qwen-1.5B from 85.6% to 47.0%
+      on MATH-500 while its reasoning traces grow… pic.twitter.com/iIp87UIRYR'
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31247'
+    saved_at:
+    - '2026-07-12T20:06:02'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: answer-marginalization
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - reasoning
+  - self_consistency
+  - test_time_compute
+  sources:
+  - candidate_id: candidate-084
+    url: https://x.com/i/status/2076382589401633169
+    canonical_url: https://x.com/leanxbt/status/2076382589401633169
+    platform: x
+    author: leanxbt
+    title: 'This paper completely changed how I think about where reasoning accuracy comes from with no reflection at all:
+      Sample many different chains -> Reach an answer i'
+    text: 'This paper completely changed how I think about where reasoning accuracy comes from with no reflection at all:
+      Sample many different chains -> Reach an answer in each -> Collect the final answers -> Marginalize out the paths ->
+      Return the most frequent one Here is the 5-step… https://t.co/ThtLwxHXJc pic.twitter.com/7UfuRPs3gT'
+    discovered_urls:
+    - https://x.com/leanxbt/status/2070852461494202609
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31250'
+    saved_at:
+    - '2026-07-12T20:52:16'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: proactive-memory-agent
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - agent_memory
+  - proactive_retrieval
+  - long_horizon_agents
+  sources:
+  - candidate_id: candidate-085
+    url: https://x.com/i/status/2076401489027764420
+    canonical_url: https://x.com/askalphaxiv/status/2076401489027764420
+    platform: x
+    author: alphaXiv
+    title: '“Remember When It Matters: Proactive Memory Agent for Long-Horizon Agents” Long-running agents often forget earlier
+      requirements, failed attempts, or useful dis'
+    text: '“Remember When It Matters: Proactive Memory Agent for Long-Horizon Agents” Long-running agents often forget earlier
+      requirements, failed attempts, or useful discoveries, even when that information is still in context. This paper adds
+      a separate memory agent that tracks… pic.twitter.com/J8r3W4Sasv'
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31258'
+    saved_at:
+    - '2026-07-13T03:45:01'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: concise-grpo-reasoning
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - reinforcement_learning
+  - reasoning
+  - verbosity_control
+  sources:
+  - candidate_id: candidate-087
+    url: https://x.com/i/status/2076489540085375479
+    canonical_url: https://x.com/VukRosic99/status/2076489540085375479
+    platform: x
+    author: Vuk Rosić 武克
+    title: 'GRPO post-training makes LLMs accurate but verbose: on 20 MATH-500 problems, a distilled 1.5B model and a PhD
+      volunteer both score 100% - but the model spends 1'
+    text: 'GRPO post-training makes LLMs accurate but verbose: on 20 MATH-500 problems, a distilled 1.5B model and a PhD volunteer
+      both score 100% - but the model spends 1,658 tokens where the human needs 264. Existing fixes are content-agnostic:
+      they favor short outputs or decay credit by… pic.twitter.com/z1kuSjNW0X'
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31260'
+    saved_at:
+    - '2026-07-13T03:47:52'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: glm-weight-compression
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - model_compression
+  - inference
+  - memory_efficiency
+  sources:
+  - candidate_id: candidate-088
+    url: https://x.com/i/status/2076432307687215494
+    canonical_url: https://x.com/brianbellx/status/2076432307687215494
+    platform: x
+    author: brian
+    title: 'I removed 423 GB from GLM‑5.2 without changing the model. 1,403 GB → 980 GB. 753B weights. Bit for bit exact.
+      No quantization or retraining. The weights remain '
+    text: I removed 423 GB from GLM‑5.2 without changing the model. 1,403 GB → 980 GB. 753B weights. Bit for bit exact. No
+      quantization or retraining. The weights remain compressed in VRAM instead of rebuilding the full model first. Full writeup
+      and repo in the next post. pic.twitter.com/Y7qbuJPRVC
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31265'
+    saved_at:
+    - '2026-07-13T04:03:18'
+  link_audit:
+    status: comment_or_reply_link_expected
+    comments_inspected: false
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: deepspec
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - speculative_decoding
+  - inference_optimization
+  - draft_models
+  sources:
+  - candidate_id: candidate-089
+    url: https://x.com/i/status/2076365730602504484
+    canonical_url: https://x.com/chenzeling4/status/2076365730602504484
+    platform: x
+    author: Zane Chen
+    title: Speculative decoding is how DeepSeek gets 2-3x faster inference. But training your own draft model? That's been
+      locked inside big labs. DeepSpec is the full pip
+    text: Speculative decoding is how DeepSeek gets 2-3x faster inference. But training your own draft model? That's been
+      locked inside big labs. DeepSpec is the full pipeline. Data prep, training, eval. The target cache alone is 38TB for
+      a single Qwen3-4B. Runs on 8 GPUs, one node.… pic.twitter.com/1ea0vBV8pg
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31266'
+    saved_at:
+    - '2026-07-13T04:05:10'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: finetuning-generalization-mechanism
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - fine_tuning
+  - knowledge_generalization
+  - mechanistic_analysis
+  sources:
+  - candidate_id: candidate-092
+    url: https://x.com/i/status/2076523915883495874
+    canonical_url: https://x.com/askalphaxiv/status/2076523915883495874
+    platform: x
+    author: alphaXiv
+    title: “Towards Mechanistically Understanding Why Memorized Knowledge Fails to Generalize in LLM Finetuning” LLMs can
+      quickly memorize new facts during fine-tuning, bu
+    text: “Towards Mechanistically Understanding Why Memorized Knowledge Fails to Generalize in LLM Finetuning” LLMs can quickly
+      memorize new facts during fine-tuning, but still fail when those facts need to be used in multi-hop reasoning. This
+      paper shows the issue is not missing… pic.twitter.com/vlgiFqnHEU
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31276'
+    saved_at:
+    - '2026-07-13T05:34:18'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: rl-sft-skill-recombination
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - reinforcement_learning
+  - supervised_fine_tuning
+  - reasoning
+  - generalization
+  sources:
+  - candidate_id: candidate-096
+    url: https://www.linkedin.com/posts/maxime-labonne_what-does-rl-actually-add-on-top-of-sft-share-7482382699752570880-ZRQx
+    canonical_url: https://www.linkedin.com/posts/maxime-labonne_what-does-rl-actually-add-on-top-of-sft-activity-7482382702726393856-zuWH
+    platform: linkedin
+    author: null
+    title: 🧱 What does RL actually add on top of SFT? A new paper pins down why the standard recipe, supervised fine-tuning
+      (SFT) followed by reinforcement learning (RL), produces reasoning models that solve… | Maxime Labonne | 14 comments
+    text: '🧱 What does RL actually add on top of SFT? A new paper pins down why the standard recipe, supervised fine-tuning
+      (SFT) followed by reinforcement learning (RL), produces reasoning models that solve problems harder than anything in
+      their training set. What''s interesting is that they approach this problem from a different lens: one stage supplies
+      the parts, the other learns to recombine them. → SFT supplies the raw material. Its traces always combine the same skills
+      in the same order, so the steps never vary independently and the model learns the whole sequence, not the steps as reusable
+      units. → RL does the separating. Rewarding only correct final answers, its resampling shows each skill in varied contexts,
+      and that variation lets the model isolate each step and recombine them. → RL has to see skills in combination, not in
+      isolation. Isolated skills barely move accuracy, around +10%. Multi-step traces gain nearly four times that. The combinations
+      have to be in the data, not just the parts. → Skills aren''t the only thing recombined. Routing, which intermediate
+      result gets passed to the next step, works the same way, and RL recombines both. → Oddly, the two stages generalize
+      best when their training problems don''t overlap at all. Sharing problems barely helped on familiar tasks and hurt generalization
+      to new ones. This lines up with the popular "SFT memorizes, RL generalizes" framing, but gives it a mechanism: RL isn''t
+      inventing new skills, it''s decomposing and recombining the ones SFT already supplied. That reframes the debate about
+      whether RL adds anything beyond the base model. My main caveat is scope: the controlled experiments run on synthetic
+      string transformations with 24 skills and 10 routing rules, and the real-model check is small (Qwen3-4B on a few hundred
+      MATH problems). The obvious next step: can you design SFT data specifically to maximize the module combinations RL is
+      able to recombine later?'
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: LinkedIn public metadata; comments were not inspected.
+    telegram_message_ids:
+    - '31305'
+    saved_at:
+    - '2026-07-13T15:31:25'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []
+- id: dflash
+  decision: include
+  relevance: direct_ai_engineering_value
+  topics:
+  - speculative_decoding
+  - inference_optimization
+  - local_inference
+  sources:
+  - candidate_id: candidate-097
+    url: https://x.com/i/status/2076739076691272038
+    canonical_url: https://x.com/atomic_chat_hq/status/2076739076691272038
+    platform: x
+    author: atomic.chat
+    title: 'DFlash makes Qwen 2.2x faster with no quality loss! We ran the same Qwen3.6-27B locally three ways on one RTX
+      6000: baseline, MTP, DFlash. The tasks only differ'
+    text: 'DFlash makes Qwen 2.2x faster with no quality loss! We ran the same Qwen3.6-27B locally three ways on one RTX 6000:
+      baseline, MTP, DFlash. The tasks only differ in one thing - how predictable the next word is: quicksort, describe a
+      file in JSON, a logic puzzle, a sci-fi story.… pic.twitter.com/acVhcLn1OD'
+    discovered_urls: []
+    resolution_status: resolved
+    resolution_note: X public oEmbed; replies and comments were not inspected.
+    telegram_message_ids:
+    - '31309'
+    saved_at:
+    - '2026-07-13T21:04:11'
+  link_audit:
+    status: manual_social_link_audit_recommended
+    comments_inspected: false
+    public_outbound_urls: []
+  gold_annotation:
+    status: pending_human_validation
+    expected_artifact_types: []
+    expected_entities: []
+    expected_claims: []
+    expected_architecture_uses: []

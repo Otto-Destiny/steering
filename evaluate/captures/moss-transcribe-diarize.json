@@ -1,0 +1,208 @@
+{
+  "schema_version": 1,
+  "candidate_id": "moss-transcribe-diarize",
+  "capture_method": "logged_in_visible_playwright",
+  "root_url": "https://x.com/MosiAI_Official/status/2075059157443756245",
+  "root_author_handle": "MosiAI_Official",
+  "root_post_id": "2075059157443756245",
+  "capture_policy": {
+    "self_replies_bundled": true,
+    "other_authors_excluded": true,
+    "media_downloaded": false,
+    "documents_downloaded": false,
+    "max_thread_span_hours": 48
+  },
+  "thread": {
+    "post_count": 10,
+    "raw_same_author_post_count": 10,
+    "posts": [
+      {
+        "post_id": "2075059157443756245",
+        "handle": "MosiAI_Official",
+        "status_url": "https://x.com/MosiAI_Official/status/2075059157443756245",
+        "posted_at": "2026-07-09T03:27:10.000Z",
+        "author_label": "MOSI\n@MosiAI_Official",
+        "text": "MOSS-Transcribe-Diarize-0.9B is now open source on \n@huggingface\n.\n\nBuilt with an end-to-end audio-to-structured-transcript paradigm:\n\n>0.9B open-source ASR model\n>Apache license 2.0\n>128k long-context transcription\n>Up to ~90-min audio input\n>Speaker labels + timestamps in one generation\n>Multi-speaker diarization for meetings, interruptions, and overlapping voices\n>Hotword biasing for names, terms, and domain-specific vocabulary\n>~100 token/s on NVIDIA RTX 4090, RTF ~0.017\n\nThank you \n@sgl_project\n \n@vllm_project\n  \n@Prince_Canuma\n \n@lllucas\n  for day-0 support! \n\nGithub: \nhttps://\ngithub.com/OpenMOSS/MOSS-\nTranscribe-Diarize\n…\nHuggingface: \nhttps://\nhuggingface.co/spaces/OpenMOS\nS-Team/MOSS-transcribe-diarize\n…\nAPI: \nhttps://\nshorturl.at/DWwe3\nLive demo: \nhttps://\nshorturl.at/wRZ3j\nTechnical Report：\nhttp://\narxiv.org/abs/2601.01554\nHF Space: \nhttps://\nhuggingface.co/spaces/OpenMOS\nS-Team/MOSS-transcribe-diarize\n…\nAtomGit：\nhttps://\nai.atomgit.com/OpenMOSS/MOSS-\nTranscribe-Diarize\n…\nSGLang-Omni: \nhttps://\ngithub.com/sgl-project/sg\nlang-omni\n…\nvLLM: \nhttps://\ngithub.com/vllm-project/v\nllm\n…\nMLX-audio: \nhttps://\ngithub.com/Blaizzy/mlx-au\ndio\n…\nDiscord:\nhttps://\ndiscord.gg/SmVQHGffZU",
+        "media": []
+      },
+      {
+        "post_id": "2075059163097399534",
+        "handle": "MosiAI_Official",
+        "status_url": "https://x.com/MosiAI_Official/status/2075059163097399534",
+        "posted_at": "2026-07-09T03:27:11.000Z",
+        "author_label": "MOSI\n@MosiAI_Official\n·\nJul 9",
+        "text": "Performance & Benchmarks\nMOSS-Transcribe-Diarize-0.9B is built for messy, real-world speech: multi-speaker meetings, interruptions, long conversations, and partially overlapping speech.\nInstead of running ASR, diarization, and alignment as separate steps, the model handles",
+        "media": [
+          {
+            "url": "https://pbs.twimg.com/media/HMwTuFNaQAALS5O?format=jpg&name=360x360",
+            "alt": "Image"
+          }
+        ]
+      },
+      {
+        "post_id": "2075059168139198876",
+        "handle": "MosiAI_Official",
+        "status_url": "https://x.com/MosiAI_Official/status/2075059168139198876",
+        "posted_at": "2026-07-09T03:27:13.000Z",
+        "author_label": "MOSI\n@MosiAI_Official\n·\nJul 9",
+        "text": "End-to-End: Rethinking Multi-Speaker Transcription\nCompared with cascaded systems such as WhisperX, which typically rely on separate ASR, diarization, and alignment modules, the core idea behind MOSS-Transcribe-Diarize-0.9B is to model speech transcription, speaker attribution,",
+        "media": [
+          {
+            "url": "https://pbs.twimg.com/media/HMwUsD1aMAAQBvp?format=jpg&name=360x360",
+            "alt": "Image"
+          }
+        ]
+      },
+      {
+        "post_id": "2075059172270596213",
+        "handle": "MosiAI_Official",
+        "status_url": "https://x.com/MosiAI_Official/status/2075059172270596213",
+        "posted_at": "2026-07-09T03:27:14.000Z",
+        "author_label": "MOSI\n@MosiAI_Official\n·\nJul 9",
+        "text": "Multi-speaker diarization",
+        "media": [
+          {
+            "url": "https://pbs.twimg.com/amplify_video_thumb/2075056384174100480/img/xWOHG_hD7HG9k5DK.jpg",
+            "alt": null
+          }
+        ]
+      },
+      {
+        "post_id": "2075059177882595615",
+        "handle": "MosiAI_Official",
+        "status_url": "https://x.com/MosiAI_Official/status/2075059177882595615",
+        "posted_at": "2026-07-09T03:27:15.000Z",
+        "author_label": "MOSI\n@MosiAI_Official\n·\nJul 9",
+        "text": "Multilingual transcription",
+        "media": [
+          {
+            "url": "https://pbs.twimg.com/amplify_video_thumb/2075056572972363776/img/-EZn8mueFiXQORCy.jpg",
+            "alt": null
+          }
+        ]
+      },
+      {
+        "post_id": "2075059188481565042",
+        "handle": "MosiAI_Official",
+        "status_url": "https://x.com/MosiAI_Official/status/2075059188481565042",
+        "posted_at": "2026-07-09T03:27:17.000Z",
+        "author_label": "MOSI\n@MosiAI_Official\n·\nJul 9",
+        "text": "Try the PRO model live: \nhttps://\nshorturl.at/DWwe3",
+        "media": []
+      },
+      {
+        "post_id": "2075258714567917710",
+        "handle": "MosiAI_Official",
+        "status_url": "https://x.com/MosiAI_Official/status/2075258714567917710",
+        "posted_at": "2026-07-09T16:40:08.000Z",
+        "author_label": "MOSI\n@MosiAI_Official\n·\nJul 9",
+        "text": "期待你的测评！",
+        "media": []
+      },
+      {
+        "post_id": "2075258382358135122",
+        "handle": "MosiAI_Official",
+        "status_url": "https://x.com/MosiAI_Official/status/2075258382358135122",
+        "posted_at": "2026-07-09T16:38:49.000Z",
+        "author_label": "MOSI\n@MosiAI_Official\n·\nJul 9",
+        "text": "unlimited speakers. speakers has voice stamps yes, it's gonna look like this \nhttps://\nx.com/mosiai_officia\nl/status/2075059177882595615?s=46\n…\nfor the specific languages will need to check with the team, theoretically most of the popular languages are all covered",
+        "media": [
+          {
+            "url": "https://pbs.twimg.com/amplify_video_thumb/2075056572972363776/img/-EZn8mueFiXQORCy.jpg",
+            "alt": null
+          }
+        ]
+      },
+      {
+        "post_id": "2075110149895983356",
+        "handle": "MosiAI_Official",
+        "status_url": "https://x.com/MosiAI_Official/status/2075110149895983356",
+        "posted_at": "2026-07-09T06:49:48.000Z",
+        "author_label": "MOSI\n@MosiAI_Official\n·\nJul 9",
+        "text": "yesss",
+        "media": []
+      },
+      {
+        "post_id": "2075491632825373055",
+        "handle": "MosiAI_Official",
+        "status_url": "https://x.com/MosiAI_Official/status/2075491632825373055",
+        "posted_at": "2026-07-10T08:05:40.000Z",
+        "author_label": "MOSI\n@MosiAI_Official\n·\nJul 10",
+        "text": "thank you for trying our model! let me call our tech bro to answer  \n@YangGao07",
+        "media": []
+      }
+    ],
+    "discarded_same_author_posts": []
+  },
+  "source_selection": {
+    "selected_source": {
+      "url": "http://arxiv.org/abs/2601.01554",
+      "artifact_type": "paper",
+      "found_in_post_id": "2075059157443756245",
+      "link_text": "http://\narxiv.org/abs/2601.01554"
+    },
+    "ranked_sources": [
+      {
+        "url": "http://arxiv.org/abs/2601.01554",
+        "artifact_type": "paper",
+        "found_in_post_id": "2075059157443756245",
+        "link_text": "http://\narxiv.org/abs/2601.01554"
+      },
+      {
+        "url": "https://github.com/Blaizzy/mlx-audio",
+        "artifact_type": "repository",
+        "found_in_post_id": "2075059157443756245",
+        "link_text": "https://\ngithub.com/Blaizzy/mlx-au\ndio\n…"
+      },
+      {
+        "url": "https://github.com/OpenMOSS/MOSS-Transcribe-Diarize",
+        "artifact_type": "repository",
+        "found_in_post_id": "2075059157443756245",
+        "link_text": "https://\ngithub.com/OpenMOSS/MOSS-\nTranscribe-Diarize\n…"
+      },
+      {
+        "url": "https://github.com/sgl-project/sglang-omni",
+        "artifact_type": "repository",
+        "found_in_post_id": "2075059157443756245",
+        "link_text": "https://\ngithub.com/sgl-project/sg\nlang-omni\n…"
+      },
+      {
+        "url": "https://github.com/vllm-project/vllm",
+        "artifact_type": "repository",
+        "found_in_post_id": "2075059157443756245",
+        "link_text": "https://\ngithub.com/vllm-project/v\nllm\n…"
+      },
+      {
+        "url": "https://huggingface.co/spaces/OpenMOSS-Team/MOSS-transcribe-diarize",
+        "artifact_type": "model_or_dataset",
+        "found_in_post_id": "2075059157443756245",
+        "link_text": "https://\nhuggingface.co/spaces/OpenMOS\nS-Team/MOSS-transcribe-diarize\n…"
+      },
+      {
+        "url": "https://ai.atomgit.com/OpenMOSS/MOSS-Transcribe-Diarize",
+        "artifact_type": "web_source",
+        "found_in_post_id": "2075059157443756245",
+        "link_text": "https://\nai.atomgit.com/OpenMOSS/MOSS-\nTranscribe-Diarize\n…"
+      },
+      {
+        "url": "https://discord.gg/SmVQHGffZU",
+        "artifact_type": "web_source",
+        "found_in_post_id": "2075059157443756245",
+        "link_text": "https://\ndiscord.gg/SmVQHGffZU"
+      },
+      {
+        "url": "https://shorturl.at/DWwe3",
+        "artifact_type": "web_source",
+        "found_in_post_id": "2075059157443756245",
+        "link_text": "https://\nshorturl.at/DWwe3"
+      },
+      {
+        "url": "https://shorturl.at/wRZ3j",
+        "artifact_type": "web_source",
+        "found_in_post_id": "2075059157443756245",
+        "link_text": "https://\nshorturl.at/wRZ3j"
+      }
+    ],
+    "linked_social_sources": []
+  }
+}

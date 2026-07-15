@@ -1,0 +1,6 @@
+<article class="card issue" id="issue-{{ issue.id }}">
+  <div class="section-heading"><h3>{{ issue.explanation }}</h3><span class="status {{ issue.status.value }}">{{ issue.status.value }}</span></div>
+  <div class="comparison"><blockquote><strong>Social source</strong><p>{{ issue.social_statement }}</p><a href="{{ issue.social_source_url }}" rel="noreferrer">Open social source</a></blockquote><blockquote><strong>Primary source</strong><p>{{ issue.source_statement }}</p><a href="{{ issue.primary_source_url }}" rel="noreferrer">Open primary source</a></blockquote></div>
+  {% set retained = issue_evidence.get(issue.id, []) %}{% if retained %}<details><summary>Exact retained evidence</summary>{% for item in retained %}<blockquote><strong>{{ item.role }} evidence</strong><p>{{ item.quote }}</p><a href="{{ item.source_url }}" rel="noreferrer">Open retained source</a></blockquote>{% endfor %}</details>{% endif %}
+  {% if issue.status.value == 'unresolved' %}<form class="actions" method="post" action="/issues/{{ issue.id }}/resolve" hx-post="/issues/{{ issue.id }}/resolve" hx-target="#issue-{{ issue.id }}" hx-swap="outerHTML">{% for action in actions %}<button class="button {% if action == 'reject' %}danger{% endif %}" name="action" value="{{ action }}" type="submit">{{ action|replace('_', ' ')|title }}</button>{% endfor %}</form>{% endif %}
+</article>

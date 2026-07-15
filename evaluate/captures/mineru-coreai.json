@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "candidate_id": "mineru-coreai",
+  "capture_method": "logged_in_visible_playwright",
+  "root_url": "https://x.com/JackdeS11/status/2074052522088743381",
+  "root_author_handle": "JackdeS11",
+  "root_post_id": "2074052522088743381",
+  "capture_policy": {
+    "self_replies_bundled": true,
+    "other_authors_excluded": true,
+    "media_downloaded": false,
+    "documents_downloaded": false,
+    "max_thread_span_hours": 48
+  },
+  "thread": {
+    "post_count": 1,
+    "raw_same_author_post_count": 1,
+    "posts": [
+      {
+        "post_id": "2074052522088743381",
+        "handle": "JackdeS11",
+        "status_url": "https://x.com/JackdeS11/status/2074052522088743381",
+        "posted_at": "2026-07-06T08:47:09.000Z",
+        "author_label": "MLBoy_DaisukeMajima\n@JackdeS11",
+        "text": "MinerU2.5-Pro (1.2B doc OCR) reading whole pages fully on-device on iPhone 17 Pro.\n\nPage photo → structured text: headings, paragraphs, tables. Nothing leaves the phone.\n\nStock Qwen2-VL on Apple Core AI. Apache-2.0.\n \nhttp://\nhuggingface.co/mlboydaisuke/M\ninerU2.5-Pro-CoreAI\n…\n \nhttps://\ngithub.com/john-rocky/cor\neai-model-zoo\n…",
+        "media": [
+          {
+            "url": "https://pbs.twimg.com/amplify_video_thumb/2074051839155429376/img/b24234dOZsqTEDGv.jpg",
+            "alt": null
+          }
+        ]
+      }
+    ],
+    "discarded_same_author_posts": []
+  },
+  "source_selection": {
+    "selected_source": {
+      "url": "https://github.com/john-rocky/coreai-model-zoo",
+      "artifact_type": "repository",
+      "found_in_post_id": "2074052522088743381",
+      "link_text": "https://\ngithub.com/john-rocky/cor\neai-model-zoo\n…"
+    },
+    "ranked_sources": [
+      {
+        "url": "https://github.com/john-rocky/coreai-model-zoo",
+        "artifact_type": "repository",
+        "found_in_post_id": "2074052522088743381",
+        "link_text": "https://\ngithub.com/john-rocky/cor\neai-model-zoo\n…"
+      },
+      {
+        "url": "https://huggingface.co/mlboydaisuke/MinerU2.5-Pro-CoreAI",
+        "artifact_type": "model_or_dataset",
+        "found_in_post_id": "2074052522088743381",
+        "link_text": "http://\nhuggingface.co/mlboydaisuke/M\ninerU2.5-Pro-CoreAI\n…"
+      }
+    ],
+    "linked_social_sources": []
+  }
+}

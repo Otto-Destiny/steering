@@ -1,0 +1,85 @@
+# Compact STEERING v0.1 knowledge-extraction template.
+# Use null or [] when the source does not provide a field; never invent values.
+
+schema_version: 1
+candidate_id: null
+evaluation_status: ready_for_human_review
+
+ingestion:
+  social_source: null
+  capture_method: null
+  bundled_self_posts: null
+  other_authors_excluded: null
+  selected_artifact:
+    type: null
+    canonical_url: null
+    full_text_used: null
+  retained_binary_artifacts: []
+  note: null
+
+knowledge:
+  artifact:
+    title: null
+    short_name: null
+    kind: null
+    version: null
+    published_at: null
+    authors: []
+    maturity: null
+
+  concise_idea: null
+  problem_addressed: null
+  method: []
+  capabilities: []
+  requirements: []
+
+  evidence:
+    - claim: null
+      result: null
+      context: null
+      source_location: null
+
+  limitations: []
+
+  engineering_relevance:
+    applicability: null
+    not_a_fit_for: null
+    adoption_posture: experimental_candidate_not_default_recommendation
+
+  evidence_quality:
+    support_type: null
+    independently_validated: null
+    confidence: null
+
+  adoption_readiness:
+    implementation_available: null
+    license: null
+    compute_infrastructure:
+      training:
+        device: null
+        count: null
+        memory_per_device: null
+      inference:
+        device: null
+        count: null
+        memory_per_device: null
+    minimum_validation: null
+
+source_reconciliation:
+  authoritative_source: null
+  issues:
+    - status: needs_review
+      social_statement: null
+      source_statement: null
+      explanation: null
+
+graph_ready:
+  primary_entity:
+    id: null
+    name: null
+    type: null
+  topics: []
+  relations:
+    - subject: null
+      predicate: null
+      object: null

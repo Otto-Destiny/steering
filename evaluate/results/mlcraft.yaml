@@ -1,0 +1,85 @@
+schema_version: 1
+candidate_id: mlcraft
+evaluation_status: ready_for_human_review
+primary_category: open_source_tool
+
+ingestion:
+  social_source: https://www.linkedin.com/posts/mxslr_machinelearning-deeplearning-artificialintelligence-activity-7480918659046039552-_TN7
+  capture_method: linkedin_public_metadata_from_telegram_export
+  bundled_self_posts: 1
+  other_authors_excluded: null
+  selected_artifact:
+    type: repository
+    canonical_url: https://github.com/mxslr/mlcraft
+    full_text_used: https://github.com/mxslr/mlcraft/blob/main/README.md
+  retained_binary_artifacts: []
+  note: LinkedIn comments were unavailable; the official repository README was sufficient and post images were not used.
+
+knowledge:
+  artifact:
+    title: mlcraft
+    short_name: mlcraft
+    kind: ai_ml_engineering_agent_plugin
+    version: 1.0.0
+    published_at: '2026-07-09'
+    authors: [Marshall Rasendria Mahendra]
+    maturity: new_open_source_project
+  concise_idea: >-
+    Package research-first ML workflow guidance as agent skills that route a coding assistant
+    through literature review, leakage checks, baselines, evaluation, explainability, and delivery.
+  problem_addressed: >-
+    General coding agents can select unsuitable ML methods, leak data, report misleading metrics,
+    or skip research and validation when building an end-to-end experiment.
+  method:
+    - Route a natural-language task across 14 ML domain skills.
+    - Orchestrate framing, literature review, dataset audit, baselines, training, evaluation, and deployment.
+    - Diagnose stalled accuracy through a separate research-and-improvement loop.
+    - Adapt output for Kaggle, Colab, or a local GPU workflow.
+  capabilities:
+    - Claude Code and Antigravity plugin installation.
+    - Domain-specific method and metric guidance across 14 ML areas.
+    - Leakage-aware splitting, explainability guidance, and notebook delivery.
+  requirements:
+    - Claude Code or Antigravity; Codex and Cursor support are only roadmap items.
+    - Git and access to the models, data, and compute needed by the chosen ML task.
+  evidence:
+    - claim: The plugin covers 14 ML domains.
+      result: The repository lists 14 domain skills spanning vision, NLP, tabular, audio, graph, RL, multimodal, video, 3D, and related areas.
+      context: Repository structure and README documentation, not an outcome benchmark.
+      source_location: Official README, Components
+    - claim: It promotes honest evaluation.
+      result: Dedicated skills cover leakage, suitable metrics, validation-only threshold selection, calibration, and explainability.
+      context: Workflow instructions; compliance still depends on the host model and user review.
+      source_location: Official README, Design principle and Components
+  limitations:
+    - The repository provides workflow instructions, not evidence that generated experiments are correct or state of the art.
+    - Literature quality, code quality, and research freshness depend on the host agent and available tools.
+    - Codex and Cursor support are not implemented in the documented version.
+    - It is a very new project with no independent outcome or leakage-prevention benchmark in the README.
+  engineering_relevance:
+    applicability: Useful as a reviewable ML-project checklist and routing layer inside a supported coding agent.
+    not_a_fit_for: A verified AutoML system, an autonomous production deployment service, or a substitute for expert validation.
+    adoption_posture: experimental_candidate_not_default_recommendation
+  evidence_quality:
+    support_type: official_repository_documentation
+    independently_validated: false
+    confidence: medium
+  adoption_readiness:
+    implementation_available: true
+    license: MIT
+    compute_infrastructure:
+      training: {device: null, count: null, memory_per_device: null}
+      inference: {device: null, count: null, memory_per_device: null}
+    minimum_validation: Run one representative project and audit citations, split integrity, executable code, metrics, and claimed accuracy ceiling.
+
+source_reconciliation:
+  authoritative_source: https://github.com/mxslr/mlcraft
+  issues: []
+
+graph_ready:
+  primary_entity: {id: tool:mlcraft, name: mlcraft, type: tool}
+  topics: [ml_agents, research_automation, coding_agents, evaluation_rigor]
+  relations:
+    - {subject: tool:mlcraft, predicate: orchestrates, object: workflow:ml_research_engineering}
+    - {subject: tool:mlcraft, predicate: integrates_with, object: platform:claude_code}
+    - {subject: tool:mlcraft, predicate: emphasizes, object: practice:data_leakage_prevention}

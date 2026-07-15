@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% set project = history.projects[0] %}
+{% block title %}{{ project.name }} · STEERING{% endblock %}
+{% block content %}
+  <header class="page-heading"><p class="eyebrow">Project memory</p><h1>{{ project.name }}</h1><p>{{ project.description or 'Architecture decisions and experiment outcomes for this project.' }}</p><a class="button" href="/design">Review an architecture</a></header>
+  {% if project.constraints %}<section class="panel"><h2>Constraints</h2><ul>{% for item in project.constraints %}<li>{{ item }}</li>{% endfor %}</ul></section>{% endif %}
+  <section class="two-column">
+    <div><div class="section-heading"><h2>Decisions</h2><span>{{ history.decisions|length }}</span></div><div class="card-list">{% for item in history.decisions %}<article class="card"><h3>{{ item.decision }}</h3><p>{{ item.rationale }}</p>{% if item.artifact_id %}<a href="/artifacts/{{ item.artifact_id }}">View related artifact</a>{% endif %}</article>{% else %}<div class="empty">No decisions recorded.</div>{% endfor %}</div></div>
+    <form class="panel form-stack" method="post" action="/projects/{{ project.id }}/decisions"><h2>Record decision</h2><label>Decision <textarea name="decision" required rows="3"></textarea></label><label>Rationale <textarea name="rationale" required rows="3"></textarea></label><label>Related artifact ID <input name="artifact_id" maxlength="200"></label><button class="button primary" type="submit">Record decision</button></form>
+  </section>
+  <section class="two-column">
+    <div><div class="section-heading"><h2>Experiment outcomes</h2><span>{{ history.outcomes|length }}</span></div><div class="card-list">{% for item in history.outcomes %}<article class="card"><h3>{% if item.succeeded is sameas true %}Succeeded{% elif item.succeeded is sameas false %}Did not succeed{% else %}Outcome{% endif %}</h3><p>{{ item.outcome }}</p><p class="meta">{{ item.constraints|join(', ') }}</p></article>{% else %}<div class="empty">No outcomes recorded.</div>{% endfor %}</div></div>
+    <form class="panel form-stack" method="post" action="/projects/{{ project.id }}/outcomes"><h2>Record outcome</h2><label>Outcome <textarea name="outcome" required rows="3"></textarea></label><label>Result <select name="succeeded"><option value="">Not rated</option><option value="true">Succeeded</option><option value="false">Did not succeed</option></select></label><label>Constraints <span class="hint">one per line</span><textarea name="constraints" rows="3"></textarea></label><label>Decision ID <input name="decision_id" maxlength="200"></label><label>Artifact ID <input name="artifact_id" maxlength="200"></label><button class="button primary" type="submit">Record outcome</button></form>
+  </section>
+{% endblock %}

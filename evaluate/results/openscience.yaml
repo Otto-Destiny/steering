@@ -1,0 +1,105 @@
+schema_version: 1
+candidate_id: openscience
+evaluation_status: ready_for_human_review
+primary_category: open_source_tool
+
+ingestion:
+  social_source: https://www.linkedin.com/posts/ashishpatel2604_introducing-openscience-a-better-open-source-activity-7479869480169484289-hKzL
+  capture_method: linkedin_public_metadata_from_telegram_export
+  bundled_self_posts: 1
+  other_authors_excluded: null
+  selected_artifact:
+    type: repository
+    canonical_url: https://github.com/synthetic-sciences/openscience
+    full_text_used: https://github.com/synthetic-sciences/openscience#readme
+  retained_binary_artifacts: []
+  note: LinkedIn comments were unavailable; the official repository supplied current product details. Images were unnecessary.
+
+knowledge:
+  artifact:
+    title: OpenScience
+    short_name: OpenScience
+    kind: open_source_scientific_research_agent_workbench
+    version: null
+    published_at: null
+    authors: []
+    maturity: released_open_source_project
+
+  concise_idea: >-
+    A browser-based, model-agnostic research workbench that lets agents review literature,
+    form hypotheses, run code and experiments, query scientific databases, and write results.
+  problem_addressed: >-
+    Scientific-agent workflows are fragmented across literature tools, model providers,
+    compute systems, code environments, and domain-specific data sources.
+  method:
+    - Run a local server containing the browser workspace, agent runtime, and tool layer.
+    - Route each model request to a selected hosted or local provider.
+    - Orchestrate research, domain-specialist, critique, and literature-review agents.
+    - Store sessions, artifacts, and provenance locally; extend through skills, MCP, plugins, and an SDK.
+  capabilities:
+    - Continuous literature-to-experiment-to-write-up workflows.
+    - More than 290 documented skills across ML and scientific domains.
+    - Direct tools for major scientific databases and cloud-compute providers.
+    - Bring-your-own-key, local-model, free-demo, or managed Atlas model access.
+  requirements:
+    - The published npm package or platform binary.
+    - A supported model source; most serious use requires provider keys, local models, or Atlas credit.
+    - Scientific compute and domain tools appropriate to the experiment.
+    - Container or VM isolation when executing untrusted agent-generated code.
+
+  evidence:
+    - claim: The implementation is model-agnostic and extensible.
+      result: The repository documents per-request provider routing plus MCP, plugins, custom agents, commands, and a TypeScript SDK.
+      context: Maintainer implementation documentation.
+      source_location: Official repository README, What it does and How it works
+    - claim: The workbench covers an end-to-end research loop.
+      result: Literature review, hypothesis, code, experiments, analysis, and write-up are implemented as one workspace workflow.
+      context: Capability claim; no independent scientific-success benchmark is reported.
+      source_location: Official repository README, What it does
+
+  limitations:
+    - The repository reports capabilities, not independently measured research quality or reproducibility.
+    - The agent is not sandboxed; its permission system is explicitly not an isolation boundary.
+    - Remote model or cloud-compute use sends relevant data outside the local machine.
+    - Research outputs still require expert review for citations, methods, statistics, and experimental validity.
+
+  engineering_relevance:
+    applicability: >-
+      Useful for teams wanting an extensible, inspectable scientific-agent workspace across
+      multiple model and data providers.
+    not_a_fit_for: >-
+      Not a safe unattended executor on a sensitive host, or evidence that autonomous research
+      outputs are scientifically valid without domain review.
+    adoption_posture: trial_in_isolated_environment_with_human_scientist_review
+
+  evidence_quality:
+    support_type: maintainer_repository_documentation
+    independently_validated: false
+    confidence: medium
+
+  adoption_readiness:
+    implementation_available: true
+    license: Apache-2.0
+    compute_infrastructure:
+      training: {device: null, count: null, memory_per_device: null}
+      inference: {device: model_and_experiment_dependent, count: null, memory_per_device: null}
+    minimum_validation: >-
+      Run a contained research task in a VM; audit tool permissions, data egress, citations,
+      experiment reproducibility, provider cost, and domain-expert acceptance.
+
+source_reconciliation:
+  authoritative_source: https://github.com/synthetic-sciences/openscience
+  issues:
+    - status: needs_review
+      social_statement: Runs on your infrastructure and your data stays yours.
+      source_statement: Sessions and artifacts are local, but hosted model requests go directly to the selected provider and Atlas offers managed models and cloud compute.
+      explanation: Data locality depends on the chosen model and compute configuration; it is not guaranteed by the local workspace alone.
+
+graph_ready:
+  primary_entity: {id: tool:openscience, name: OpenScience, type: tool}
+  topics: [scientific_ai, research_agents, reproducibility, multi_agent_systems]
+  relations:
+    - {subject: tool:openscience, predicate: orchestrates, object: workflow:scientific-research-loop}
+    - {subject: tool:openscience, predicate: integrates_with, object: protocol:mcp}
+    - {subject: tool:openscience, predicate: routes_to, object: component:model-provider}
+

@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "candidate_id": "colibri-moe-offloading",
+  "capture_method": "logged_in_visible_playwright",
+  "root_url": "https://x.com/chenzeling4/status/2075731830477877612",
+  "root_author_handle": "chenzeling4",
+  "root_post_id": "2075731830477877612",
+  "capture_policy": {
+    "self_replies_bundled": true,
+    "other_authors_excluded": true,
+    "media_downloaded": false,
+    "documents_downloaded": false,
+    "max_thread_span_hours": 48
+  },
+  "thread": {
+    "post_count": 1,
+    "raw_same_author_post_count": 4,
+    "posts": [
+      {
+        "post_id": "2075731830477877612",
+        "handle": "chenzeling4",
+        "status_url": "https://x.com/chenzeling4/status/2075731830477877612",
+        "posted_at": "2026-07-11T00:00:08.000Z",
+        "author_label": "Zane Chen\n@chenzeling4",
+        "text": "744B parameters. On a laptop. With 25GB RAM.\n\nColibri runs GLM-5.2 (744B MoE) in pure C with zero dependencies. The trick: only ~40B params activate per token, so it keeps the dense part resident and streams experts from disk on demand. A single 2,400-line C file. No GPU, no BLAS, no Python at runtime.\n\nThis shouldn't work. But it does.\n\n 2.1K #AI #OpenSource\n\n\nhttps://\ngithub.com/JustVugg/colib\nri\n…\n\nFollow for daily dev finds",
+        "media": [
+          {
+            "url": "https://pbs.twimg.com/media/HM57GYPbsAEbbNx?format=jpg&name=360x360",
+            "alt": "Image"
+          }
+        ]
+      }
+    ],
+    "discarded_same_author_posts": [
+      {
+        "post_id": "2077014258672648477",
+        "status_url": "https://x.com/chenzeling4/status/2077014258672648477",
+        "reason": "outside_48h_root_thread_window"
+      },
+      {
+        "post_id": "2077000915916394968",
+        "status_url": "https://x.com/chenzeling4/status/2077000915916394968",
+        "reason": "outside_48h_root_thread_window"
+      },
+      {
+        "post_id": "2076954359926264185",
+        "status_url": "https://x.com/chenzeling4/status/2076954359926264185",
+        "reason": "outside_48h_root_thread_window"
+      }
+    ]
+  },
+  "source_selection": {
+    "selected_source": {
+      "url": "https://github.com/JustVugg/colibri",
+      "artifact_type": "repository",
+      "found_in_post_id": "2075731830477877612",
+      "link_text": "https://\ngithub.com/JustVugg/colib\nri\n…"
+    },
+    "ranked_sources": [
+      {
+        "url": "https://github.com/JustVugg/colibri",
+        "artifact_type": "repository",
+        "found_in_post_id": "2075731830477877612",
+        "link_text": "https://\ngithub.com/JustVugg/colib\nri\n…"
+      }
+    ],
+    "linked_social_sources": []
+  }
+}

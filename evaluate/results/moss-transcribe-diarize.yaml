@@ -1,0 +1,96 @@
+schema_version: 1
+candidate_id: moss-transcribe-diarize
+evaluation_status: ready_for_human_review_with_partial_social_capture
+
+ingestion:
+  social_source: https://x.com/MosiAI_Official/status/2075059157443756245
+  capture_method: dataset_export_plus_linked_primary_source
+  thread_capture_status: partial_unavailable
+  bundled_self_posts: null
+  self_replies_inspected: false
+  other_authors_excluded: null
+  selected_artifact:
+    type: model
+    canonical_url: https://huggingface.co/OpenMOSS-Team/MOSS-Transcribe-Diarize
+    full_text_used: model_card
+  retained_binary_artifacts: []
+  note: The exported root post was available, but author self-replies were not; images were not analyzed because the official model card was selected.
+
+knowledge:
+  artifact:
+    title: MOSS-Transcribe-Diarize-0.9B
+    short_name: MOSS-Transcribe-Diarize
+    kind: open_source_tool
+    version: 0.9B
+    published_at: null
+    authors: [OpenMOSS Team]
+    maturity: released_model
+
+  concise_idea: >-
+    A 0.9B end-to-end speech model that turns long, multi-speaker audio into structured transcripts
+    containing text, anonymous speaker labels, timestamps, and acoustic events in one pass.
+  problem_addressed: >-
+    Long-form transcription pipelines often require separate ASR, alignment, and diarization systems whose errors and latency compound.
+  method:
+    - Encode long audio and generate a structured transcript autoregressively.
+    - Produce transcription, speaker turns, timestamps, and acoustic-event markers jointly.
+    - Accept hotwords to improve recognition of domain-specific terms.
+  capabilities:
+    - Single-pass processing of audio up to about 90 minutes as documented by the model card.
+    - Transcription across more than 50 languages.
+    - Joint speaker diarization, timestamps, acoustic events, and custom hotwords.
+  requirements:
+    - Python and PyTorch/torchaudio compatible with the model's custom code.
+    - Loading with trust_remote_code enabled.
+    - Sufficient accelerator memory for a 0.9B BF16 model and the selected audio length; exact memory is not documented.
+
+  evidence:
+    - claim: One model performs long-form transcription and diarization jointly.
+      result: The model card documents single-pass audio-to-structured-transcript generation for inputs up to 90 minutes.
+      context: Maintainer documentation and released weights.
+      source_location: https://huggingface.co/OpenMOSS-Team/MOSS-Transcribe-Diarize
+    - claim: The authors report competitive recognition and speaker-aware transcription results.
+      result: Reported CER/cpCER includes 14.84/15.83 on AISHELL-4 and 24.86/22.17 on AliMeeting; lower is better.
+      context: Author-reported model-card evaluation, not independent validation.
+      source_location: https://huggingface.co/OpenMOSS-Team/MOSS-Transcribe-Diarize
+
+  limitations:
+    - Speaker labels denote anonymous speakers and do not identify real people.
+    - Accuracy and diarization quality can vary by language, noise, overlap, domain, and audio duration.
+    - The published metrics are author-reported and do not include application-specific latency or memory measurements.
+    - Loading custom remote code requires a security review and a pinned revision for production use.
+
+  engineering_relevance:
+    applicability: Useful for meeting, podcast, media, and conversational-audio pipelines needing one-pass transcription plus speaker structure.
+    not_a_fit_for: Identity recognition, strict real-time latency without benchmarking, or unsupported environments that cannot safely run custom model code.
+    adoption_posture: experimental_candidate_not_default_recommendation
+
+  evidence_quality:
+    support_type: official_model_card_with_author_benchmarks_and_released_weights
+    independently_validated: false
+    confidence: medium
+
+  adoption_readiness:
+    implementation_available: true
+    license: Apache-2.0
+    compute_infrastructure:
+      training: {device: null, count: null, memory_per_device: null}
+      inference: {device: CUDA-capable GPU or supported PyTorch device, count: null, memory_per_device: null}
+    minimum_validation: >-
+      Benchmark WER/CER, diarization error, timestamps, overlap, long-audio stability, latency, and peak memory on representative languages and hardware; audit and pin remote code.
+
+source_reconciliation:
+  authoritative_source: https://huggingface.co/OpenMOSS-Team/MOSS-Transcribe-Diarize
+  issues:
+    - status: needs_review
+      social_statement: The release supports 128k long-context transcription.
+      source_statement: The selected official model card documents audio inputs up to about 90 minutes but does not substantiate a 128k context figure.
+      explanation: Preserve the 90-minute capability; do not promote the separate 128k claim without a primary-source definition and measurement.
+
+graph_ready:
+  primary_entity: {id: model:moss-transcribe-diarize-0.9b, name: MOSS-Transcribe-Diarize-0.9B, type: open_source_tool}
+  topics: [speech_recognition, speaker_diarization, long_form_audio, multilingual_asr]
+  relations:
+    - {subject: model:moss-transcribe-diarize-0.9b, predicate: transcribes, object: concept:long-form-audio}
+    - {subject: model:moss-transcribe-diarize-0.9b, predicate: jointly_predicts, object: concept:speaker-turns-and-timestamps}
+    - {subject: model:moss-transcribe-diarize-0.9b, predicate: supports, object: feature:custom-hotwords}

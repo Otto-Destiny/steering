@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "candidate_id": "justgrpo",
+  "capture_method": "logged_in_visible_playwright",
+  "root_url": "https://x.com/Chinazhidx/status/2074028265292075128",
+  "root_author_handle": "Chinazhidx",
+  "root_post_id": "2074028265292075128",
+  "capture_policy": {
+    "self_replies_bundled": true,
+    "other_authors_excluded": true,
+    "media_downloaded": false,
+    "documents_downloaded": false
+  },
+  "thread": {
+    "post_count": 3,
+    "posts": [
+      {
+        "post_id": "2074028265292075128",
+        "handle": "Chinazhidx",
+        "status_url": "https://x.com/Chinazhidx/status/2074028265292075128",
+        "posted_at": "2026-07-06T07:10:46.000Z",
+        "author_label": "智东西China AI News\n@Chinazhidx",
+        "text": "BREAKING: A paper by Tsinghua’s Huang Gao team and Alibaba Group wins #ICML2026 Outstanding Paper Award\n\nThe paper introduces JustGRPO, a minimalist algorithm achieving 89.1% accuracy on GSM8K math reasoning, while preserving parallel decoding capability in diffusion models.",
+        "media": [
+          {
+            "url": "https://pbs.twimg.com/media/HMhtd1TbYAAKyzS?format=jpg&name=360x360",
+            "alt": "Image"
+          },
+          {
+            "url": "https://pbs.twimg.com/media/HMhtqMfbYAAgkMQ?format=jpg&name=240x240",
+            "alt": "Image"
+          },
+          {
+            "url": "https://pbs.twimg.com/media/HMhtrwJakAAUkEs?format=jpg&name=360x360",
+            "alt": "Image"
+          }
+        ]
+      },
+      {
+        "post_id": "2074028595220287981",
+        "handle": "Chinazhidx",
+        "status_url": "https://x.com/Chinazhidx/status/2074028595220287981",
+        "posted_at": "2026-07-06T07:12:05.000Z",
+        "author_label": "智东西China AI News\n@Chinazhidx\n·\nJul 6",
+        "text": "Huang Gao is a tenured associate professor at Tsinghua University and a researcher at AIR.\n\nResearch: AI foundation models & algorithms.\n\n120+ CCF A-tier papers, 105K+ Google Scholar citations, DenseNet: 62K+ citations.\n\nAI2000 most influential AI scholar.",
+        "media": []
+      },
+      {
+        "post_id": "2074029484181967220",
+        "handle": "Chinazhidx",
+        "status_url": "https://x.com/Chinazhidx/status/2074029484181967220",
+        "posted_at": "2026-07-06T07:15:37.000Z",
+        "author_label": "智东西China AI News\n@Chinazhidx\n·\nJul 6",
+        "text": "More details: \nhttps://\nblog.icml.cc/2026/07/05/ann\nouncing-the-icml-2026-awards/\n…",
+        "media": []
+      }
+    ]
+  },
+  "source_selection": {
+    "selected_source": {
+      "url": "https://blog.icml.cc/2026/07/05/announcing-the-icml-2026-awards/",
+      "artifact_type": "web_source",
+      "found_in_post_id": "2074029484181967220",
+      "link_text": "https://\nblog.icml.cc/2026/07/05/ann\nouncing-the-icml-2026-awards/\n…"
+    },
+    "ranked_sources": [
+      {
+        "url": "https://blog.icml.cc/2026/07/05/announcing-the-icml-2026-awards/",
+        "artifact_type": "web_source",
+        "found_in_post_id": "2074029484181967220",
+        "link_text": "https://\nblog.icml.cc/2026/07/05/ann\nouncing-the-icml-2026-awards/\n…"
+      }
+    ]
+  }
+}

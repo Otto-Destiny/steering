@@ -1,0 +1,75 @@
+schema_version: 1
+candidate_id: local-cpu-tts
+evaluation_status: ready_for_human_review
+
+ingestion:
+  social_source: https://x.com/DataChaz/status/2074139543289348234
+  capture_method: logged_in_visible_playwright
+  bundled_self_posts: 3
+  other_authors_excluded: true
+  selected_artifact:
+    type: repository
+    canonical_url: https://github.com/kyutai-labs/pocket-tts
+  retained_binary_artifacts: []
+  note: The repository was used directly; the promotional image duplicated the post and was not processed.
+
+knowledge:
+  artifact:
+    title: Pocket TTS
+    kind: open_source_text_to_speech_model_and_library
+    license: MIT_repository_code
+    model_size: 100M_parameters
+    maturity: released_open_source_tool
+  concise_idea: >-
+    A compact streaming text-to-speech model designed for low-latency CPU inference, with a Python
+    API, CLI, local HTTP server, multilingual voices, and audio-prompt voice cloning.
+  capabilities:
+    - CPU-only streaming synthesis with approximately 200 ms time to first audio chunk.
+    - Approximately 6x real-time generation on two CPU cores of a MacBook Air M4.
+    - English, French, German, Portuguese, Italian, and Spanish support.
+    - Voice cloning from a supplied audio file and reusable exported voice states.
+    - CLI, Python library, and local HTTP server interfaces.
+  method:
+    - Load a compact language-specific TTS model and a predefined or audio-derived voice state.
+    - Stream or generate PCM audio locally; retain model and voice state in memory to avoid repeated setup cost.
+  requirements:
+    - Python 3.10-3.14 and PyTorch 2.5 or newer.
+    - CPU resources; the reported headline benchmark is specific to a MacBook Air M4 using two cores.
+    - Clean, lawfully usable reference audio for voice cloning.
+  evidence:
+    - "The maintainer README reports 100M parameters, ~200 ms first-chunk latency, and ~6x real-time on a two-core MacBook Air M4."
+    - "The README documents CPU inference, six languages, streaming, CLI/API/server use, and voice cloning."
+    - "The repository explicitly reports no observed GPU speedup at batch size 1 for this small model."
+  limitations:
+    - Speed and latency figures are hardware- and configuration-specific, not universal guarantees.
+    - Text-controlled pauses are not supported.
+    - Model loading and conversion of audio prompts into voice states are relatively slow unless cached/exported.
+    - Official in-browser support is not provided; listed browser ports are community implementations.
+    - Voice cloning creates consent, impersonation, and misuse risks covered by the project's prohibited-use policy.
+  engineering_relevance:
+    applicability: >-
+      A strong candidate for private, offline, low-cost voice output where CPU deployment, streaming,
+      and moderate multilingual coverage matter more than frontier voice quality.
+    trial_plan:
+      - Measure real-time factor, first-chunk latency, memory use, and quality on target hardware and languages.
+      - Compare cloned-voice similarity and intelligibility with the current TTS baseline.
+      - Add explicit consent and provenance controls before exposing voice cloning to users.
+    adoption_posture: practical_candidate_pending_quality_and_hardware_benchmark
+
+source_reconciliation:
+  authoritative_source: https://github.com/kyutai-labs/pocket-tts
+  issues:
+    - status: needs_review
+      social_statement: Voice cloning works from five seconds of audio.
+      finding: The selected repository confirms voice cloning but does not state a five-second minimum or recommendation.
+    - status: needs_review
+      social_statement: The entire project is MIT licensed and trained exclusively on public data.
+      finding: The repository code is MIT licensed, but it directs users to separate licenses for voice artifacts and the selected README does not substantiate the training-data claim.
+
+graph_ready:
+  primary_entity: {id: "tool:pocket-tts", name: Pocket TTS, type: tool}
+  topics: [text_to_speech, local_ai, cpu_inference, streaming_audio, voice_cloning]
+  relations:
+    - {subject: "tool:pocket-tts", predicate: enables, object: "capability:cpu_text_to_speech"}
+    - {subject: "tool:pocket-tts", predicate: supports, object: "capability:streaming_audio"}
+    - {subject: "tool:pocket-tts", predicate: supports, object: "capability:voice_cloning"}

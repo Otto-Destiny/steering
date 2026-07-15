@@ -1,0 +1,42 @@
+name: Resolver request
+description: Request ingestion support for a source platform or format.
+title: "[Resolver]: "
+labels: [resolver]
+body:
+  - type: input
+    id: source
+    attributes:
+      label: Source platform or format
+      placeholder: Publisher, repository host, scholarly format, or webpage family
+    validations:
+      required: true
+  - type: textarea
+    id: urls
+    attributes:
+      label: Public example URLs
+      description: Use public, redistributable examples only. Do not include private/member-only content.
+    validations:
+      required: true
+  - type: textarea
+    id: artifacts
+    attributes:
+      label: Expected artifacts and provenance
+      description: What content and exact source locators should the resolver preserve?
+    validations:
+      required: true
+  - type: textarea
+    id: access
+    attributes:
+      label: Access and platform constraints
+      description: Document public APIs, authentication, robots/access controls, rate limits, and licensing.
+    validations:
+      required: true
+  - type: checkboxes
+    id: boundaries
+    attributes:
+      label: Boundaries
+      options:
+        - label: The examples are public and contain no credentials or private data.
+          required: true
+        - label: The request does not require bypassing access controls or a paywall.
+          required: true

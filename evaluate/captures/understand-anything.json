@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "candidate_id": "understand-anything",
+  "capture_method": "logged_in_visible_playwright",
+  "root_url": "https://x.com/DAIEvolutionHub/status/2074084604097765643",
+  "root_author_handle": "DAIEvolutionHub",
+  "root_post_id": "2074084604097765643",
+  "capture_policy": {
+    "self_replies_bundled": true,
+    "other_authors_excluded": true,
+    "media_downloaded": false,
+    "documents_downloaded": false
+  },
+  "thread": {
+    "post_count": 1,
+    "posts": [
+      {
+        "post_id": "2074084604097765643",
+        "handle": "DAIEvolutionHub",
+        "status_url": "https://x.com/DAIEvolutionHub/status/2074084604097765643",
+        "posted_at": "2026-07-06T10:54:38.000Z",
+        "author_label": "Kshitij Mishra | AI & Tech\n@DAIEvolutionHub",
+        "text": "Someone built a tool that turns any codebase into an interactive knowledge graph you can explore, search, and ask questions about.\n\nIt's called Understand Anything.\n\nHere's what actually happens when you run it =>\nSix agents analyze your project in parallel. A knowledge graph gets built of every file, function, class, and dependency. An interactive dashboard opens, color-coded by architectural layer, fully searchable, every node clickable with plain-English explanations.\n\nThen you get =>\n→ /understand-chat - ask anything about the codebase in plain English \n→ /understand-diff - see what your changes affect before committing \n→ /understand-explain - deep dive into any specific file or function \n→ /understand-onboard - generate an onboarding guide for new team members \n→ /understand-domain - extract business domain knowledge as a horizontal graph \n→ /understand-knowledge - analyze a wiki and surface implicit relationships as a navigable idea graph\n\nThe persona-adaptive UI is a detail I hadn't seen before, the dashboard adjusts its detail level depending on whether you're a junior dev, PM, or power user.\n\nIt supports multilingual output too. Run /understand --language zh and the entire dashboard generates in Chinese.\n\nIt works with Claude Code, Cursor, Copilot, Gemini CLI, Codex, OpenCode, Vibe CLI, Cline, KIMI CLI.\n\nHere's the GitHub Repo: \nhttps://\ngithub.com/Egonex-AI/Unde\nrstand-Anything\n…",
+        "media": [
+          {
+            "url": "https://pbs.twimg.com/media/HMig6_FbEAA3M_z?format=jpg&name=small",
+            "alt": "Image"
+          }
+        ]
+      }
+    ]
+  },
+  "source_selection": {
+    "selected_source": {
+      "url": "https://github.com/Egonex-AI/Understand-Anything",
+      "artifact_type": "repository",
+      "found_in_post_id": "2074084604097765643",
+      "link_text": "https://\ngithub.com/Egonex-AI/Unde\nrstand-Anything\n…"
+    },
+    "ranked_sources": [
+      {
+        "url": "https://github.com/Egonex-AI/Understand-Anything",
+        "artifact_type": "repository",
+        "found_in_post_id": "2074084604097765643",
+        "link_text": "https://\ngithub.com/Egonex-AI/Unde\nrstand-Anything\n…"
+      }
+    ]
+  }
+}

@@ -1,0 +1,100 @@
+schema_version: 1
+candidate_id: harness-engineering-rsi
+evaluation_status: ready_for_human_review
+primary_category: tip_or_trick
+
+ingestion:
+  social_source: https://x.com/SakanaAILabs/status/2074489949529776308
+  capture_method: telegram_export_with_public_oembed_text
+  bundled_self_posts: 1
+  other_authors_excluded: null
+  selected_artifact:
+    type: official_technical_article
+    canonical_url: https://lilianweng.github.io/posts/2026-07-04-harness/
+    full_text_used: https://lilianweng.github.io/posts/2026-07-04-harness/
+  retained_binary_artifacts: []
+  note: X replies were not captured; the linked source post and Lilian Weng's authoritative article were used. Images were unnecessary.
+
+knowledge:
+  artifact:
+    title: Harness Engineering for Self-Improvement
+    short_name: Harness Engineering for RSI
+    kind: engineering_synthesis_and_design_guidance
+    version: null
+    published_at: '2026-07-04'
+    authors: [Lilian Weng]
+    maturity: expert_technical_synthesis
+
+  concise_idea: >-
+    Treat the agent harness—not just the base model—as an optimizable system encompassing context,
+    workflows, tools, memory, permissions, evaluation, and persistent execution state.
+  problem_addressed: >-
+    Raw model capability does not determine long-horizon agent performance when execution loops,
+    context growth, tool orchestration, observability, and safety controls are weak.
+  method:
+    - Use explicit plan-execute-observe-test-improve workflows.
+    - Keep large logs and artifacts in durable files instead of the model context.
+    - Make subagents and backend jobs explicit, inspectable, cancellable, and recoverable.
+    - Optimize structured context, workflow, and harness code using held-out evaluations.
+    - Keep evaluators, permissions, trace audits, and consequential human review outside the self-modifying loop.
+  capabilities:
+    - A design vocabulary for building and evaluating long-horizon agent runtimes.
+    - A path from prompt optimization toward workflow and harness-code optimization.
+    - Safety guidance for bounded, observable self-improvement experiments.
+  requirements:
+    - Task-specific held-out evaluations and reliable scoring functions.
+    - Persistent artifacts, traces, and component-level observability.
+    - Sandboxed execution plus permission and human-review boundaries outside the optimization loop.
+
+  evidence:
+    - claim: Persistent files are a useful long-horizon memory substrate.
+      result: The article synthesizes systems that externalize logs, diffs, summaries, and trajectories to avoid overflowing context.
+      context: Engineering pattern supported by cited systems, not a new controlled experiment.
+      source_location: Official article, File System as Persistent Memory
+    - claim: Self-improvement should optimize more than prompts.
+      result: The surveyed progression expands from prompts to structured context, workflows, harness code, and optimizer code.
+      context: Literature synthesis across multiple cited methods.
+      source_location: Official article, Harness Optimization and Self-Improving Harness
+
+  limitations:
+    - The article is a synthesis, not a single reproducible implementation or benchmark.
+    - Better benchmark scores can reflect harness overfitting or reward hacking rather than durable capability.
+    - Harness improvements may be model-specific and can obscure whether gains come from the model or scaffold.
+    - Long-term maintainability, security, ownership, and debugging costs are not captured by short sandbox evaluations.
+
+  engineering_relevance:
+    applicability: >-
+      Useful as a checklist when designing agents that run long tasks, delegate work, retain state,
+      or optimize their own workflows.
+    not_a_fit_for: >-
+      Not evidence that unrestricted recursive self-improvement is solved or safe, and not a
+      drop-in framework implementation.
+    adoption_posture: adopt_bounded_patterns_not_unrestricted_self_modification
+
+  evidence_quality:
+    support_type: expert_synthesis_of_primary_research
+    independently_validated: null
+    confidence: medium
+
+  adoption_readiness:
+    implementation_available: false
+    license: null
+    compute_infrastructure:
+      training: {device: null, count: null, memory_per_device: null}
+      inference: {device: null, count: null, memory_per_device: null}
+    minimum_validation: >-
+      Apply one harness change at a time, use held-out tasks and trace audits, and require human
+      approval for permission, evaluator, or self-modification changes.
+
+source_reconciliation:
+  authoritative_source: https://lilianweng.github.io/posts/2026-07-04-harness/
+  issues: []
+
+graph_ready:
+  primary_entity: {id: concept:harness-engineering-rsi, name: Harness Engineering for RSI, type: concept}
+  topics: [agent_harness, recursive_improvement, context_engineering, agent_safety]
+  relations:
+    - {subject: concept:agent-harness, predicate: orchestrates, object: workflow:agent-execution-loop}
+    - {subject: concept:agent-harness, predicate: manages, object: concept:persistent-context}
+    - {subject: control:external-evaluator, predicate: constrains, object: process:self-improving-harness}
+

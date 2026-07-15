@@ -1,0 +1,88 @@
+schema_version: 1
+candidate_id: leann
+evaluation_status: ready_for_human_review
+primary_category: open_source_tool
+
+ingestion:
+  social_source: https://www.linkedin.com/posts/sumanth077_turn-your-laptop-into-a-powerful-rag-system-activity-7472296357517598720-qzds
+  capture_method: linkedin_public_metadata_from_telegram_export
+  bundled_self_posts: 1
+  other_authors_excluded: null
+  selected_artifact:
+    type: repository
+    canonical_url: https://github.com/StarTrail-org/LEANN
+    full_text_used: https://github.com/StarTrail-org/LEANN/blob/main/README.md
+  retained_binary_artifacts: []
+  note: LinkedIn comments were unavailable; the repository linked by the original project path now redirects to StarTrail-org/LEANN.
+
+knowledge:
+  artifact:
+    title: LEANN
+    short_name: LEANN
+    kind: low_storage_vector_index
+    version: v0.3.7
+    published_at: null
+    authors: [Yichuan Wang, Zhifei Li]
+    maturity: released_open_source_project_and_mlsys_2026_work
+  concise_idea: >-
+    Replace stored dense embeddings with a compact pruned neighbor graph and selectively recompute
+    embeddings during retrieval, trading extra compute for much smaller local indexes.
+  problem_addressed: Dense embedding indexes can make local RAG and personal-agent memory too large to store or move.
+  method:
+    - Build a graph index with high-degree-preserving pruning and compact CSR storage.
+    - Recompute selected embeddings on demand rather than persisting every dense vector.
+    - Support HNSW and DiskANN backends plus local semantic-search integrations.
+  capabilities:
+    - Local indexing and retrieval for files, messages, browser history, code, and agent memory.
+    - Python package plus MCP integrations for coding agents.
+    - Indexes ranging from personal corpora to the documented 60-million-chunk example.
+  requirements:
+    - Python environment and uv; native build dependencies vary by operating system and backend.
+    - Local storage for the graph and access to a compatible embedding model.
+    - CPU-only Linux installation is documented; optional acceleration and integrations have extra dependencies.
+  evidence:
+    - claim: LEANN substantially reduces index storage.
+      result: The official table reports 91% savings on DPR and 95-97% across the other listed datasets.
+      context: Repository benchmark against a traditional vector database such as FAISS.
+      source_location: Official README, Storage Comparison
+    - claim: It can index a 60-million-chunk corpus locally.
+      result: The documented Wiki index is 6 GB versus 201 GB for the comparison system.
+      context: Author-reported benchmark; latency and recomputation cost must be evaluated separately.
+      source_location: Official README, Storage Comparison
+  limitations:
+    - Storage is exchanged for embedding recomputation, so latency and CPU cost depend on workload and model.
+    - The 97% figure is dataset-specific rather than a universal guarantee.
+    - Native DiskANN/HNSW dependencies make source installation platform-specific.
+    - Privacy requires local embedding and generation components; external integrations can change that boundary.
+    - Repository claims have not been independently reproduced in this evaluation.
+  engineering_relevance:
+    applicability: Useful when local RAG index size and portability matter more than minimizing retrieval compute.
+    not_a_fit_for: Workloads requiring predictable lowest latency, zero native dependencies, or a universal 97% reduction.
+    adoption_posture: experimental_candidate_not_default_recommendation
+  evidence_quality:
+    support_type: official_repository_with_author_benchmarks
+    independently_validated: false
+    confidence: medium_high
+  adoption_readiness:
+    implementation_available: true
+    license: MIT
+    compute_infrastructure:
+      training: {device: null, count: null, memory_per_device: null}
+      inference: {device: CPU_supported, count: 1, memory_per_device: null}
+    minimum_validation: Benchmark index size, build time, query latency, recall, recomputation cost, and privacy boundaries on the intended corpus.
+
+source_reconciliation:
+  authoritative_source: https://github.com/StarTrail-org/LEANN
+  issues:
+    - status: needs_review
+      social_statement: LEANN uses 97% less storage than traditional solutions without accuracy loss.
+      source_statement: The repository table reports savings from 91% to 97% depending on the dataset.
+      explanation: Treat 97% as a best documented dataset result, not a universal storage guarantee.
+
+graph_ready:
+  primary_entity: {id: tool:leann, name: LEANN, type: tool}
+  topics: [rag, vector_search, embedding_storage, local_first]
+  relations:
+    - {subject: tool:leann, predicate: uses, object: technique:selective_embedding_recomputation}
+    - {subject: tool:leann, predicate: stores, object: structure:pruned_neighbor_graph}
+    - {subject: tool:leann, predicate: integrates_with, object: protocol:mcp}

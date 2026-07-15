@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "candidate_id": "agentic-webgpu-kernels",
+  "capture_method": "logged_in_visible_playwright",
+  "root_url": "https://x.com/googlegemma/status/2072416614188974274",
+  "root_author_handle": "googlegemma",
+  "root_post_id": "2072416614188974274",
+  "capture_policy": {
+    "self_replies_bundled": true,
+    "other_authors_excluded": true,
+    "media_downloaded": false,
+    "documents_downloaded": false
+  },
+  "thread": {
+    "post_count": 2,
+    "posts": [
+      {
+        "post_id": "2072416614188974274",
+        "handle": "googlegemma",
+        "status_url": "https://x.com/googlegemma/status/2072416614188974274",
+        "posted_at": "2026-07-01T20:26:39.000Z",
+        "author_label": "Google Gemma\n@googlegemma",
+        "text": "“Agentic kernel optimization is the future of on-device inference”\n\n\n@xenovacom\n used Fable 5 to write kernels that pushed Gemma 4 to a massive 255 tok/s on WebGPU with M4. He shared the demo, so you can try in your browser!!",
+        "media": []
+      },
+      {
+        "post_id": "2072416615673811142",
+        "handle": "googlegemma",
+        "status_url": "https://x.com/googlegemma/status/2072416615673811142",
+        "posted_at": "2026-07-01T20:26:39.000Z",
+        "author_label": "Google Gemma\n@googlegemma\n·\nJul 1",
+        "text": "Original post by \n@xenovacom",
+        "media": []
+      }
+    ]
+  },
+  "source_selection": {
+    "selected_source": null,
+    "ranked_sources": []
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "candidate_id": "automem",
+  "capture_method": "logged_in_visible_playwright",
+  "root_url": "https://x.com/omarsar0/status/2072716688483831885",
+  "root_author_handle": "omarsar0",
+  "root_post_id": "2072716688483831885",
+  "capture_policy": {
+    "self_replies_bundled": true,
+    "other_authors_excluded": true,
+    "media_downloaded": false,
+    "documents_downloaded": false
+  },
+  "thread": {
+    "post_count": 1,
+    "posts": [
+      {
+        "post_id": "2072716688483831885",
+        "handle": "omarsar0",
+        "status_url": "https://x.com/omarsar0/status/2072716688483831885",
+        "posted_at": "2026-07-02T16:19:02.000Z",
+        "author_label": "elvis\n@omarsar0",
+        "text": "// AutoMem //\n\nI quite like this idea of metamemory.\n\n(bookmark it)\n\nThis new research from Stanford treats agent's memory management as a trainable skill instead of a fixed module.\n\nThe model decides what to encode, when to retrieve, and how to organize its own notes, with file-system operations promoted to first-class actions right alongside task actions.\n\nAutoMem automates this on two loops. A strong LLM reviews full trajectories and rewrites the memory structure (prompts, schemas, action vocabulary). Then the agent's own good memory decisions across episodes become training signal to sharpen its proficiency.\n\nOptimizing memory alone, without touching task-action behavior, lifts the base agent 2x to 4x on Crafter, MiniHack, and NetHack. That is enough to make a 32B open model competitive with Claude Opus 4.5 and Gemini 3.1 Pro Thinking. For long-horizon agents, memory is a high-leverage objective you can train for on its own.\n\nPaper: \nhttps://\narxiv.org/abs/2607.01224\n\nLearn to build effective AI agents in our academy: \nhttps://\nacademy.dair.ai",
+        "media": [
+          {
+            "url": "https://pbs.twimg.com/media/HMPE19UbsAAs-TN?format=jpg&name=360x360",
+            "alt": "Image"
+          }
+        ]
+      }
+    ]
+  },
+  "source_selection": {
+    "selected_source": {
+      "url": "https://arxiv.org/abs/2607.01224",
+      "artifact_type": "paper",
+      "found_in_post_id": "2072716688483831885",
+      "link_text": "https://\narxiv.org/abs/2607.01224"
+    },
+    "ranked_sources": [
+      {
+        "url": "https://arxiv.org/abs/2607.01224",
+        "artifact_type": "paper",
+        "found_in_post_id": "2072716688483831885",
+        "link_text": "https://\narxiv.org/abs/2607.01224"
+      },
+      {
+        "url": "https://academy.dair.ai",
+        "artifact_type": "web_source",
+        "found_in_post_id": "2072716688483831885",
+        "link_text": "https://\nacademy.dair.ai"
+      }
+    ]
+  }
+}

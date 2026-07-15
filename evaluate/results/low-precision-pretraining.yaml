@@ -1,0 +1,96 @@
+schema_version: 1
+candidate_id: low-precision-pretraining
+evaluation_status: ready_for_human_review_with_partial_social_capture
+
+ingestion:
+  social_source: https://x.com/DivyanshT91162/status/2075752684821581908
+  capture_method: dataset_export_plus_linked_primary_source
+  thread_capture_status: partial_unavailable
+  bundled_self_posts: null
+  self_replies_inspected: false
+  other_authors_excluded: null
+  selected_artifact:
+    type: paper
+    canonical_url: https://arxiv.org/abs/2509.25149
+    full_text_used: https://arxiv.org/abs/2509.25149
+  retained_binary_artifacts: []
+  note: The exported root post was available, but author self-replies were not; the official paper text was used and the social image was not analyzed.
+
+knowledge:
+  artifact:
+    title: Pretraining Large Language Models with NVFP4
+    short_name: NVFP4 Pretraining
+    kind: paper
+    version: arXiv:2509.25149v2
+    published_at: '2025-09-29'
+    authors: [NVIDIA and 89 coauthors]
+    maturity: preprint
+
+  concise_idea: >-
+    Stabilize end-to-end 4-bit LLM pretraining by combining NVFP4 with outlier control, two-dimensional quantization, stochastic rounding, and selectively higher-precision layers.
+  problem_addressed: >-
+    FP4 could reduce pretraining cost, but aggressive quantization can destabilize gradients, convergence, and accuracy over very long training runs.
+  method:
+    - Apply Random Hadamard transforms to bound block-level outliers.
+    - Quantize consistently across forward and backward computation with a two-dimensional scheme.
+    - Use stochastic rounding for less biased gradient estimation.
+    - Keep selected sensitive layers at higher precision.
+  capabilities:
+    - End-to-end narrow-precision pretraining over a long token horizon.
+    - A documented 12B-parameter, 10-trillion-token NVFP4 training run.
+    - Training loss and downstream accuracy reported as comparable to an FP8 baseline.
+  requirements:
+    - Large-scale pretraining infrastructure with NVFP4-compatible hardware and software.
+    - Implementation of the complete stabilization recipe, not naive blanket FP4 quantization.
+    - FP8 or higher-precision baselines for stability and quality comparison.
+
+  evidence:
+    - claim: The full recipe supports a long, large-model FP4 pretraining run.
+      result: A 12B model was trained on 10 trillion tokens, described as the longest publicly documented 4-bit run at publication.
+      context: Author-reported NVIDIA experiment in an arXiv paper.
+      source_location: https://arxiv.org/abs/2509.25149
+    - claim: NVFP4 can preserve quality relative to FP8 when paired with the proposed stabilizers.
+      result: Training loss and downstream task accuracies were reported as comparable to the FP8 baseline.
+      context: Evidence supports this recipe and experiment, not arbitrary 4-bit pretraining.
+      source_location: https://arxiv.org/abs/2509.25149
+
+  limitations:
+    - The evidence comes from one vendor-led training program and is not independent validation across architectures and scales.
+    - The result depends on several co-designed numerical techniques and selective higher precision, not simply setting all training to four bits.
+    - Specialized NVFP4 hardware/software limits immediate portability to other accelerators.
+    - Comparable accuracy does not by itself quantify end-to-end cost, throughput, engineering complexity, or failure risk for another training stack.
+
+  engineering_relevance:
+    applicability: Relevant to teams planning very large pretraining runs on NVFP4-capable NVIDIA infrastructure and able to reproduce the complete numerical recipe.
+    not_a_fit_for: Ordinary fine-tuning, hardware without NVFP4 support, or projects assuming generic 4-bit quantization will produce the same result.
+    adoption_posture: experimental_candidate_not_default_recommendation
+
+  evidence_quality:
+    support_type: vendor_authored_preprint_with_large_scale_controlled_training_run
+    independently_validated: false
+    confidence: medium
+
+  adoption_readiness:
+    implementation_available: null
+    license: null
+    compute_infrastructure:
+      training: {device: NVFP4-compatible NVIDIA accelerator, count: null, memory_per_device: null}
+      inference: {device: null, count: null, memory_per_device: null}
+    minimum_validation: >-
+      Reproduce short-horizon loss, gradient, overflow, and downstream-quality parity against FP8 before scaling; measure actual throughput, energy, and recovery behavior on the target stack.
+
+source_reconciliation:
+  authoritative_source: https://arxiv.org/abs/2509.25149
+  issues:
+    - status: needs_review
+      social_statement: NVIDIA solved a problem that major AI laboratories had been fighting for years by training with only 4-bit precision.
+      source_statement: The paper demonstrates one NVFP4 recipe with selective higher-precision layers and reports quality comparable to FP8 for a 12B, 10T-token run.
+      explanation: The social wording overstates a significant controlled result as a universal solved problem and omits the mixed-precision stabilization recipe.
+
+graph_ready:
+  primary_entity: {id: paper:nvfp4-pretraining, name: Pretraining Large Language Models with NVFP4, type: paper}
+  topics: [low_precision_training, pretraining, nvfp4, model_efficiency]
+  relations:
+    - {subject: method:nvfp4-pretraining, predicate: uses, object: technique:random-hadamard-transform}
+    - {subject: method:nvfp4-pretraining, predicate: uses, object: technique:stochastic-rounding}
+    - {subject: method:nvfp4-pretraining, predicate: compared_with, object: format:fp8}

@@ -1,0 +1,88 @@
+schema_version: 1
+candidate_id: multi-agent-deliberation
+evaluation_status: ready_for_human_review
+
+ingestion:
+  social_source: https://x.com/leanxbt/status/2075276726872228197
+  capture_method: telegram_export_with_public_oembed_text
+  bundled_self_posts: 1
+  other_authors_excluded: null
+  selected_artifact:
+    type: paper
+    canonical_url: https://arxiv.org/abs/2305.14325
+    full_text_used: https://ar5iv.labs.arxiv.org/html/2305.14325
+  retained_binary_artifacts: []
+  note: X replies were unavailable; the root post and full paper text were used. Social images were unnecessary.
+
+knowledge:
+  artifact:
+    title: Improving Factuality and Reasoning in Language Models through Multiagent Debate
+    short_name: Multiagent Debate
+    kind: research_paper
+    version: arXiv:2305.14325v1
+    published_at: '2023-05-23'
+    authors: [Yilun Du, Shuang Li, Antonio Torralba, Joshua B. Tenenbaum, Igor Mordatch]
+    maturity: research_preprint_with_code
+  concise_idea: >-
+    Have several model instances answer independently, expose each to the others' responses, and
+    iteratively revise over multiple rounds until a final consensus answer emerges.
+  problem_addressed: >-
+    A single generation can preserve an unnoticed reasoning error or hallucinated fact; independent
+    candidate chains provide material for cross-critique and revision.
+  method:
+    - Generate independent candidate answers from multiple instances of the same or different LLMs.
+    - Concatenate or summarize peer responses and prompt every agent to critique and revise its answer.
+    - Repeat for a fixed number of rounds and use the converged or final responses as the answer.
+  capabilities:
+    - Requires only black-box generation access, not gradients or token probabilities.
+    - Combines with chain-of-thought prompting and can use heterogeneous models or personas.
+    - Can improve reasoning and factual consistency beyond reflection or majority voting in the studied tasks.
+  requirements:
+    - Multiple LLM calls per agent and debate round.
+    - A convergence or final-answer rule plus context management for peer responses.
+    - A task whose quality gain justifies multiplying latency and generation cost.
+  evidence:
+    - claim: Debate improved reasoning over a single agent.
+      result: With three ChatGPT agents and two debate rounds, arithmetic accuracy rose from 67.0% to 81.8% and GSM8K from 77.0% to 85.0%.
+      context: 2023 zero-shot experiments on arithmetic, GSM8K, and chess.
+      source_location: Paper Table 1
+    - claim: Debate improved factuality in the studied tasks.
+      result: Biography factuality rose from 66.0% to 73.8% and MMLU from 63.9% to 71.1% versus one agent.
+      context: Same model family and paper-specific evaluation setup.
+      source_location: Paper Table 2
+  limitations:
+    - Multiple agents and rounds substantially increase token cost and latency.
+    - Longer debates can exceed context limits or bias agents toward recent responses.
+    - Agents may converge confidently on the same wrong answer; consensus is not verification.
+    - Most experiments used 2023-era ChatGPT on six reasoning and factuality tasks, so transfer to current models and production workflows requires retesting.
+  engineering_relevance:
+    applicability: >-
+      Useful as an optional high-value deliberation stage for difficult, checkable questions where
+      answer quality matters more than latency and several independent attempts are affordable.
+    not_a_fit_for: >-
+      Poor default for simple requests, strict latency/cost paths, or high-stakes factual claims
+      without external evidence or deterministic verification.
+    adoption_posture: established_research_pattern_requires_current_model_benchmark
+  evidence_quality:
+    support_type: full_research_preprint_with_quantitative_experiments
+    independently_validated: false
+    confidence: medium
+  adoption_readiness:
+    implementation_available: true
+    license: null
+    compute_infrastructure:
+      training: {device: null, count: null, memory_per_device: null}
+      inference: {device: model_provider_API, count: null, memory_per_device: null}
+    minimum_validation: Compare single-agent, reflection, self-consistency, majority vote, and debate on target tasks using equal token and latency budgets.
+
+source_reconciliation:
+  authoritative_source: https://arxiv.org/abs/2305.14325
+  issues: []
+
+graph_ready:
+  primary_entity: {id: "method:multiagent-debate", name: Multiagent Debate, type: method}
+  topics: [multi_agent_reasoning, deliberation, answer_revision, factuality]
+  relations:
+    - {subject: "method:multiagent-debate", predicate: uses, object: "process:iterative_peer_revision"}
+    - {subject: "method:multiagent-debate", predicate: improves, object: "capability:reasoning_and_factuality"}
+    - {subject: "method:multiagent-debate", predicate: risks, object: "failure_mode:false_consensus"}

@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "candidate_id": "local-cpu-tts",
+  "capture_method": "logged_in_visible_playwright",
+  "root_url": "https://x.com/DataChaz/status/2074139543289348234",
+  "root_author_handle": "DataChaz",
+  "root_post_id": "2074139543289348234",
+  "capture_policy": {
+    "self_replies_bundled": true,
+    "other_authors_excluded": true,
+    "media_downloaded": false,
+    "documents_downloaded": false
+  },
+  "thread": {
+    "post_count": 3,
+    "posts": [
+      {
+        "post_id": "2074139543289348234",
+        "handle": "DataChaz",
+        "status_url": "https://x.com/DataChaz/status/2074139543289348234",
+        "posted_at": "2026-07-06T14:32:57.000Z",
+        "author_label": "Charly Wargnier\n@DataChaz",
+        "text": "ANOTHER MASSIVE WIN FOR LOCAL AI \n\nICYMI \n@kyutai_labs\n quietly dropped a super lightweight Text-to-Speech application designed to run efficiently on CPUs.\n\nOnly 100M parameters. No GPU needed. Zero API fees \n\nIt completely bypasses the usual token-transformer bottlenecks to deliver wildly fast performance:\n\n→ 6x faster than real-time on a Mac\n→ ~200ms latency to the first audio chunk\n→ Voice cloning from just 5 seconds of audio\n→ 6 languages out of the box\n\nBest of all?\n\nIt's 100% free and open-source.\n\nMIT licensed and trained exclusively on public data.\n\nRepo in ↓",
+        "media": [
+          {
+            "url": "https://pbs.twimg.com/media/HMjS7BgbkAAwZIk?format=jpg&name=360x360",
+            "alt": "Image"
+          }
+        ]
+      },
+      {
+        "post_id": "2074139556186853882",
+        "handle": "DataChaz",
+        "status_url": "https://x.com/DataChaz/status/2074139556186853882",
+        "posted_at": "2026-07-06T14:33:00.000Z",
+        "author_label": "Charly Wargnier\n@DataChaz\n·\nJul 6",
+        "text": "Repo → \nhttps://\ngithub.com/kyutai-labs/po\ncket-tts\n…\n\nShoutout to \n@kyutai_labs\n for building this and making it open-source for the community\n\nDon't forget to drop a !",
+        "media": []
+      },
+      {
+        "post_id": "2074198741741900010",
+        "handle": "DataChaz",
+        "status_url": "https://x.com/DataChaz/status/2074198741741900010",
+        "posted_at": "2026-07-06T18:28:11.000Z",
+        "author_label": "Charly Wargnier\n@DataChaz\n·\nJul 6",
+        "text": "Found this helpful? Like and repost to share the knowledge \n\nYou can follow me → \n@datachaz\n for your daily dose of LLMs and AI agents.",
+        "media": [
+          {
+            "url": "https://pbs.twimg.com/media/HMjS7BgbkAAwZIk?format=jpg&name=360x360",
+            "alt": "Image"
+          }
+        ]
+      }
+    ]
+  },
+  "source_selection": {
+    "selected_source": {
+      "url": "https://github.com/kyutai-labs/pocket-tts",
+      "artifact_type": "repository",
+      "found_in_post_id": "2074139556186853882",
+      "link_text": "https://\ngithub.com/kyutai-labs/po\ncket-tts\n…"
+    },
+    "ranked_sources": [
+      {
+        "url": "https://github.com/kyutai-labs/pocket-tts",
+        "artifact_type": "repository",
+        "found_in_post_id": "2074139556186853882",
+        "link_text": "https://\ngithub.com/kyutai-labs/po\ncket-tts\n…"
+      }
+    ]
+  }
+}

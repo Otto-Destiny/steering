@@ -1,0 +1,94 @@
+schema_version: 1
+candidate_id: exxperts-memory-governance
+evaluation_status: ready_for_human_review
+
+ingestion:
+  social_source: https://www.linkedin.com/posts/alindnbrg_aiagents-localfirst-aiengineering-activity-7481311444618321920-qvA4
+  capture_method: linkedin_public_metadata_from_telegram_export
+  bundled_self_posts: 1
+  other_authors_excluded: null
+  selected_artifact:
+    type: repository
+    canonical_url: https://github.com/EXXETA/exxperts
+    full_text_used: https://github.com/EXXETA/exxperts#readme
+  retained_binary_artifacts: []
+  note: LinkedIn comments were unavailable; the official repository was identified directly and supplied the product details.
+
+knowledge:
+  artifact:
+    title: exxperts
+    short_name: exxperts
+    kind: source_available_local_agent_runtime
+    version: null
+    published_at: null
+    authors: [Borja Odriozola Schick, Fernando Pastor Alonso]
+    maturity: early_repository_without_published_releases
+  concise_idea: >-
+    A local-first runtime of persistent AI rooms where memory and other durable writes pass through
+    explicit user approval, remain scoped per room, and are stored as inspectable local files.
+  problem_addressed: >-
+    Persistent assistants can silently profile users, contaminate contexts across projects, or make
+    unaudited memory changes that are difficult to inspect, reverse, or move between interfaces.
+  method:
+    - Store rooms, memories, knowledge, artifacts, credentials, and usage state locally.
+    - Gate memory, knowledge-base, and artifact writes behind explicit approval.
+    - Scope tools and memory per room; share the same governed runtime between web and CLI surfaces.
+  capabilities:
+    - Persistent rooms, memory review, approvals, local knowledge base, artifacts, and usage wallet.
+    - Local web search through optional SearXNG and user-provided MCP connectors.
+    - Multiple model providers through subscriptions, API keys, or OpenAI-compatible gateways.
+    - Room-to-room read-only consultation and delegated task cards.
+  requirements:
+    - Git, Node.js 20.6 or newer, npm, and about 3 GB of free disk.
+    - A configured model provider or compatible gateway.
+    - Optional Chromium and Docker/container runtime for visual review and local web search.
+  evidence:
+    - claim: Durable state is local and inspectable.
+      result: The README documents plain files under ~/.exxperts and no product telemetry.
+      context: Maintainer documentation, not independent security verification.
+      source_location: Official repository README, Why exxperts
+    - claim: Memory writes are governed.
+      result: The web and CLI product share approval-gated memory, KB, and artifact writes.
+      context: Maintainer-documented feature.
+      source_location: Official repository README, Product capabilities
+  limitations:
+    - The repository has no published releases and describes an early single-user product.
+    - There is no hosted multi-user, SSO, or RBAC edition.
+    - PolyForm Noncommercial is source-available, not an unrestricted open-source license; commercial use needs a separate license.
+    - Local storage still requires backups, file permissions, credential protection, and tests for approval bypasses.
+    - Model calls, enabled search, and MCP connectors can still transmit data outside the machine.
+  engineering_relevance:
+    applicability: >-
+      Relevant as a concrete design reference or trial runtime when local ownership, room isolation,
+      human-reviewed memory, and auditability matter more than autonomous memory writes.
+    not_a_fit_for: >-
+      Not currently suited to commercial redistribution without licensing, managed team deployments,
+      or organizations requiring centralized RBAC and enterprise tenancy.
+    adoption_posture: early_source_available_candidate_requires_security_and_recovery_review
+  evidence_quality:
+    support_type: official_repository_and_maintainer_documentation
+    independently_validated: false
+    confidence: medium
+  adoption_readiness:
+    implementation_available: true
+    license: PolyForm-Noncommercial-1.0.0
+    compute_infrastructure:
+      training: {device: null, count: null, memory_per_device: null}
+      inference: {device: external_model_provider_or_local_gateway, count: null, memory_per_device: null}
+    minimum_validation: Test approval bypass resistance, room isolation, rollback/recovery, credential storage, outbound traffic, backups, and memory quality before storing sensitive work.
+
+source_reconciliation:
+  authoritative_source: https://github.com/EXXETA/exxperts
+  issues:
+    - status: needs_review
+      social_statement: A separate worker that cannot browse, run code, or touch files proposes memory writes.
+      source_statement: The selected README confirms approval-gated writes and scoped permissions but does not establish every claimed worker-level isolation property.
+      explanation: Verify the runtime architecture and enforcement tests before relying on this as a security boundary.
+
+graph_ready:
+  primary_entity: {id: "tool:exxperts", name: exxperts, type: tool}
+  topics: [agent_memory, memory_governance, local_first, human_review]
+  relations:
+    - {subject: "tool:exxperts", predicate: gates, object: "operation:memory_write"}
+    - {subject: "tool:exxperts", predicate: stores, object: "artifact:local_plain_file_state"}
+    - {subject: "tool:exxperts", predicate: scopes, object: "boundary:persistent_room"}

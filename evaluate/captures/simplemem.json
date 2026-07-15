@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "candidate_id": "simplemem",
+  "capture_method": "logged_in_visible_playwright",
+  "root_url": "https://x.com/DanKornas/status/2075121780235042846",
+  "root_author_handle": "DanKornas",
+  "root_post_id": "2075121780235042846",
+  "capture_policy": {
+    "self_replies_bundled": true,
+    "other_authors_excluded": true,
+    "media_downloaded": false,
+    "documents_downloaded": false,
+    "max_thread_span_hours": 48
+  },
+  "thread": {
+    "post_count": 2,
+    "raw_same_author_post_count": 2,
+    "posts": [
+      {
+        "post_id": "2075121780235042846",
+        "handle": "DanKornas",
+        "status_url": "https://x.com/DanKornas/status/2075121780235042846",
+        "posted_at": "2026-07-09T07:36:00.000Z",
+        "author_label": "Dan Kornas\n@DanKornas",
+        "text": "Your agent memory should not be a giant chat-history dump\n\nSimpleMem is a unified memory stack for LLM agents that stores, compresses, and retrieves long-term memories across text and multimodal inputs.\n\nIt helps you keep agents context-aware with less repeated history by turning interactions into compact memory units, indexing them with embeddings and metadata, then retrieving relevant memories by meaning and intent.\n\nKey features:\n\n• Semantic compression – distills raw interactions into self-contained memory units with resolved references and timestamps\n• Auto-routed Python API – one SimpleMem() package selects text or multimodal backend from the first method you call\n• Multimodal memory – supports text, image, audio, and video through the Python integration\n• Retrieval optimization – simplemem.optimize(...) uses EvolveMem to tune retrieval configs on your own dev questions\n• MCP option for text memory – cloud-hosted MCP service works with Claude Desktop, Cursor, and other MCP-compatible clients\n\nIt’s open-source (MIT license).\n\nLink in the reply",
+        "media": [
+          {
+            "url": "https://pbs.twimg.com/media/HMxQQYBXYAARD8h?format=jpg&name=360x360",
+            "alt": "Image"
+          }
+        ]
+      },
+      {
+        "post_id": "2075121925836193843",
+        "handle": "DanKornas",
+        "status_url": "https://x.com/DanKornas/status/2075121925836193843",
+        "posted_at": "2026-07-09T07:36:35.000Z",
+        "author_label": "Dan Kornas\n@DanKornas\n·\nJul 9",
+        "text": "GitHub: \nhttps://\ngithub.com/aiming-lab/Sim\npleMem\n…\n---\n If you’re into AI, ML, agents, and building real systems, join my newsletter (it’s free): \nhttp://\ndankornas.substack.com",
+        "media": []
+      }
+    ],
+    "discarded_same_author_posts": []
+  },
+  "source_selection": {
+    "selected_source": {
+      "url": "https://github.com/aiming-lab/SimpleMem",
+      "artifact_type": "repository",
+      "found_in_post_id": "2075121925836193843",
+      "link_text": "https://\ngithub.com/aiming-lab/Sim\npleMem\n…"
+    },
+    "ranked_sources": [
+      {
+        "url": "https://github.com/aiming-lab/SimpleMem",
+        "artifact_type": "repository",
+        "found_in_post_id": "2075121925836193843",
+        "link_text": "https://\ngithub.com/aiming-lab/Sim\npleMem\n…"
+      },
+      {
+        "url": "http://dankornas.substack.com",
+        "artifact_type": "author_explanation",
+        "found_in_post_id": "2075121925836193843",
+        "link_text": "http://\ndankornas.substack.com"
+      }
+    ],
+    "linked_social_sources": []
+  }
+}

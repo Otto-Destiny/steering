@@ -1,0 +1,89 @@
+schema_version: 1
+candidate_id: colibri-moe-offloading
+evaluation_status: ready_for_human_review
+primary_category: open_source_tool
+
+ingestion:
+  social_source: https://x.com/chenzeling4/status/2075731830477877612
+  capture_method: x_public_oembed_from_telegram_export
+  bundled_self_posts: 1
+  other_authors_excluded: true
+  selected_artifact:
+    type: repository
+    canonical_url: https://github.com/JustVugg/colibri
+    full_text_used: https://github.com/JustVugg/colibri/blob/main/README.md
+  retained_binary_artifacts: []
+  note: No capture or reply thread was available; the root post and official repository were used, with images skipped.
+
+knowledge:
+  artifact:
+    title: colibri
+    short_name: colibri
+    kind: sparse_moe_inference_runtime
+    version: '1.0'
+    published_at: null
+    authors: [JustVugg]
+    maturity: early_open_source_runtime_with_measured_community_results
+  concise_idea: >-
+    Run a very large sparse MoE on a memory-limited computer by keeping dense weights in RAM,
+    streaming routed experts from NVMe, and caching frequently used experts across a storage hierarchy.
+  problem_addressed: Sparse MoE checkpoints can be far larger than RAM even though each token activates only a fraction of their weights.
+  method:
+    - Keep roughly 17B always-used parameters resident as about 9.9 GB of int4 weights.
+    - Store 21,504 routed experts on disk and stream the router-selected experts per layer.
+    - Use per-layer LRU, an optional pinned hot store, OS page cache, and asynchronous readahead.
+    - Execute GLM-5.2 through a small C runtime with optional CUDA support for pinned experts.
+  capabilities:
+    - GLM-5.2 744B MoE inference on a CPU-only machine with about 25 GB RAM and sufficient NVMe storage.
+    - OpenAI-compatible server, chat CLI, usage profiling, hot-expert pinning, and quality benchmarks.
+    - Optional speculative decoding and grammar-forced draft acceleration.
+  requirements:
+    - Roughly 370 GB disk for the int4 model plus about 25 GB RAM for the minimum demonstrated setup.
+    - CPU with suitable compiler support and NVMe; disk bandwidth strongly controls cold-token speed.
+    - Model download/conversion and setup tooling even though the core inference runtime has no Python dependency.
+  evidence:
+    - claim: GLM-5.2 744B can run within about 25 GB system RAM.
+      result: The maintainer reports a 9.9 GB resident base and a proven 25 GB RAM WSL2 baseline.
+      context: 12 CPU cores, older NVMe behind WSL2 VHDX; author measurement.
+      source_location: Official README, The idea and Honest numbers
+    - claim: The minimum-memory configuration is usable but very slow.
+      result: Cold generation on the 25 GB development machine is about 0.05-0.1 tokens per second.
+      context: Approximately 1 GB/s random disk throughput; stronger-hardware projections are explicitly estimates.
+      source_location: Official README, Hardware tiers
+    - claim: Other machines reproduce disk-streamed inference.
+      result: Community measurements include 0.07-0.11 tok/s on a 24 GB WSL2 system and 1.06 tok/s on a 128 GB M5 Max.
+      context: Different caches, disks, sampling, and MTP settings prevent direct comparison.
+      source_location: Official README, Community benchmarks
+  limitations:
+    - The 25 GB configuration is a feasibility demonstration, not interactive-speed production inference.
+    - Full int4 weights still require about 370 GB of disk and can read roughly 11 GB of changing experts per token.
+    - Output can differ across kernel shapes, speculative decoding, and GPU paths because int4 rounding can flip near-tied logits.
+    - Most higher-tier throughput figures are projections; hardware-specific measurement is essential.
+    - The runtime is specialized for GLM-5.2 rather than a general-purpose model loader.
+  engineering_relevance:
+    applicability: Useful for studying sparse-weight paging, expert caching, and occasional local access to an otherwise non-resident MoE.
+    not_a_fit_for: Low-latency serving, small disks, broad model compatibility, or deterministic byte-identical output across all execution paths.
+    adoption_posture: experimental_candidate_not_default_recommendation
+  evidence_quality:
+    support_type: official_repository_with_author_and_community_measurements
+    independently_validated: partially
+    confidence: medium_high
+  adoption_readiness:
+    implementation_available: true
+    license: Apache-2.0
+    compute_infrastructure:
+      training: {device: null, count: null, memory_per_device: null}
+      inference: {device: 12_core_CPU_plus_NVMe, count: 1, memory_per_device: 25_GB_system_RAM}
+    minimum_validation: Measure model download size, setup success, RSS, disk traffic, latency, output quality, and cache warm-up on the target machine.
+
+source_reconciliation:
+  authoritative_source: https://github.com/JustVugg/colibri
+  issues: []
+
+graph_ready:
+  primary_entity: {id: tool:colibri, name: colibri, type: tool}
+  topics: [local_inference, mixture_of_experts, model_offloading, memory_hierarchy]
+  relations:
+    - {subject: tool:colibri, predicate: runs, object: model:glm-5.2}
+    - {subject: tool:colibri, predicate: uses, object: technique:expert_streaming}
+    - {subject: technique:expert_streaming, predicate: trades, object: resource:disk_bandwidth_for_ram}

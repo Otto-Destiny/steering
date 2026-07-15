@@ -1,0 +1,96 @@
+schema_version: 1
+candidate_id: tencentdb-agent-memory
+evaluation_status: ready_for_human_review
+
+ingestion:
+  social_source: https://x.com/HowToPrompt__/status/2074122800961614184
+  capture_method: logged_in_visible_playwright
+  bundled_self_posts: 5
+  relevant_self_posts: 1
+  other_authors_excluded: true
+  capture_quality: >-
+    The capture included three unrelated recent posts by the same author. They were excluded
+    from extraction; only the root post concerns TencentDB Agent Memory.
+  selected_artifact:
+    type: repository
+    canonical_url: https://github.com/TencentCloud/TencentDB-Agent-Memory
+  retained_binary_artifacts: []
+
+knowledge:
+  artifact:
+    title: TencentDB Agent Memory
+    kind: open_source_agent_memory
+    license: MIT
+    maturity: active_open_source_project
+
+  concise_idea: >-
+    A local-first agent-memory layer that combines symbolic short-term context compression
+    with a traceable L0-to-L3 long-term memory hierarchy instead of a flat vector store.
+
+  method:
+    - Offload raw tool output, retain step summaries, and keep a compact Mermaid task canvas in context.
+    - Organize long-term memory as L0 Conversation, L1 Atom, L2 Scenario, and L3 Persona.
+    - Preserve drill-down references from higher-level summaries to raw evidence.
+    - Retrieve with keyword, embedding, or hybrid BM25-plus-vector search using RRF.
+
+  capabilities:
+    - Persistent, inspectable agent memory backed locally by SQLite and sqlite-vec.
+    - OpenClaw plugin and Hermes adapter with capture, search, and recall tools.
+    - Progressive disclosure that recalls compact summaries first and raw evidence on demand.
+    - Configurable recall and context budgets.
+
+  requirements:
+    - OpenClaw or Hermes for the documented integrations, or custom adapter work.
+    - Node.js/plugin runtime and writable local storage.
+    - A host or configured LLM for memory extraction and higher-level synthesis.
+    - An embedding model for semantic or hybrid recall; local models are supported.
+
+  reported_evidence:
+    - benchmark: WideSearch continuous-session evaluation
+      result: Token use fell from 221.31M to 85.64M (-61.38%); pass rate rose from 33% to 50%.
+    - benchmark: SWE-bench continuous-session evaluation
+      result: Token use fell 33.09%; pass rate rose from 58.4% to 64.2%.
+    - benchmark: PersonaMem
+      result: Accuracy rose from 48% to 76%.
+    - evidence_scope: Project-maintainer README; no independent replication was inspected.
+
+  limitations:
+    - Benchmark claims are maintainer-reported and should be reproduced on the target agent workload.
+    - Higher memory layers are LLM-generated and can still contain extraction or synthesis errors.
+    - Local storage does not by itself make the full agent stack local; model and embedding choices determine network use.
+    - The documented local backend is SQLite/sqlite-vec, so scale and concurrency need workload testing.
+
+  engineering_relevance:
+    applicability: >-
+      Useful for agents that need cross-session personalization, auditable recall, and reduced
+      context growth without losing a path back to raw evidence.
+    trial_plan:
+      - Run an A/B test on long sessions using recall accuracy, token use, latency, and false-memory rate.
+      - Inspect whether L3/L2 summaries reliably drill down to correct L1/L0 evidence.
+      - Test local embedding and storage performance at the expected memory volume.
+    adoption_posture: promising_local_first_candidate_requires_workload_validation
+
+source_reconciliation:
+  authoritative_source: https://github.com/TencentCloud/TencentDB-Agent-Memory
+  issues:
+    - social_statement: Runs 100% locally with no cloud APIs or external API dependencies.
+      finding: >-
+        Local SQLite and self-hosted model configurations are supported, but the documented
+        system still needs an LLM and may use remote LLM or embedding APIs. Fully local operation
+        is therefore configuration-dependent.
+      status: needs_review
+    - social_statement: The project killed the vector database industry.
+      finding: Marketing hyperbole with no supporting comparative evidence; not stored as knowledge.
+      status: excluded
+
+graph_ready:
+  primary_entity:
+    id: tool:tencentdb-agent-memory
+    name: TencentDB Agent Memory
+    type: tool
+  topics: [agent_memory, context_compression, local_first, hybrid_retrieval]
+  relations:
+    - {subject: tool:tencentdb-agent-memory, predicate: uses, object: pattern:progressive-memory-layering}
+    - {subject: tool:tencentdb-agent-memory, predicate: stores_with, object: database:sqlite-sqlite-vec}
+    - {subject: tool:tencentdb-agent-memory, predicate: retrieves_with, object: technique:hybrid-rag-rrf}
+    - {subject: tool:tencentdb-agent-memory, predicate: integrates_with, object: framework:openclaw}

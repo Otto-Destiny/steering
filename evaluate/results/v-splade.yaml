@@ -1,0 +1,111 @@
+schema_version: 1
+candidate_id: v-splade
+evaluation_status: ready_for_human_review
+primary_category: open_source_tool
+
+ingestion:
+  social_source: https://x.com/tomaarsen/status/2074760685536305230
+  capture_method: telegram_export_with_direct_huggingface_source
+  bundled_self_posts: 1
+  other_authors_excluded: null
+  selected_artifact:
+    type: model_card
+    canonical_url: https://huggingface.co/naver/v-splade-quality
+    full_text_used: https://huggingface.co/naver/v-splade-quality/blob/main/README.md
+  retained_binary_artifacts: []
+  note: X replies were unavailable; the official NAVER model card was sufficient and images were not processed.
+
+knowledge:
+  artifact:
+    title: V-SPLADE Quality
+    short_name: V-SPLADE
+    kind: visual_document_sparse_retriever
+    version: null
+    published_at: null
+    authors: [Gyu-Hwung Cho, Youngjune Lee, Kiyoon Jeong, Siyoung Lee, Sanggyu Han, Herve Dejean, Stephane Clinchant, Seung-won Hwang]
+    maturity: released_research_model
+
+  concise_idea: >-
+    Encode visual document pages directly as sparse vocabulary vectors while resolving text
+    queries through a learned bag-of-words lookup, enabling inverted-index retrieval without
+    neural query encoding at serving time.
+  problem_addressed: >-
+    Visual-document retrieval often requires GPU query encoders or slow OCR/caption generation
+    before indexing.
+  method:
+    - Encode page images with a 250M-parameter ModernVBERT-based document encoder.
+    - Produce sparse vocabulary vectors that can be stored in Pyserini or PISA inverted indexes.
+    - Encode queries with a learned lookup rather than a transformer forward pass.
+  capabilities:
+    - Text-to-page retrieval over scans, rendered PDFs, slides, and reports.
+    - Sparse, interpretable token activations and standard inverted-index serving.
+    - Quality and lower-FLOPs Efficient checkpoints.
+  requirements:
+    - sentence-transformers 5.6 or newer with image support and transformers 5.3 or newer.
+    - GPU capacity for practical document encoding; query serving does not require a neural encoder.
+    - An inverted index and compliance review for base-model and training-data licenses.
+
+  evidence:
+    - claim: V-SPLADE Quality improves retrieval quality over same-scale dense and OCR/caption baselines.
+      result: Average NDCG@5 was 60.1 across six benchmarks, versus 46.3 for BiModernVBERT and 54.4 for OCR BM25.
+      context: Author-reported model-card benchmark.
+      source_location: Official model card, Benchmark Performance
+    - claim: Direct visual indexing is faster than OCR or caption pipelines.
+      result: 20.19 pages/s versus 0.83 for Qwen3-VL captioning and 0.90 for OCR, measured on one H100 with four CPU cores.
+      context: 1000 sampled documents from the six evaluation benchmarks.
+      source_location: Official model card, Document encoding throughput
+    - claim: It scales to a production-sized corpus.
+      result: At 18.7M pages, reported R@5 was 0.228 and R@100 was 0.520, versus 0.090 and 0.299 for the dense baseline.
+      context: Author-reported production-scale retrieval evaluation.
+      source_location: Official model card, Production-scale retrieval
+
+  limitations:
+    - Inference-free describes query encoding, not document indexing; pages still require the full neural model.
+    - The card is tagged English, so multilingual retrieval is not established.
+    - Results are author-reported and should be reproduced on the target document distribution.
+    - The Quality checkpoint trades more retrieval compute for quality relative to the Efficient variant.
+    - Training datasets and the ModernVBERT base have separate licensing obligations.
+
+  engineering_relevance:
+    applicability: >-
+      Useful when a large visual-page corpus can be encoded offline and low-cost, interpretable
+      text-query serving through an inverted index is valuable.
+    not_a_fit_for: >-
+      Not a no-compute ingestion pipeline, a demonstrated multilingual retriever, or a substitute
+      for OCR when extracted text itself is required.
+    adoption_posture: promising_retrieval_candidate_requires_domain_recall_and_cost_test
+
+  evidence_quality:
+    support_type: maintainer_model_card_with_benchmarks
+    independently_validated: false
+    confidence: medium_high
+
+  adoption_readiness:
+    implementation_available: true
+    license: Apache-2.0
+    compute_infrastructure:
+      training: {device: null, count: null, memory_per_device: null}
+      inference:
+        device: GPU for document encoding; CPU-compatible inverted index for query serving
+        count: 1
+        memory_per_device: null
+    minimum_validation: >-
+      Measure NDCG/recall, indexing throughput, index size, query latency, multilingual behavior,
+      and total ingest cost against OCR-BM25 and a dense visual retriever.
+
+source_reconciliation:
+  authoritative_source: https://huggingface.co/naver/v-splade-quality
+  issues:
+    - status: needs_review
+      social_statement: V-SPLADE is an inference-free sparse retriever.
+      source_statement: Queries avoid neural inference, but document images must be encoded by the full model before indexing.
+      explanation: The label is accurate for query-time serving only and should not imply zero model inference across the pipeline.
+
+graph_ready:
+  primary_entity: {id: model:v-splade-quality, name: V-SPLADE Quality, type: model}
+  topics: [sparse_retrieval, visual_documents, inverted_indexes, multimodal_retrieval]
+  relations:
+    - {subject: model:v-splade-quality, predicate: encodes, object: artifact:visual-document-page}
+    - {subject: model:v-splade-quality, predicate: produces, object: representation:sparse-vocabulary-vector}
+    - {subject: model:v-splade-quality, predicate: serves_with, object: index:inverted-index}
+

@@ -1,0 +1,34 @@
+name: Browser E2E
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: browser-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  local-fixtures:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Synchronize locked browser environment
+        run: uv sync --all-extras --dev --locked
+      - name: Install isolated Chromium
+        run: uv run playwright install --with-deps chromium
+      - name: Run local-fixture browser tests
+        env:
+          STEERING_BROWSER_E2E: "1"
+          STEERING_TEST_PROVIDER: fake
+        run: uv run pytest -m "e2e and not live"

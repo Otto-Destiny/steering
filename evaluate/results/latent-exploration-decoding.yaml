@@ -1,0 +1,89 @@
+schema_version: 1
+candidate_id: latent-exploration-decoding
+evaluation_status: ready_for_human_review
+
+ingestion:
+  social_source: https://x.com/VukRosic99/status/2075401621475918104
+  capture_method: telegram_export_with_public_oembed_text
+  bundled_self_posts: 1
+  other_authors_excluded: null
+  selected_artifact:
+    type: paper
+    canonical_url: https://arxiv.org/abs/2602.01698
+    full_text_used: https://arxiv.org/html/2602.01698
+  retained_binary_artifacts: []
+  note: X replies were unavailable; root-post text and the full v3 paper were used. Images were redundant.
+
+knowledge:
+  artifact:
+    title: "Restoring Exploration after Post-Training: Latent Exploration Decoding for Large Reasoning Models"
+    short_name: LED
+    kind: research_paper_and_decoding_method
+    version: arXiv:2602.01698v3
+    published_at: '2026-05-11'
+    authors: [Wenhui Tan, Fiorenzo Parascandolo, Enver Sangineto, Jianzhong Ju, Zhenbo Luo, Qian Cao, Rita Cucchiara, Ruihua Song, Jian Luan]
+    maturity: revised_preprint_with_code
+  concise_idea: >-
+    Restore sampling diversity lost after RL post-training by aggregating high-layer intermediate
+    token posteriors and selecting a high-entropy depth configuration during the reasoning phase.
+  problem_addressed: >-
+    Some RL-post-trained reasoning models develop a low-entropy final-layer distribution, so raising
+    temperature no longer improves pass@n even though useful diversity remains in intermediate layers.
+  method:
+    - Project selected high-layer hidden states through the existing language-model head.
+    - Cumulatively aggregate intermediate posteriors and score candidate depths by entropy.
+    - Use the exploratory posterior only during DeepThink, retaining the final-layer path for exploitation.
+  capabilities:
+    - Training-free and parameter-free inference integration.
+    - Can also serve as the rollout decoder during GRPO training.
+    - Supports dense and mixture-of-experts reasoning models from 4B to 32B in the paper.
+  requirements:
+    - White-box access to intermediate hidden states and the model's LM head.
+    - Extra memory for selected hidden states and extra LM-head projections.
+    - A reasoning-phase boundary or equivalent rule to avoid applying exploration indiscriminately.
+  evidence:
+    - claim: LED improves reasoning accuracy across studied models and benchmarks.
+      result: Average pass@1 and pass@16 improved by 0.61 and 1.03 percentage points across five models and six math, science, and coding benchmarks.
+      context: Paper-reported evaluation; gains are modest averages and vary by model/task.
+      source_location: Paper abstract and Section 4
+    - claim: Runtime overhead is limited but nonzero.
+      result: At batch 128 and 16K context on 8 H100s, throughput was 4,204 versus 4,578 tok/s for regular decoding, or 91.8%.
+      context: High-concurrency benchmark.
+      source_location: Paper Appendix E
+  limitations:
+    - Requires model internals, so it is not applicable to closed API-only models.
+    - Extra hidden-state storage and repeated LM-head projections add memory and compute overhead.
+    - Average accuracy gains are around one percentage point and may not justify integration for every workload.
+    - Evidence centers on benchmark reasoning models and does not establish benefits for open-ended agents or ordinary generation.
+    - Hyperparameters such as exploration depth may need model-specific validation.
+  engineering_relevance:
+    applicability: >-
+      Relevant for self-hosted RL-post-trained reasoning models whose pass@n diversity has measurably
+      collapsed and where inference internals can be modified.
+    not_a_fit_for: >-
+      Not suitable for proprietary APIs, non-reasoning workloads, or deployments where the measured
+      accuracy gain does not offset reduced throughput and implementation complexity.
+    adoption_posture: experimental_decoding_candidate_pending_model_specific_ablation
+  evidence_quality:
+    support_type: full_revised_preprint_with_multimodel_benchmarks
+    independently_validated: false
+    confidence: medium
+  adoption_readiness:
+    implementation_available: true
+    license: null
+    compute_infrastructure:
+      training: {device: null, count: null, memory_per_device: null}
+      inference: {device: A100_GPU, count: 8, memory_per_device: null}
+    minimum_validation: Measure pass@1, pass@n, output length, latency, throughput, VRAM, and quality regressions against standard decoding under equal budgets.
+
+source_reconciliation:
+  authoritative_source: https://arxiv.org/abs/2602.01698
+  issues: []
+
+graph_ready:
+  primary_entity: {id: "method:latent-exploration-decoding", name: Latent Exploration Decoding, type: method}
+  topics: [reasoning, decoding, exploration, reinforcement_learning]
+  relations:
+    - {subject: "method:latent-exploration-decoding", predicate: uses, object: "signal:intermediate_layer_entropy"}
+    - {subject: "method:latent-exploration-decoding", predicate: mitigates, object: "failure_mode:exploration_collapse"}
+    - {subject: "method:latent-exploration-decoding", predicate: requires, object: "capability:white_box_model_access"}

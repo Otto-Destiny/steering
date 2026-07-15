@@ -1,0 +1,90 @@
+schema_version: 1
+candidate_id: optimizer-aligned-data-selection
+evaluation_status: ready_for_human_review
+primary_category: paper
+
+ingestion:
+  social_source: https://x.com/VukRosic99/status/2075765519379271778
+  capture_method: x_public_oembed_from_telegram_export
+  bundled_self_posts: 1
+  other_authors_excluded: true
+  selected_artifact:
+    type: research_paper
+    canonical_url: https://arxiv.org/abs/2602.05400
+    full_text_used: https://arxiv.org/abs/2602.05400
+  retained_binary_artifacts: []
+  note: No capture or reply thread was available; the root post was truncated, so extraction relied on the official paper abstract and metadata without images.
+
+knowledge:
+  artifact:
+    title: 'OPUS: Towards Efficient and Principled Data Selection in Large Language Model Pre-training in Every Iteration'
+    short_name: OPUS
+    kind: dynamic_pretraining_data_selection_method
+    version: arXiv:2602.05400v2
+    published_at: '2026-02-07'
+    authors: [Shaobo Wang, Xuan Ouyang, Tianyi Xu, Yuzheng Hu, Jialin Liu, Guo Chen, Tianyu Zhang, Junhao Zheng, Kexin Yang, Xingzhang Ren, Dayiheng Liu, Linfeng Zhang]
+    maturity: preprint
+  concise_idea: >-
+    Score candidate pretraining samples in the optimizer-induced update geometry, relative to an
+    in-distribution target direction, instead of treating raw SGD gradients as the actual update.
+  problem_addressed: Static filters ignore training dynamics, while raw-gradient selectors are misaligned with preconditioned optimizers such as AdamW and Muon.
+  method:
+    - Derive candidate utility from optimizer-shaped effective updates projected onto a target direction.
+    - Construct a stable in-distribution proxy to represent target capability directions.
+    - Use Ghost computation and CountSketch to avoid materializing full per-example gradients.
+    - Apply Boltzmann sampling and redundancy control to preserve diversity across iterations.
+  capabilities:
+    - Dynamic per-iteration selection for LLM pretraining under AdamW or Muon.
+    - Combination with static quality filters and use across general or specialized corpora.
+    - Scalable approximate utility scoring with reported modest overhead.
+  requirements:
+    - Access to training gradients, optimizer state/geometry, and a target proxy.
+    - Integration into the pretraining data loader and optimizer loop.
+    - Large-scale distributed training resources appropriate to the base model; exact hardware is not stated in the selected source.
+  evidence:
+    - claim: OPUS adds limited selection overhead.
+      result: The paper reports 4.7% additional compute overhead.
+      context: Author experiments using Ghost computation and CountSketch.
+      source_location: Paper abstract
+    - claim: OPUS improves 30B-token pretraining efficiency.
+      result: GPT-2 Large/XL experiments on FineWeb and FineWeb-Edu outperform the reported industrial baselines and a 200B-token full-training comparison.
+      context: Author evaluation across model scales and optimizers; exact task-level values require the full paper tables.
+      source_location: Paper abstract
+    - claim: OPUS reduces tokens for specialized continued pretraining.
+      result: Qwen3-8B-Base on SciencePedia reportedly outperforms full 3B-token training using 0.5B selected tokens.
+      context: Author-reported continued-pretraining experiment.
+      source_location: Paper abstract
+  limitations:
+    - The evidence is a preprint and has not been independently validated here.
+    - Selection requires optimizer-aware gradient computation and pipeline integration, so 4.7% overhead may not transfer unchanged.
+    - A target proxy can bias selection toward measured benchmarks or omit useful capabilities.
+    - Abstract-level extraction does not establish implementation availability, license, exact hardware, or all baseline controls.
+    - Results on GPT-2 and one Qwen3 continued-pretraining setting do not guarantee gains for other architectures or data regimes.
+  engineering_relevance:
+    applicability: Useful as an experimental data-efficiency strategy for expensive pretraining where optimizer state and target evaluations are available.
+    not_a_fit_for: Small fine-tunes, static offline curation only, or pipelines unable to expose per-sample optimizer-aware signals.
+    adoption_posture: experimental_candidate_not_default_recommendation
+  evidence_quality:
+    support_type: author_preprint_abstract_and_metadata
+    independently_validated: false
+    confidence: medium
+  adoption_readiness:
+    implementation_available: null
+    license: null
+    compute_infrastructure:
+      training: {device: null, count: null, memory_per_device: null}
+      inference: {device: null, count: null, memory_per_device: null}
+    minimum_validation: Reproduce a small compute-matched run against random, static-filter, and raw-gradient selectors while tracking quality, diversity, wall time, and selection overhead.
+
+source_reconciliation:
+  authoritative_source: https://arxiv.org/abs/2602.05400
+  issues: []
+
+graph_ready:
+  primary_entity: {id: method:opus, name: OPUS, type: method}
+  topics: [pretraining, data_curation, optimization, training_efficiency]
+  relations:
+    - {subject: method:opus, predicate: aligns_with, object: concept:optimizer_update_geometry}
+    - {subject: method:opus, predicate: supports, object: optimizer:adamw}
+    - {subject: method:opus, predicate: supports, object: optimizer:muon}
+    - {subject: method:opus, predicate: reduces, object: resource:training_tokens}

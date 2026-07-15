@@ -1,0 +1,93 @@
+schema_version: 1
+candidate_id: agent-native-memory
+evaluation_status: ready_for_human_review_with_partial_social_capture
+
+ingestion:
+  social_source: https://x.com/akshay_pachaar/status/2072401658102100306
+  capture_method: public_oembed_plus_linked_primary_source
+  thread_capture_status: partial_unavailable
+  bundled_self_posts: null
+  self_replies_inspected: false
+  selected_artifact:
+    type: paper
+    canonical_url: https://arxiv.org/abs/2606.24775
+    full_text_used: https://arxiv.org/html/2606.24775
+  retained_binary_artifacts: []
+  note: Only the saved root-post excerpt and metadata were available; no claim is made that the author's self-replies were captured.
+
+knowledge:
+  artifact:
+    title: Are We Ready For An Agent-Native Memory System?
+    kind: research_paper
+    version: arXiv:2606.24775v1
+    submitted_at: '2026-06-23'
+    maturity: preprint
+
+  concise_idea: >-
+    Treat agent memory as persistent data-management infrastructure and evaluate it by
+    decomposing the lifecycle into representation/storage, extraction, retrieval/routing,
+    and maintenance rather than scoring each memory system only as a black box.
+
+  method:
+    - Define a four-module taxonomy covering the full memory lifecycle.
+    - Evaluate 12 representative memory systems and two reference baselines across five workloads and 11 datasets.
+    - Measure task effectiveness, retrieval fidelity, dynamic-update robustness, long-horizon stability, and operational cost.
+    - Use controlled component variants to isolate trade-offs within each module.
+
+  capabilities:
+    - A framework for comparing agent-memory architectures by workload and subsystem.
+    - A testbed and component-level evidence for storage, extraction, routing, and maintenance choices.
+    - Guidance for evaluating stale facts, temporal distance, lifecycle behavior, latency, and indexing cost.
+
+  requirements:
+    - Representative target workloads rather than a single generic memory benchmark.
+    - Measurements for answer quality, evidence retrieval, updates, long horizons, and operational cost.
+    - Component-level ablations when choosing between competing memory architectures.
+
+  evidence:
+    - claim: No evaluated architecture dominates every scenario; workload-to-memory-structure alignment determines effectiveness.
+      scope: 12 systems, two baselines, five workloads, and 11 datasets.
+      source: https://arxiv.org/abs/2606.24775
+    - claim: Graph methods are strong for single-hop factual recall and updates but struggle with temporal reasoning; composite hybrid systems lead conversational QA.
+      scope: Author-reported cross-workload finding.
+      source: https://arxiv.org/html/2606.24775
+    - claim: Highly structured systems can incur orders-of-magnitude higher indexing and query cost without proportional accuracy gains.
+      scope: Evaluated workloads and implementations; not a universal constant.
+      source: https://arxiv.org/html/2606.24775
+    - claim: Conservative, localized maintenance is a stronger default than global reorganization or delayed flushing.
+      scope: Component-level and cost-performance analyses in the paper.
+      source: https://arxiv.org/html/2606.24775
+
+  limitations:
+    - The findings compare a selected set of systems, implementations, workloads, and datasets; they do not identify a universal best memory architecture.
+    - Results must be revalidated against an application's own temporal, procedural, conversational, and update patterns.
+    - Component abstractions can hide implementation-specific interactions between storage, extraction, routing, and maintenance.
+    - The artifact is an arXiv v1 preprint and should guide evaluation rather than be treated as a production prescription.
+
+  engineering_relevance:
+    applicability: >-
+      Directly useful when selecting or designing memory for long-running agents: identify the
+      workload bottleneck first, then benchmark the complete lifecycle and its cost.
+    trial_plan:
+      - Classify target queries by factual, temporal, procedural, conversational, and update-heavy behavior.
+      - Compare a raw-trace baseline with lightweight, graph, and hybrid candidates.
+      - Test targeted overwrites and stale-fact suppression, not only static recall.
+      - Measure index time, query latency, token/API cost, retrieval fidelity, and task success together.
+    adoption_posture: use_as_evaluation_framework_not_as_a_drop_in_memory_system
+
+source_reconciliation:
+  authoritative_source: https://arxiv.org/abs/2606.24775
+  status: not_fully_assessed
+  explanation: The saved social text was truncated and author self-replies were unavailable, so only paper-backed knowledge is promoted.
+
+graph_ready:
+  primary_entity:
+    id: paper:agent-native-memory-system-evaluation
+    name: Are We Ready For An Agent-Native Memory System?
+    type: paper
+  topics: [agent_memory, memory_lifecycle, memory_evaluation, long_running_agents]
+  relations:
+    - {subject: framework:agent-memory-four-module-taxonomy, predicate: decomposes, object: concept:agent-memory-system}
+    - {subject: concept:agent-memory-system, predicate: includes, object: module:memory-maintenance}
+    - {subject: architecture:graph-memory, predicate: trades_off, object: property:temporal-reasoning-and-cost}
+    - {subject: technique:localized-conservative-maintenance, predicate: improves, object: property:memory-cost-efficiency}

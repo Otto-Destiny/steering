@@ -1,0 +1,72 @@
+schema_version: 1
+scope: all_51_evaluation_candidates
+classification_rule: >-
+  Mutually exclusive classification by the primary knowledge artifact retained.
+  Research papers are paper; usable repositories, models, libraries, or systems
+  are open_source_tool; actionable engineering guidance without a stronger
+  paper or implementation is tip_or_trick; social material without a stronger
+  artifact or actionable technique is post_only.
+
+summary:
+  total: 51
+  post_only: 1
+  paper: 19
+  tip_or_trick: 1
+  open_source_tool: 30
+
+categories:
+  post_only:
+    - glm-weight-compression
+  paper:
+    - latent-test-time-compute
+    - agent-native-memory
+    - automem
+    - justgrpo
+    - trek-grpo
+    - multi-agent-deliberation
+    - latent-exploration-decoding
+    - behavioral-state-decay
+    - optimizer-aligned-data-selection
+    - low-precision-pretraining
+    - rlvr-token-credit
+    - parallel-draft-refine
+    - trace-agentic-training
+    - quantized-reasoning-calibration
+    - answer-marginalization
+    - proactive-memory-agent
+    - concise-grpo-reasoning
+    - finetuning-generalization-mechanism
+    - rl-sft-skill-recombination
+  tip_or_trick:
+    - harness-engineering-rsi
+  open_source_tool:
+    - agentic-webgpu-kernels
+    - leanrag
+    - memoria
+    - local-cpu-tts
+    - tencentdb-agent-memory
+    - understand-anything
+    - tabfm
+    - mineru-coreai
+    - videorag
+    - pixelrag
+    - zvec
+    - antidoom
+    - lmcache
+    - openscience
+    - v-splade
+    - unlimited-ocr
+    - simplemem
+    - supermemory
+    - nvidia-agent-skills
+    - moss-transcribe-diarize
+    - sensenova-vision
+    - exxperts-memory-governance
+    - mlcraft
+    - ml-intern
+    - leann
+    - colibri-moe-offloading
+    - art-openpipe
+    - autoskills
+    - deepspec
+    - dflash

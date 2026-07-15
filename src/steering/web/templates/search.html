@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Search · STEERING{% endblock %}
+{% block content %}
+  <header class="page-heading"><p class="eyebrow">Recall</p><h1>Search knowledge</h1></header>
+  <form class="search-bar" action="/search" method="post" hx-post="/search" hx-target="#search-results" hx-indicator="#search-progress">
+    <label class="sr-only" for="query">Search query</label>
+    <input id="query" name="query" value="{{ query }}" required maxlength="4000" placeholder="Agent memory under strict latency constraints">
+    <input name="limit" type="number" value="10" min="1" max="50" aria-label="Result limit">
+    <label class="inline"><input name="breadth" type="checkbox"> Breadth mode</label>
+    <button class="button primary" type="submit">Search</button>
+  </form>
+  <span id="search-progress" class="htmx-indicator" role="status">Searching…</span>
+  <section id="search-results" class="result-region" aria-live="polite">
+    {% include "partials/search_results.html" %}
+  </section>
+{% endblock %}

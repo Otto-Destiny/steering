@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}{{ record.artifact.title }} · STEERING{% endblock %}
+{% block content %}
+  <article class="artifact">
+    <header class="page-heading">
+      <div class="meta"><span class="lane">{{ record.artifact.trust_lane.value }}</span><span>{{ record.artifact.artifact_type.value }}</span><span>{{ record.artifact.strategy_family }}</span></div>
+      <h1>{{ record.artifact.title }}</h1>
+      <p>{{ record.artifact.summary }}</p>
+      {% if record.artifact.canonical_url %}<a href="{{ record.artifact.canonical_url }}" rel="noreferrer">Open source</a>{% endif %}
+    </header>
+
+    <div class="detail-grid">
+      <section class="panel"><h2>Capabilities</h2><ul>{% for item in record.artifact.capabilities %}<li>{{ item }}</li>{% else %}<li>None captured.</li>{% endfor %}</ul></section>
+      <section class="panel"><h2>Limitations</h2><ul>{% for item in record.artifact.limitations %}<li>{{ item }}</li>{% else %}<li>None captured; verify before adoption.</li>{% endfor %}</ul></section>
+      <section class="panel"><h2>Requirements</h2><ul>{% for item in record.artifact.requirements %}<li>{{ item }}</li>{% else %}<li>None captured.</li>{% endfor %}</ul></section>
+    </div>
+
+    <section><div class="section-heading"><h2>Source-backed claims</h2><span>{{ record.claims|length }}</span></div>
+      <div class="card-list">{% for claim in record.claims %}<article class="card"><p>{{ claim.text }}</p><div class="meta"><span>{{ claim.category.value }}</span><span>confidence {{ '%.2f'|format(claim.confidence) }}</span></div></article>{% else %}<div class="empty">No claims extracted.</div>{% endfor %}</div>
+    </section>
+
+    {% if record.issues %}<section><div class="section-heading"><h2>Review issues</h2><a href="/issues">Resolve issues</a></div>{% for issue in record.issues %}{% include "partials/issue.html" %}{% endfor %}</section>{% endif %}
+  </article>
+{% endblock %}

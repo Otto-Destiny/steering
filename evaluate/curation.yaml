@@ -1,0 +1,170 @@
+schema_version: 1
+
+inclusion_policy:
+  include: >-
+    Concrete AI-engineering tools, research methods, architecture patterns, implementation techniques,
+    or model-development ideas that could materially affect a future system design, training plan,
+    retrieval stack, agent workflow, or inference strategy.
+  exclude: >-
+    Job and interview content, generic educational lists or glossaries, unrelated end-user products,
+    beginner tutorials, and specialized curiosities without a plausible connection to STEERING's
+    architecture-time recall mission.
+  uncertain: >-
+    Keep inaccessible, context-poor, or borderline items in a review queue rather than silently
+    including or discarding them.
+
+cases:
+  - id: latent-test-time-compute
+    candidates: [candidate-001]
+    topics: [reasoning, test_time_compute, latent_reasoning, inference_cost]
+  - id: agent-native-memory
+    candidates: [candidate-002]
+    topics: [agent_memory, memory_lifecycle, long_running_agents]
+  - id: agentic-webgpu-kernels
+    candidates: [candidate-004]
+    topics: [inference_optimization, kernel_generation, webgpu, on_device_ai]
+  - id: leanrag
+    candidates: [candidate-005]
+    topics: [rag, knowledge_graphs, hierarchical_retrieval]
+  - id: automem
+    candidates: [candidate-007]
+    topics: [agent_memory, trainable_memory, metamemory]
+  - id: memoria
+    candidates: [candidate-011]
+    topics: [agent_memory, version_control, rollback, auditability]
+  - id: local-cpu-tts
+    candidates: [candidate-014, candidate-067]
+    topics: [text_to_speech, local_inference, cpu_inference, voice_cloning]
+  - id: tencentdb-agent-memory
+    candidates: [candidate-016]
+    topics: [agent_memory, local_first, token_efficiency]
+  - id: understand-anything
+    candidates: [candidate-017]
+    topics: [code_intelligence, knowledge_graphs, multi_agent_systems]
+  - id: tabfm
+    candidates: [candidate-019]
+    topics: [tabular_ml, foundation_models, zero_shot_learning]
+  - id: justgrpo
+    candidates: [candidate-020]
+    topics: [reinforcement_learning, post_training, diffusion_models, reasoning]
+  - id: mineru-coreai
+    candidates: [candidate-022]
+    topics: [document_ai, ocr, on_device_ai, structured_extraction]
+  - id: videorag
+    candidates: [candidate-023]
+    topics: [multimodal_rag, video_retrieval, long_context]
+  - id: pixelrag
+    candidates: [candidate-025, candidate-069]
+    topics: [visual_retrieval, rag, web_content, document_layout]
+  - id: zvec
+    candidates: [candidate-026, candidate-082]
+    topics: [vector_database, embedded_database, local_first, retrieval]
+  - id: antidoom
+    candidates: [candidate-027, candidate-028, candidate-029]
+    topics: [post_training, reasoning, repetition_control, preference_optimization]
+  - id: lmcache
+    candidates: [candidate-030, candidate-043, candidate-076]
+    topics: [inference_optimization, kv_cache, latency, cost_optimization]
+  - id: openscience
+    candidates: [candidate-033]
+    topics: [scientific_ai, research_agents, multi_agent_systems, reproducibility]
+  - id: v-splade
+    candidates: [candidate-035, candidate-036]
+    topics: [sparse_retrieval, visual_documents, embeddings, retrieval]
+  - id: harness-engineering-rsi
+    candidates: [candidate-037]
+    topics: [agent_harness, recursive_improvement, agent_architecture]
+  - id: unlimited-ocr
+    candidates: [candidate-040]
+    topics: [document_ai, ocr, long_context, efficient_attention]
+  - id: simplemem
+    candidates: [candidate-041]
+    topics: [agent_memory, memory_compression, multimodal_memory]
+  - id: supermemory
+    candidates: [candidate-042]
+    topics: [agent_memory, context_engine, local_first]
+  - id: nvidia-agent-skills
+    candidates: [candidate-045]
+    topics: [agent_skills, reusable_agents, developer_tooling]
+  - id: moss-transcribe-diarize
+    candidates: [candidate-047]
+    topics: [speech_recognition, diarization, long_context, open_models]
+  - id: trek-grpo
+    candidates: [candidate-048]
+    topics: [reinforcement_learning, exploration, reasoning, teacher_guidance]
+  - id: multi-agent-deliberation
+    candidates: [candidate-050]
+    topics: [multi_agent_reasoning, deliberation, answer_revision]
+  - id: sensenova-vision
+    candidates: [candidate-052]
+    topics: [computer_vision, generative_models, multimodal_models]
+  - id: latent-exploration-decoding
+    candidates: [candidate-053]
+    topics: [reinforcement_learning, reasoning, decoding, exploration]
+  - id: behavioral-state-decay
+    candidates: [candidate-054]
+    topics: [agent_memory, long_horizon_agents, decision_persistence]
+  - id: exxperts-memory-governance
+    candidates: [candidate-057]
+    topics: [agent_memory, memory_governance, local_first, human_review]
+  - id: mlcraft
+    candidates: [candidate-058]
+    topics: [ml_agents, research_automation, coding_agents]
+  - id: ml-intern
+    candidates: [candidate-059]
+    topics: [autonomous_ml, training_automation, research_agents]
+  - id: leann
+    candidates: [candidate-061]
+    topics: [rag, embedding_storage, graph_retrieval, local_first]
+  - id: colibri-moe-offloading
+    candidates: [candidate-063, candidate-074, candidate-075]
+    topics: [local_inference, mixture_of_experts, model_offloading, memory_hierarchy]
+  - id: optimizer-aligned-data-selection
+    candidates: [candidate-066]
+    topics: [pretraining, data_curation, optimization, training_efficiency]
+  - id: art-openpipe
+    candidates: [candidate-068]
+    topics: [agent_training, reinforcement_learning, tool_use]
+  - id: low-precision-pretraining
+    candidates: [candidate-070]
+    topics: [low_precision_training, pretraining, model_efficiency]
+  - id: rlvr-token-credit
+    candidates: [candidate-071]
+    topics: [reinforcement_learning, credit_assignment, reasoning]
+  - id: autoskills
+    candidates: [candidate-077]
+    topics: [agent_skills, developer_tooling, stack_detection]
+  - id: parallel-draft-refine
+    candidates: [candidate-079]
+    topics: [reasoning, parallel_decoding, test_time_compute]
+  - id: trace-agentic-training
+    candidates: [candidate-080]
+    topics: [agent_training, capability_targeting, evaluation]
+  - id: quantized-reasoning-calibration
+    candidates: [candidate-083]
+    topics: [quantization, reasoning, calibration, inference_efficiency]
+  - id: answer-marginalization
+    candidates: [candidate-084]
+    topics: [reasoning, self_consistency, test_time_compute]
+  - id: proactive-memory-agent
+    candidates: [candidate-085]
+    topics: [agent_memory, proactive_retrieval, long_horizon_agents]
+  - id: concise-grpo-reasoning
+    candidates: [candidate-087]
+    topics: [reinforcement_learning, reasoning, verbosity_control]
+  - id: glm-weight-compression
+    candidates: [candidate-088]
+    topics: [model_compression, inference, memory_efficiency]
+    link_audit: comment_or_reply_link_expected
+  - id: deepspec
+    candidates: [candidate-089]
+    topics: [speculative_decoding, inference_optimization, draft_models]
+  - id: finetuning-generalization-mechanism
+    candidates: [candidate-092]
+    topics: [fine_tuning, knowledge_generalization, mechanistic_analysis]
+  - id: rl-sft-skill-recombination
+    candidates: [candidate-096]
+    topics: [reinforcement_learning, supervised_fine_tuning, reasoning, generalization]
+  - id: dflash
+    candidates: [candidate-097]
+    topics: [speculative_decoding, inference_optimization, local_inference]

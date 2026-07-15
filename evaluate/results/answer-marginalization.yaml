@@ -1,0 +1,85 @@
+schema_version: 1
+candidate_id: answer-marginalization
+evaluation_status: ready_for_human_review
+
+ingestion:
+  social_source: https://x.com/leanxbt/status/2076382589401633169
+  capture_method: telegram_export_with_public_oembed_text
+  bundled_self_posts: 1
+  other_authors_excluded: null
+  selected_artifact:
+    type: paper
+    canonical_url: https://arxiv.org/abs/2203.11171
+    full_text_used: https://arxiv.org/pdf/2203.11171
+  retained_binary_artifacts: []
+  note: X replies were unavailable; the root post and canonical paper were used. The linked X post and social image were unnecessary once the paper was identified.
+
+knowledge:
+  artifact:
+    title: Self-Consistency Improves Chain of Thought Reasoning in Language Models
+    short_name: Self-Consistency
+    kind: peer_reviewed_research_paper_and_decoding_method
+    version: arXiv:2203.11171v4
+    published_at: '2023-03-07'
+    authors: [Xuezhi Wang, Jason Wei, Dale Schuurmans, Quoc Le, Ed Chi, Sharan Narang, Aakanksha Chowdhery, Denny Zhou]
+    maturity: published_at_ICLR_2023
+  concise_idea: >-
+    Sample diverse chain-of-thought paths for the same question, extract each final answer, and return
+    the answer with the greatest aggregate support instead of trusting one greedy reasoning path.
+  problem_addressed: >-
+    Greedy decoding commits to one reasoning path even when several different valid paths could converge
+    on the correct answer and expose errors through disagreement.
+  method:
+    - Sample multiple diverse reasoning paths from a chain-of-thought prompted model.
+    - Extract the final answer from each sampled path.
+    - Marginalize over paths by aggregating support for identical answers and select the most consistent answer.
+  capabilities:
+    - Adds test-time reasoning accuracy without model retraining.
+    - Works as a decoding layer around compatible chain-of-thought prompts.
+    - Exposes answer disagreement that can also serve as a rough uncertainty signal.
+  requirements:
+    - Multiple stochastic generations per input and a sufficient context/output budget.
+    - Reliable normalization or extraction of final answers before voting.
+    - A task where answers can be meaningfully compared or grouped.
+  evidence:
+    - claim: Self-consistency improved reasoning benchmark accuracy over standard chain-of-thought decoding.
+      result: Reported gains include 17.9 points on GSM8K, 11.0 on SVAMP, 12.2 on AQuA, 6.4 on StrategyQA, and 3.9 on ARC-challenge.
+      context: Experiments reported in the ICLR 2023 paper across multiple language models.
+      source_location: Paper abstract and experiments
+  limitations:
+    - Sampling many paths multiplies inference tokens, latency, and cost.
+    - Majority agreement can reinforce a shared systematic error rather than establish correctness.
+    - Free-form, semantically equivalent, or non-unique answers require a stronger aggregation method than exact matching.
+    - Benefits depend on path diversity and may saturate as more samples are added.
+    - Hardware requirements are not reported as a deployment prescription.
+  engineering_relevance:
+    applicability: >-
+      A simple test-time scaling baseline for high-value structured reasoning tasks where extra samples
+      are affordable and final answers can be normalized reliably.
+    not_a_fit_for: >-
+      Poor fit for latency-sensitive or token-constrained workloads, open-ended generation, and tasks
+      whose valid answers cannot be grouped without another judge.
+    adoption_posture: mature_baseline_use_with_adaptive_sampling_and_cost_limits
+  evidence_quality:
+    support_type: peer_reviewed_paper_with_multimodel_multibenchmark_evaluation
+    independently_validated: true
+    confidence: high
+  adoption_readiness:
+    implementation_available: false
+    license: null
+    compute_infrastructure:
+      training: {device: null, count: null, memory_per_device: null}
+      inference: {device: model_provider_API_or_local_accelerator, count: null, memory_per_device: null}
+    minimum_validation: Measure accuracy gain, answer-extraction failures, sample diversity, latency, and token cost as the number of paths increases on representative tasks.
+
+source_reconciliation:
+  authoritative_source: https://arxiv.org/abs/2203.11171
+  issues: []
+
+graph_ready:
+  primary_entity: {id: "method:self-consistency", name: Self-Consistency, type: method}
+  topics: [reasoning, self_consistency, test_time_compute, answer_marginalization]
+  relations:
+    - {subject: "method:self-consistency", predicate: samples, object: "artifact:diverse_reasoning_paths"}
+    - {subject: "method:self-consistency", predicate: aggregates, object: "artifact:final_answers"}
+    - {subject: "method:self-consistency", predicate: trades, object: "resource:additional_inference_compute"}

@@ -1,0 +1,2 @@
+<div class="notice success" role="status"><strong>Capture complete.</strong> {{ records|length }} record{% if records|length != 1 %}s{% endif %} ready.</div>
+<div class="card-list">{% for record in records %}<article class="card"><h3><a href="/artifacts/{{ record.artifact.id }}">{{ record.artifact.title }}</a></h3><p>{{ record.artifact.summary }}</p></article>{% endfor %}</div>

@@ -1,0 +1,92 @@
+schema_version: 1
+candidate_id: art-openpipe
+evaluation_status: ready_for_human_review_with_partial_social_capture
+
+ingestion:
+  social_source: https://x.com/Alacritic_Super/status/2075817871117316174
+  capture_method: dataset_export_plus_linked_primary_source
+  thread_capture_status: partial_unavailable
+  bundled_self_posts: null
+  self_replies_inspected: false
+  other_authors_excluded: null
+  selected_artifact:
+    type: repository
+    canonical_url: https://github.com/OpenPipe/ART
+    full_text_used: repository_readme
+  retained_binary_artifacts: []
+  note: The exported root post was available, but author self-replies were not; the official repository text was used without image analysis.
+
+knowledge:
+  artifact:
+    title: Agent Reinforcement Trainer
+    short_name: ART
+    kind: open_source_tool
+    version: null
+    published_at: null
+    authors: [OpenPipe]
+    maturity: active_open_source_framework
+
+  concise_idea: >-
+    An open-source framework for adding GRPO-based reinforcement learning to multi-step agents by collecting rewarded trajectories and repeatedly training and serving LoRA adapters.
+  problem_addressed: >-
+    Prompting alone cannot make an agent systematically learn from task outcomes, while wiring an agent application to a full RL training stack is operationally complex.
+  method:
+    - Run parallel agent rollouts through an OpenAI-compatible client and store messages as trajectories.
+    - Assign each completed trajectory a task-specific reward.
+    - Group trajectories and train the current LoRA with GRPO on a separate GPU server.
+    - Load the new adapter into vLLM and repeat the inference/training loop.
+  capabilities:
+    - Multi-turn and tool-using agent training inside existing Python applications.
+    - Local GPU or managed serverless training backends.
+    - Integrations and examples for agent frameworks, MCP tasks, games, search, and supervised warm starts.
+  requirements:
+    - Python and the openpipe-art package on the client.
+    - A task environment and a reward function that reliably reflect desired behavior.
+    - A compatible causal language model plus GPU-backed training/inference infrastructure.
+
+  evidence:
+    - claim: ART implements a complete GRPO loop for multi-step agents.
+      result: The repository documents rollout collection, trajectory rewards, grouped training, LoRA checkpoints, and vLLM reloading.
+      context: Official implementation documentation.
+      source_location: https://github.com/OpenPipe/ART
+    - claim: ART can be introduced without embedding the training server inside application code.
+      result: The client/server design exposes OpenAI-compatible inference while the server manages GPU training and serving.
+      context: Maintainer-documented architecture; performance remains workload-dependent.
+      source_location: https://github.com/OpenPipe/ART
+
+  limitations:
+    - Learning quality depends heavily on environment coverage, reward validity, rollout diversity, and evaluation design.
+    - GRPO requires repeated sampling and GPU updates, adding substantially more cost and operational risk than prompt iteration.
+    - The documented loop blocks inference while a training update runs unless infrastructure is designed around that constraint.
+    - Model support depends on vLLM, Transformers, or Unsloth compatibility; the repository specifically notes unsupported cases.
+
+  engineering_relevance:
+    applicability: Useful when a measurable multi-step agent task has enough repeated experience to justify post-training rather than prompting alone.
+    not_a_fit_for: Early prototypes without reliable rewards, sparse production traces, or teams unable to evaluate regressions and operate GPU training.
+    adoption_posture: experimental_candidate_not_default_recommendation
+
+  evidence_quality:
+    support_type: official_repository_with_runnable_examples_and_maintainer_claims
+    independently_validated: false
+    confidence: medium
+
+  adoption_readiness:
+    implementation_available: true
+    license: Apache-2.0
+    compute_infrastructure:
+      training: {device: GPU, count: null, memory_per_device: null}
+      inference: {device: GPU via vLLM or managed backend, count: null, memory_per_device: null}
+    minimum_validation: >-
+      Establish a held-out task suite, reward-hacking checks, and cost baseline; then compare prompt-only, SFT, and ART-trained checkpoints across success, regressions, latency, and GPU spend.
+
+source_reconciliation:
+  authoritative_source: https://github.com/OpenPipe/ART
+  issues: []
+
+graph_ready:
+  primary_entity: {id: tool:openpipe-art, name: Agent Reinforcement Trainer, type: open_source_tool}
+  topics: [agent_training, reinforcement_learning, grpo, tool_use]
+  relations:
+    - {subject: tool:openpipe-art, predicate: trains, object: concept:multi-step-agent}
+    - {subject: tool:openpipe-art, predicate: uses, object: method:grpo}
+    - {subject: tool:openpipe-art, predicate: serves_with, object: software:vllm}

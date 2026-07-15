@@ -1,0 +1,641 @@
+{
+  "schema_version": 1,
+  "name": "STEERING architecture-time retrieval evaluation prompts",
+  "purpose": "Evaluate whether STEERING surfaces saved AI-engineering knowledge during realistic system design, model training, debugging, and technology-selection work.",
+  "corpus": {
+    "dataset": "evaluate/examples.yaml",
+    "result_directory": "evaluate/results",
+    "candidate_count": 51
+  },
+  "prompt_count": 26,
+  "design_principles": [
+    "Prompts describe engineering problems and constraints instead of naming the expected artifacts.",
+    "Most prompts should cause a coding agent to consult STEERING without the user explicitly requesting it.",
+    "Multi-item prompts test diversified recall across tools, papers, techniques, and evidence levels.",
+    "Newer artifacts must not rank higher solely because they are newer.",
+    "Unsupported social claims may be surfaced only with an explicit low-confidence or needs-review warning.",
+    "Useful responses explain fit, limitations, evidence, integration cost, and a minimal experiment rather than dumping search results."
+  ],
+  "scoring": {
+    "retrieval_cutoff": 10,
+    "primary_metrics": [
+      "recall_at_10 over relevant_candidate_ids",
+      "minimum_relevant_hits satisfied",
+      "strategy-family diversity satisfied",
+      "citation coverage for factual claims",
+      "constraint fit and trade-off quality",
+      "trust-lane correctness"
+    ],
+    "notes": "relevant_candidate_ids are seeded relevant results, not an exhaustive declaration that every other candidate is irrelevant. Score useful additional results separately rather than treating them as automatic failures."
+  },
+  "response_contract": [
+    "Explain why each surfaced item fits the stated constraints.",
+    "State maturity, evidence strength, important limitations, and integration requirements.",
+    "Keep relevance, evidence, maturity, and recency separate.",
+    "Propose a small validation experiment with success and failure criteria.",
+    "Cite the retained source for factual claims.",
+    "Say when the graph does not contain enough evidence."
+  ],
+  "prompts": [
+    {
+      "id": "p01_staff_long_running_agent_memory",
+      "persona": "Staff AI engineer",
+      "experience_level": "senior",
+      "workflow_stage": "architecture_start",
+      "invocation_style": "implicit_mcp_trigger",
+      "preferred_mcp_operation": "review_architecture",
+      "multi_item_expected": true,
+      "prompt": "I am designing a multi-agent research system that may run for six to eight hours. Right now every agent gets a rolling summary plus vector search over old messages, but the summaries drift, stale decisions keep returning, and token usage grows with every handoff. The system must be self-hosted and I need to inspect, correct, and sometimes roll back memory. Review this memory architecture and give me several genuinely different options to prototype before I settle on another vector-store wrapper.",
+      "expected_retrieval": {
+        "relevant_candidate_ids": [
+          "agent-native-memory",
+          "automem",
+          "memoria",
+          "tencentdb-agent-memory",
+          "behavioral-state-decay",
+          "proactive-memory-agent",
+          "simplemem",
+          "supermemory"
+        ],
+        "minimum_relevant_hits": 4,
+        "minimum_strategy_families": 4,
+        "special_checks": [
+          "Distinguish memory lifecycle design, trainable memory, versioned memory, proactive reminders, and packaged memory tools.",
+          "Recognize that behavioral-state-decay and proactive-memory-agent share one canonical paper."
+        ]
+      }
+    },
+    {
+      "id": "p02_junior_chatbot_memory_selection",
+      "persona": "Junior AI developer",
+      "experience_level": "junior",
+      "workflow_stage": "major_technology_choice",
+      "invocation_style": "implicit_mcp_trigger",
+      "preferred_mcp_operation": "explore_design_options",
+      "multi_item_expected": true,
+      "prompt": "I am adding memory to a personal assistant and I am confused about what I actually need. I want it to remember preferences across sessions, keep different projects separate, and run locally if possible. I do not want to invent a memory framework from scratch. What saved open-source options should I compare, and what small test would tell me whether their retrieval and update behavior is good enough?",
+      "expected_retrieval": {
+        "relevant_candidate_ids": [
+          "simplemem",
+          "supermemory",
+          "tencentdb-agent-memory",
+          "memoria"
+        ],
+        "minimum_relevant_hits": 2,
+        "minimum_strategy_families": 2,
+        "special_checks": [
+          "Explain differences in scoping, compression, context injection, and version control in plain language."
+        ]
+      }
+    },
+    {
+      "id": "p03_memory_governance_and_rollback",
+      "persona": "Principal engineer for an internal AI platform",
+      "experience_level": "senior",
+      "workflow_stage": "architecture_review",
+      "invocation_style": "implicit_mcp_trigger",
+      "preferred_mcp_operation": "review_architecture",
+      "multi_item_expected": true,
+      "prompt": "Our internal agents can write durable memories, but security is pushing back because users cannot see what changed or approve sensitive writes. We also need room-level isolation, provenance, diffs, and rollback after a bad extraction. Review approaches in my saved knowledge that could give us stronger memory governance without moving all data to a hosted service.",
+      "expected_retrieval": {
+        "relevant_candidate_ids": [
+          "memoria",
+          "exxperts-memory-governance",
+          "agent-native-memory",
+          "tencentdb-agent-memory"
+        ],
+        "minimum_relevant_hits": 3,
+        "minimum_strategy_families": 3,
+        "special_checks": [
+          "Surface approval-gated writes and database-style versioning as different strategies.",
+          "Do not describe a source-available noncommercial project as unrestricted open source."
+        ]
+      }
+    },
+    {
+      "id": "p04_local_rag_under_storage_limit",
+      "persona": "Senior retrieval engineer",
+      "experience_level": "senior",
+      "workflow_stage": "major_technology_choice",
+      "invocation_style": "implicit_mcp_trigger",
+      "preferred_mcp_operation": "explore_design_options",
+      "multi_item_expected": true,
+      "prompt": "I need local RAG over several million chunks on developer laptops. A separate vector database service is undesirable, dense embeddings are taking too much disk, and plain top-k vector retrieval loses relationships between concepts. Give me a few architecture directions that attack different parts of this problem, including the trade between storage, recomputation, deployment complexity, and retrieval quality.",
+      "expected_retrieval": {
+        "relevant_candidate_ids": [
+          "leann",
+          "zvec",
+          "leanrag"
+        ],
+        "minimum_relevant_hits": 3,
+        "minimum_strategy_families": 3,
+        "special_checks": [
+          "Separate compact index storage, embedded vector database deployment, and graph-guided retrieval."
+        ]
+      }
+    },
+    {
+      "id": "p05_visual_document_rag",
+      "persona": "Staff engineer building enterprise search",
+      "experience_level": "senior",
+      "workflow_stage": "architecture_start",
+      "invocation_style": "implicit_mcp_trigger",
+      "preferred_mcp_operation": "explore_design_options",
+      "multi_item_expected": true,
+      "prompt": "Our RAG pipeline performs badly on reports where the answer depends on page layout, diagrams, tables, and tiny labels. Flattening everything to text destroys too much structure. The corpus is large, so query latency and index size still matter, and some customers require fully local processing. What saved approaches should we test for parsing, indexing, and retrieving these documents?",
+      "expected_retrieval": {
+        "relevant_candidate_ids": [
+          "pixelrag",
+          "v-splade",
+          "mineru-coreai",
+          "unlimited-ocr",
+          "leann"
+        ],
+        "minimum_relevant_hits": 3,
+        "minimum_strategy_families": 3,
+        "special_checks": [
+          "Distinguish visual-page retrieval, sparse retrieval, OCR or parsing, and low-storage indexing.",
+          "Do not claim that one component alone provides the entire ingestion and retrieval stack."
+        ]
+      }
+    },
+    {
+      "id": "p06_long_video_research_assistant",
+      "persona": "Senior multimodal engineer",
+      "experience_level": "senior",
+      "workflow_stage": "architecture_start",
+      "invocation_style": "implicit_mcp_trigger",
+      "preferred_mcp_operation": "review_architecture",
+      "multi_item_expected": true,
+      "prompt": "I am designing a research assistant over hundreds of hours of lectures, demos, and interview footage. Sending whole transcripts and frames to a long-context model is too expensive, but text-only retrieval misses visual evidence. I also need related concepts across separate videos to stay connected. Which saved ideas could form a retrieval architecture, and where are their evidence or scale claims still weak?",
+      "expected_retrieval": {
+        "relevant_candidate_ids": [
+          "videorag",
+          "leanrag"
+        ],
+        "minimum_relevant_hits": 2,
+        "minimum_strategy_families": 2,
+        "special_checks": [
+          "Use the video-specific multimodal retrieval approach as the core and graph hierarchy as a complementary strategy.",
+          "Flag unsupported universal scale claims rather than repeating them as facts."
+        ]
+      }
+    },
+    {
+      "id": "p07_kv_cache_reuse_and_speculative_decode",
+      "persona": "Inference platform lead",
+      "experience_level": "senior",
+      "workflow_stage": "performance_review",
+      "invocation_style": "implicit_mcp_trigger",
+      "preferred_mcp_operation": "explore_design_options",
+      "multi_item_expected": true,
+      "prompt": "Our agent service repeatedly sends the same system prompt and large retrieved context, and decode latency is now the main bottleneck. We use open-weight target models and can modify the serving stack, but outputs must remain lossless relative to the target model. Surface different saved techniques for avoiding repeated prefill work and accelerating decoding, then propose benchmarks that would reveal whether they combine cleanly.",
+      "expected_retrieval": {
+        "relevant_candidate_ids": [
+          "lmcache",
+          "deepspec",
+          "dflash"
+        ],
+        "minimum_relevant_hits": 3,
+        "minimum_strategy_families": 2,
+        "special_checks": [
+          "Separate cross-request KV reuse from speculative drafting.",
+          "Treat exact social speedup figures as workload-specific unless the retained primary source supports them."
+        ]
+      }
+    },
+    {
+      "id": "p08_large_moe_on_single_workstation",
+      "persona": "Senior systems engineer",
+      "experience_level": "senior",
+      "workflow_stage": "options_exhausted",
+      "invocation_style": "implicit_mcp_trigger",
+      "preferred_mcp_operation": "explore_design_options",
+      "multi_item_expected": true,
+      "prompt": "I am trying to run a sparse mixture-of-experts model on one workstation. The active parameters fit on the GPU, but the full weights do not, and buying a multi-GPU server is not an option. I have fast NVMe and plenty of system RAM. Check my saved knowledge for unconventional memory or weight-handling approaches, but be strict about distinguishing a working implementation from an unresolved social-media claim.",
+      "expected_retrieval": {
+        "relevant_candidate_ids": [
+          "colibri-moe-offloading",
+          "glm-weight-compression"
+        ],
+        "minimum_relevant_hits": 2,
+        "minimum_strategy_families": 2,
+        "special_checks": [
+          "Present MoE expert offloading as source-backed and the GLM compression item only as unresolved experimental evidence.",
+          "Do not invent the missing GLM repository or mechanism."
+        ]
+      }
+    },
+    {
+      "id": "p09_offline_voice_document_assistant",
+      "persona": "Junior developer building an accessibility prototype",
+      "experience_level": "junior",
+      "workflow_stage": "architecture_start",
+      "invocation_style": "implicit_mcp_trigger",
+      "preferred_mcp_operation": "explore_design_options",
+      "multi_item_expected": true,
+      "prompt": "I want to build an offline assistant that can transcribe long meetings with speaker labels, read scanned documents, and speak answers back. A browser UI would be ideal, and customer data cannot leave the machine. I only have normal laptops and Apple machines for testing. What open models or implementation ideas from my saved collection could cover the separate parts, and what hardware checks should I run first?",
+      "expected_retrieval": {
+        "relevant_candidate_ids": [
+          "moss-transcribe-diarize",
+          "local-cpu-tts",
+          "mineru-coreai",
+          "agentic-webgpu-kernels"
+        ],
+        "minimum_relevant_hits": 3,
+        "minimum_strategy_families": 3,
+        "special_checks": [
+          "Do not imply that the WebGPU kernel demo automatically supports the speech or OCR models.",
+          "Call out platform and device constraints explicitly."
+        ]
+      }
+    },
+    {
+      "id": "p10_rl_reasoning_exploration_collapse",
+      "persona": "Research engineer training reasoning models",
+      "experience_level": "senior",
+      "workflow_stage": "after_failed_approaches",
+      "invocation_style": "implicit_mcp_trigger",
+      "preferred_mcp_operation": "explore_design_options",
+      "multi_item_expected": true,
+      "prompt": "My GRPO run improves easy math benchmarks but collapses on hard prompts because nearly every rollout follows the same wrong path and gets zero reward. Increasing temperature mostly produces noise. Before I spend another training run, surface saved research that attacks exploration or token credit in meaningfully different ways. Explain which ideas change training and which change decoding.",
+      "expected_retrieval": {
+        "relevant_candidate_ids": [
+          "trek-grpo",
+          "latent-exploration-decoding",
+          "justgrpo",
+          "rlvr-token-credit"
+        ],
+        "minimum_relevant_hits": 3,
+        "minimum_strategy_families": 3,
+        "special_checks": [
+          "Separate proposal-guided exploration, latent-layer decoding diversity, diffusion-model rollout choices, and token-level credit assignment."
+        ]
+      }
+    },
+    {
+      "id": "p11_reasoning_loops_and_verbosity",
+      "persona": "Post-training lead",
+      "experience_level": "senior",
+      "workflow_stage": "training_and_evaluation_design",
+      "invocation_style": "implicit_mcp_trigger",
+      "preferred_mcp_operation": "explore_design_options",
+      "multi_item_expected": true,
+      "prompt": "The reasoning model is accurate, but it sometimes enters repetitive loops and often spends hundreds of tokens restating low-value steps. We need shorter answers without teaching it to skip genuinely difficult reasoning. What saved training or inference interventions should we compare, and how would you design an evaluation that catches hidden accuracy regressions?",
+      "expected_retrieval": {
+        "relevant_candidate_ids": [
+          "antidoom",
+          "concise-grpo-reasoning",
+          "quantized-reasoning-calibration"
+        ],
+        "minimum_relevant_hits": 3,
+        "minimum_strategy_families": 3,
+        "special_checks": [
+          "Distinguish loop-specific preference training, token-wise verbosity training, and training-free calibration for quantized models."
+        ]
+      }
+    },
+    {
+      "id": "p12_test_time_reasoning_breadth",
+      "persona": "Staff applied scientist",
+      "experience_level": "senior",
+      "workflow_stage": "major_technology_choice",
+      "invocation_style": "implicit_mcp_trigger",
+      "preferred_mcp_operation": "compare_entities",
+      "multi_item_expected": true,
+      "prompt": "For a hard planning benchmark, one greedy chain of thought is unreliable, but I cannot afford a huge sequential reasoning trace. I can spend moderate parallel compute at inference and need a principled way to combine candidates. Compare several saved test-time reasoning strategies, including what is parallelized, how answers are selected or refined, and the extra model calls each one requires.",
+      "expected_retrieval": {
+        "relevant_candidate_ids": [
+          "latent-test-time-compute",
+          "answer-marginalization",
+          "parallel-draft-refine",
+          "multi-agent-deliberation"
+        ],
+        "minimum_relevant_hits": 3,
+        "minimum_strategy_families": 3,
+        "special_checks": [
+          "Compare latent search, answer voting, draft-and-refine, and deliberation rather than presenting them as interchangeable sampling methods."
+        ]
+      }
+    },
+    {
+      "id": "p13_four_bit_pretraining_review",
+      "persona": "LLM pretraining infrastructure lead",
+      "experience_level": "senior",
+      "workflow_stage": "training_plan_review",
+      "invocation_style": "implicit_mcp_trigger",
+      "preferred_mcp_operation": "review_architecture",
+      "multi_item_expected": true,
+      "prompt": "We are planning a new pretraining run and GPU memory is the binding constraint. Management heard that end-to-end 4-bit pretraining is now solved and wants the whole run in low precision. Review that assumption using my saved research. I also want one complementary way to spend the fixed training budget on better data rather than only changing arithmetic precision.",
+      "expected_retrieval": {
+        "relevant_candidate_ids": [
+          "low-precision-pretraining",
+          "optimizer-aligned-data-selection"
+        ],
+        "minimum_relevant_hits": 2,
+        "minimum_strategy_families": 2,
+        "special_checks": [
+          "Reject the oversimplification that stable 4-bit pretraining means every operation and layer uses only 4-bit precision.",
+          "Keep numerical precision and sample selection as separate optimization levers."
+        ]
+      }
+    },
+    {
+      "id": "p14_optimizer_aligned_data_selection",
+      "persona": "Research engineer with a fixed pretraining budget",
+      "experience_level": "senior",
+      "workflow_stage": "training_and_evaluation_design",
+      "invocation_style": "explicit_steering_request",
+      "preferred_mcp_operation": "search_knowledge",
+      "multi_item_expected": true,
+      "prompt": "Search my saved research before I finalize data sampling. We can train on only a small fraction of a mixed corpus, and ordinary gradient-similarity selection ignores that Adam changes the geometry of the update. Find methods or adjacent efficiency ideas that would help me test whether smarter selection beats simply shrinking numerical precision.",
+      "expected_retrieval": {
+        "relevant_candidate_ids": [
+          "optimizer-aligned-data-selection",
+          "low-precision-pretraining"
+        ],
+        "minimum_relevant_hits": 2,
+        "minimum_strategy_families": 2,
+        "special_checks": [
+          "Make optimizer-aligned selection the direct match and low-precision pretraining an adjacent efficiency alternative, not an equivalent method."
+        ]
+      }
+    },
+    {
+      "id": "p15_finetuning_knowledge_generalization",
+      "persona": "Senior model adaptation researcher",
+      "experience_level": "senior",
+      "workflow_stage": "after_failed_approaches",
+      "invocation_style": "implicit_mcp_trigger",
+      "preferred_mcp_operation": "explore_design_options",
+      "multi_item_expected": true,
+      "prompt": "A model can repeat the new facts from our fine-tuning set but still fails when those facts must be used inside a different reasoning chain. Adding more paraphrases has not fixed it. What saved work could help diagnose whether the knowledge is stored but not routed, or whether the model lacks the ability to recombine learned reasoning skills? Give me experiments that distinguish those explanations.",
+      "expected_retrieval": {
+        "relevant_candidate_ids": [
+          "finetuning-generalization-mechanism",
+          "rl-sft-skill-recombination"
+        ],
+        "minimum_relevant_hits": 2,
+        "minimum_strategy_families": 2,
+        "special_checks": [
+          "Separate representation routing across layers from compositional skill recombination."
+        ]
+      }
+    },
+    {
+      "id": "p16_agent_training_from_failures",
+      "persona": "Lead engineer for a tool-using coding agent",
+      "experience_level": "senior",
+      "workflow_stage": "after_failed_approaches",
+      "invocation_style": "implicit_mcp_trigger",
+      "preferred_mcp_operation": "explore_design_options",
+      "multi_item_expected": true,
+      "prompt": "Our coding agent succeeds on simple repository tasks but fails in different ways on long tool traces: dependency diagnosis, test repair, and deciding when to inspect documentation. We have rewarded and failed trajectories plus access to training compute. Surface saved systems for turning these failures into targeted training rather than doing one generic fine-tune, and include an option that can train multi-step agents with verifiable rewards.",
+      "expected_retrieval": {
+        "relevant_candidate_ids": [
+          "trace-agentic-training",
+          "art-openpipe",
+          "ml-intern"
+        ],
+        "minimum_relevant_hits": 2,
+        "minimum_strategy_families": 2,
+        "special_checks": [
+          "Distinguish capability-specific training and routing from a general agent RL framework.",
+          "Treat an autonomous ML agent as an adjacent implementation or experimentation aid, not the training method itself."
+        ]
+      }
+    },
+    {
+      "id": "p17_junior_ml_project_setup",
+      "persona": "Junior machine-learning engineer",
+      "experience_level": "junior",
+      "workflow_stage": "project_start",
+      "invocation_style": "implicit_mcp_trigger",
+      "preferred_mcp_operation": "explore_design_options",
+      "multi_item_expected": true,
+      "prompt": "I have been asked to build a baseline for a new ML dataset, but I am worried I will leak information across splits or jump into deep learning before checking simpler models. I use a coding agent and would like it to guide the research, evaluation, and implementation steps. Are there saved tools that can give the agent a disciplined ML workflow or even help run the experiments?",
+      "expected_retrieval": {
+        "relevant_candidate_ids": [
+          "mlcraft",
+          "ml-intern",
+          "autoskills"
+        ],
+        "minimum_relevant_hits": 2,
+        "minimum_strategy_families": 2,
+        "special_checks": [
+          "Prefer workflow guidance and ML experimentation tools over unrelated model-training papers.",
+          "Explain how generic project skill installation differs from ML-specific guidance."
+        ]
+      }
+    },
+    {
+      "id": "p18_coding_agent_codebase_context",
+      "persona": "Staff developer-platform engineer",
+      "experience_level": "senior",
+      "workflow_stage": "architecture_start",
+      "invocation_style": "implicit_mcp_trigger",
+      "preferred_mcp_operation": "review_architecture",
+      "multi_item_expected": true,
+      "prompt": "We are rolling coding agents out to a large monorepo. They repeatedly rediscover the same architecture, miss call relationships, and receive generic instructions that do not match the CUDA and inference stack in each project. Review a design that combines persistent code understanding with reusable project or vendor skills. Also tell me where the agent harness itself should be measured and improved.",
+      "expected_retrieval": {
+        "relevant_candidate_ids": [
+          "understand-anything",
+          "autoskills",
+          "nvidia-agent-skills",
+          "harness-engineering-rsi"
+        ],
+        "minimum_relevant_hits": 3,
+        "minimum_strategy_families": 3,
+        "special_checks": [
+          "Distinguish code knowledge graphs, skill installation, vendor-specific skills, and harness-level engineering."
+        ]
+      }
+    },
+    {
+      "id": "p19_private_scientific_research_agents",
+      "persona": "Head of research engineering at a biotech startup",
+      "experience_level": "senior",
+      "workflow_stage": "major_technology_choice",
+      "invocation_style": "implicit_mcp_trigger",
+      "preferred_mcp_operation": "explore_design_options",
+      "multi_item_expected": true,
+      "prompt": "We want agents to review literature, form hypotheses, run analysis code, and preserve a reproducible trail, but unpublished data must stay on our infrastructure. Researchers also need to approve durable changes instead of letting an autonomous loop rewrite shared state. Which saved open systems or agent patterns are worth evaluating, and what security assumptions should I verify?",
+      "expected_retrieval": {
+        "relevant_candidate_ids": [
+          "openscience",
+          "ml-intern",
+          "exxperts-memory-governance"
+        ],
+        "minimum_relevant_hits": 2,
+        "minimum_strategy_families": 3,
+        "special_checks": [
+          "Do not infer that a local UI guarantees every model call or integration stays local.",
+          "Call out sandboxing, approval, and external-service boundaries."
+        ]
+      }
+    },
+    {
+      "id": "p20_multi_agent_answer_reliability",
+      "persona": "Senior applied AI engineer",
+      "experience_level": "senior",
+      "workflow_stage": "evaluation_design",
+      "invocation_style": "implicit_mcp_trigger",
+      "preferred_mcp_operation": "compare_entities",
+      "multi_item_expected": true,
+      "prompt": "A single model answer is too brittle for high-value analytical questions. I can afford several parallel generations, but I need to decide whether agents should debate, whether I should aggregate final answers, or whether drafts should be merged into a bounded workspace and refined. Compare saved approaches and propose an evaluation that measures accuracy gain against token and latency cost.",
+      "expected_retrieval": {
+        "relevant_candidate_ids": [
+          "multi-agent-deliberation",
+          "answer-marginalization",
+          "parallel-draft-refine"
+        ],
+        "minimum_relevant_hits": 3,
+        "minimum_strategy_families": 3,
+        "special_checks": [
+          "Explain how communication, voting, and synthesis differ in failure modes and cost."
+        ]
+      }
+    },
+    {
+      "id": "p21_long_document_ocr_pipeline",
+      "persona": "Document-AI architect",
+      "experience_level": "senior",
+      "workflow_stage": "architecture_review",
+      "invocation_style": "implicit_mcp_trigger",
+      "preferred_mcp_operation": "explore_design_options",
+      "multi_item_expected": true,
+      "prompt": "We ingest 40-page scanned technical reports. Page-by-page OCR loses cross-page context, while sending every page through a general vision model makes KV memory and latency explode. Some deployments are Apple-only and offline; others need search over the resulting visual pages. Find saved components or research ideas for long-document recognition, on-device parsing, and downstream retrieval, and be clear about where each component stops.",
+      "expected_retrieval": {
+        "relevant_candidate_ids": [
+          "unlimited-ocr",
+          "mineru-coreai",
+          "pixelrag",
+          "v-splade"
+        ],
+        "minimum_relevant_hits": 3,
+        "minimum_strategy_families": 3,
+        "special_checks": [
+          "Preserve the documented context and input limits behind the word unlimited.",
+          "Separate recognition or parsing from retrieval."
+        ]
+      }
+    },
+    {
+      "id": "p22_zero_shot_tabular_baseline",
+      "persona": "Junior data scientist",
+      "experience_level": "junior",
+      "workflow_stage": "baseline_design",
+      "invocation_style": "implicit_mcp_trigger",
+      "preferred_mcp_operation": "search_knowledge",
+      "multi_item_expected": false,
+      "prompt": "I have a small tabular classification dataset and almost no budget for hyperparameter sweeps. Before I build a large feature-engineering pipeline, is there anything in my saved collection that can produce a serious zero-shot baseline without training task-specific weights? Tell me the licensing and evaluation caveats before I use it.",
+      "expected_retrieval": {
+        "relevant_candidate_ids": [
+          "tabfm"
+        ],
+        "minimum_relevant_hits": 1,
+        "minimum_strategy_families": 1,
+        "special_checks": [
+          "Surface the tabular foundation model directly and avoid padding the answer with unrelated language-model techniques."
+        ]
+      }
+    },
+    {
+      "id": "p23_recency_neutral_memory_review",
+      "persona": "Principal AI architect",
+      "experience_level": "senior",
+      "workflow_stage": "recent_options_requested",
+      "invocation_style": "explicit_steering_request",
+      "preferred_mcp_operation": "explore_design_options",
+      "multi_item_expected": true,
+      "prompt": "Use STEERING to show me recent options from my saved corpus for persistent agent memory, but do not assume the newest one is best. I need a comparison for a local, long-running coding agent that covers evidence strength, maturity, write governance, retrieval behavior, token cost, and rollback. Include an older or better-supported baseline when it fits the constraints more closely.",
+      "expected_retrieval": {
+        "relevant_candidate_ids": [
+          "agent-native-memory",
+          "memoria",
+          "tencentdb-agent-memory",
+          "simplemem",
+          "supermemory",
+          "exxperts-memory-governance",
+          "automem"
+        ],
+        "minimum_relevant_hits": 4,
+        "minimum_strategy_families": 4,
+        "special_checks": [
+          "Do not include publication date in the default relevance judgment.",
+          "Keep established, promising, and experimental evidence separate."
+        ]
+      }
+    },
+    {
+      "id": "p24_unverified_social_claim_trust",
+      "persona": "Senior inference engineer",
+      "experience_level": "senior",
+      "workflow_stage": "trust_review",
+      "invocation_style": "explicit_steering_request",
+      "preferred_mcp_operation": "search_knowledge",
+      "multi_item_expected": true,
+      "prompt": "I remember saving a post claiming that a huge GLM model could stay losslessly compressed in VRAM with no quantization or reconstruction. Find it, but do not turn the post into a recommendation unless the graph has a real implementation or technical source. If the claim is unresolved, give me a better-supported saved option for running a large sparse model under tight GPU memory.",
+      "expected_retrieval": {
+        "relevant_candidate_ids": [
+          "glm-weight-compression",
+          "colibri-moe-offloading"
+        ],
+        "minimum_relevant_hits": 2,
+        "minimum_strategy_families": 2,
+        "special_checks": [
+          "Label the GLM record as an unresolved social claim in the Experimental lane.",
+          "Use the source-backed MoE offloading runtime as the stronger alternative without claiming it works for every dense model."
+        ]
+      }
+    },
+    {
+      "id": "p25_options_exhausted_frontier_recall",
+      "persona": "Staff engineer under delivery pressure",
+      "experience_level": "senior",
+      "workflow_stage": "before_declaring_options_exhausted",
+      "invocation_style": "implicit_mcp_trigger",
+      "preferred_mcp_operation": "review_architecture",
+      "multi_item_expected": true,
+      "prompt": "I feel like we have tried everything on our research agent. It browses visually rich reports, runs for hours, forgets why it made decisions, and repeatedly pays to process the same context. Our current stack is a flat vector index, rolling summaries, and a standard vLLM server. Before I declare the architecture good enough, challenge it using ideas I may have saved and forgotten. Give me a diverse shortlist, not ten variants of the same memory library.",
+      "expected_retrieval": {
+        "relevant_candidate_ids": [
+          "pixelrag",
+          "v-splade",
+          "leanrag",
+          "agent-native-memory",
+          "memoria",
+          "behavioral-state-decay",
+          "lmcache",
+          "harness-engineering-rsi"
+        ],
+        "minimum_relevant_hits": 4,
+        "minimum_strategy_families": 4,
+        "special_checks": [
+          "Cover visual retrieval, graph retrieval, memory lifecycle or state, inference reuse, and harness design when possible.",
+          "Include minimal experiments rather than recommending a wholesale rewrite."
+        ]
+      }
+    },
+    {
+      "id": "p26_unified_vision_model_baseline",
+      "persona": "Junior multimodal research engineer",
+      "experience_level": "junior",
+      "workflow_stage": "baseline_design",
+      "invocation_style": "implicit_mcp_trigger",
+      "preferred_mcp_operation": "search_knowledge",
+      "multi_item_expected": false,
+      "prompt": "My team wants separate models for detection, segmentation, generation, and visual question answering. Before we maintain four pipelines, did I save any open unified vision model or corpus that treats multiple tasks through one instruction interface? I need to know what is actually released, the compute implications, and whether the license permits our intended evaluation.",
+      "expected_retrieval": {
+        "relevant_candidate_ids": [
+          "sensenova-vision"
+        ],
+        "minimum_relevant_hits": 1,
+        "minimum_strategy_families": 1,
+        "special_checks": [
+          "Do not generalize one license statement to every associated artifact without source support."
+        ]
+      }
+    }
+  ]
+}

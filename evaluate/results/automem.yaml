@@ -1,0 +1,74 @@
+schema_version: 1
+candidate_id: automem
+evaluation_status: ready_for_human_review
+
+ingestion:
+  social_source: https://x.com/omarsar0/status/2072716688483831885
+  capture_method: logged_in_visible_playwright
+  bundled_self_posts: 1
+  other_authors_excluded: true
+  selected_artifact:
+    type: paper
+    canonical_url: https://arxiv.org/abs/2607.01224
+    full_text_used: https://arxiv.org/html/2607.01224
+  retained_binary_artifacts: []
+  note: The social image duplicated paper material and was not used.
+
+knowledge:
+  artifact:
+    title: "AutoMem: Automated Learning of Memory as a Cognitive Skill"
+    kind: research_paper
+    version: arXiv:2607.01224v1
+    submitted_at: '2026-07-01'
+    authors: [Shengguang Wu, Hao Zhu, Yuhui Zhang, Xiaohan Wang, Serena Yeung-Levy]
+    maturity: preprint_with_released_code
+  concise_idea: >-
+    Treat an agent's decisions about what to store, retrieve, and organize as a trainable skill,
+    then optimize both the file-based memory scaffold and a dedicated memory specialist from
+    complete long-horizon trajectories.
+  method:
+    - Expose file read, write, search, append, and create operations as first-class agent actions.
+    - Use a meta-LLM to review full trajectories and iteratively revise prompts, schemas, validation, and action vocabulary.
+    - Select good memory-operation examples from the agent's own episodes and LoRA-train a memory specialist while leaving the task-action model frozen.
+  capabilities:
+    - Makes memory decisions observable and optimizable at trajectory level.
+    - Improves memory structure and model proficiency as complementary axes.
+    - Separates memory-operation training from task-action behavior.
+  requirements:
+    - Long, fully logged agent trajectories and task-level evaluation signals.
+    - A file-system memory interface and deterministic evaluation harness.
+    - A strong meta-LLM for trajectory review, plus local training/inference resources for the specialist.
+  reported_results:
+    - setting: Qwen2.5-32B-Instruct on BALROG long-horizon games
+      progression: "Crafter 25.00% -> 51.36%; MiniHack 7.50% -> 30.00%; NetHack 0.42% -> 1.85%."
+    - setting: scaffold optimization only
+      progression: "Crafter 47.27%; MiniHack 27.50%; NetHack 1.57%, without changing model weights."
+    - behavior: "Redundant writes fell 68-83%; empty-search rates fell 13-50%; unproductive actions fell 32-65%."
+  limitations:
+    - Evaluation covers three procedurally generated games, not production agent workloads.
+    - Memory resets each episode; persistent cross-episode memory was not studied.
+    - Each environment uses a separately optimized scaffold and specialist; transfer is unproven.
+    - Results use only 10 Crafter episodes, 40 MiniHack episodes, and 5 NetHack episodes on fixed evaluation seeds.
+    - The outer loops use expensive frontier meta-LLMs and task-specific training infrastructure.
+  engineering_relevance:
+    applicability: >-
+      A strong design reference for long-horizon agents whose memory actions and downstream task
+      outcomes can be logged and evaluated, especially when improving memory behavior without
+      altering the task model is valuable.
+    trial_plan:
+      - Start with scaffold-only optimization before training a specialist.
+      - Compare task success, duplicate writes, failed retrievals, context tokens, and meta-LLM cost on held-out workflows.
+      - Test cross-task transfer before maintaining task-specific adapters.
+    adoption_posture: experimental_research_pattern_not_drop_in_memory_product
+
+source_reconciliation:
+  authoritative_source: https://arxiv.org/abs/2607.01224
+  issues: []
+
+graph_ready:
+  primary_entity: {id: "method:automem", name: AutoMem, type: method}
+  topics: [agent_memory, metamemory, scaffold_optimization, memory_training, long_horizon_agents]
+  relations:
+    - {subject: "method:automem", predicate: optimizes, object: "component:memory_scaffold"}
+    - {subject: "method:automem", predicate: trains, object: "component:memory_specialist"}
+    - {subject: "component:memory_specialist", predicate: preserves, object: "component:frozen_task_model"}

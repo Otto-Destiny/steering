@@ -1,0 +1,10 @@
+# Default ownership
+* @Otto-Destiny
+
+# Security, release, and contract-sensitive areas
+/.github/ @Otto-Destiny
+/docs/adr/ @Otto-Destiny
+/src/steering/database/ @Otto-Destiny
+/src/steering/domain/ @Otto-Destiny
+/src/steering/providers/ @Otto-Destiny
+/SECURITY.md @Otto-Destiny

@@ -1,0 +1,97 @@
+schema_version: 1
+candidate_id: sensenova-vision
+evaluation_status: ready_for_human_review
+
+ingestion:
+  social_source: https://x.com/AdinaYakup/status/2074833900782666087
+  capture_method: telegram_export_with_public_oembed_text
+  bundled_self_posts: 1
+  other_authors_excluded: null
+  selected_artifact:
+    type: paper
+    canonical_url: https://arxiv.org/abs/2607.06560
+    full_text_used: https://arxiv.org/html/2607.06560
+  retained_binary_artifacts: []
+  note: X replies were unavailable; the root post and complete scholarly HTML were used. Post images duplicated released paper/model information.
+
+knowledge:
+  artifact:
+    title: Vision as Unified Multimodal Generation
+    short_name: SenseNova-Vision
+    kind: open_research_model_and_corpus
+    version: arXiv:2607.06560v1
+    published_at: '2026-07-07'
+    authors: [Xiaoyang Han, Jianhua Li, Kewang Deng, Zukai Chen, Xuanke Shi, Sihan Wang, Boxuan Li, Linyan Wang, Siyi Xie, Xin You, Jinsheng Quan, Zhongang Cai, Haiwen Diao, Ziwei Liu, Lei Yang, Dahua Lin, Quan Wang]
+    maturity: preprint_with_public_model_and_corpus
+  concise_idea: >-
+    Recast heterogeneous computer-vision tasks as instruction-conditioned text, image, or mixed
+    generation so one 7B unified multimodal model can perform them without task-specific heads.
+  problem_addressed: >-
+    Traditional vision systems require different architectures and output heads for detection,
+    segmentation, OCR, depth, pose, and other structured or dense prediction tasks.
+  method:
+    - Convert annotations into instruction-response samples with decodable text, image, or mixed targets.
+    - Fine-tune Bagel-7B-MoT on the unified corpus plus auxiliary general multimodal data.
+    - Decode generated text into boxes, points, labels, OCR, and pose; decode images into masks, depth, normals, and point maps.
+  capabilities:
+    - Detection, OCR, GUI grounding, keypoints, segmentation, depth, surface normals, point maps, and camera pose.
+    - Natural-language and optional visual prompting across structured, dense, and multi-view tasks.
+    - SN-VC-50M release covering 50 million converted examples and 10 task types.
+  requirements:
+    - The Bagel-7B-MoT-compatible multimodal runtime and task-specific output decoders.
+    - High-resolution visual inputs; multi-view training samples use up to 10 views because of memory constraints.
+    - Validation on the target task because output modality and specialist baselines vary widely.
+  evidence:
+    - claim: A single model covers heterogeneous vision tasks without specialist heads.
+      result: The paper reports competitive results across structured understanding, dense geometry, segmentation, and multi-view geometry using native text/image decoders.
+      context: Author-run benchmark suite; performance varies by task.
+      source_location: Paper Sections 4-5
+    - claim: Broad capability does not dominate every specialist.
+      result: Specialized segmentation models remain stronger on several generic and referring segmentation metrics.
+      context: Explicit comparison in the paper.
+      source_location: Paper Section 5.3
+    - claim: General multimodal capability was mostly retained.
+      result: MMVP fell from Bagel's 83.3 to 79.0, while GenEval rose from 0.82 to 0.85.
+      context: Before/after comparison with the base unified model.
+      source_location: Paper Section 5.5
+  limitations:
+    - It is a 48-page v1 preprint with no independent validation.
+    - A generalist model does not outperform task-specialized systems consistently.
+    - Some SN-VC-50M targets are generated or densified by other models, which can propagate annotation errors.
+    - Structured outputs require exact prompt conventions and downstream parsing; image outputs require deterministic decoding.
+    - Training and deployment hardware requirements are not reported in the selected paper text.
+  engineering_relevance:
+    applicability: >-
+      Relevant when one multimodal service must support many visual task types or language-defined
+      variants and maintaining separate specialist architectures is costly.
+    not_a_fit_for: >-
+      Not automatically preferable when a narrow task demands best-in-class specialist accuracy,
+      predictable structured output, commercial licensing, or lightweight inference.
+    adoption_posture: experimental_generalist_model_requires_task_and_license_validation
+  evidence_quality:
+    support_type: full_research_preprint_with_public_model_and_corpus
+    independently_validated: false
+    confidence: medium
+  adoption_readiness:
+    implementation_available: true
+    license: null
+    compute_infrastructure:
+      training: {device: null, count: null, memory_per_device: null}
+      inference: {device: null, count: null, memory_per_device: null}
+    minimum_validation: Confirm artifact licenses, then benchmark accuracy, parsing failures, latency, VRAM, and specialist-model gaps on each intended task.
+
+source_reconciliation:
+  authoritative_source: https://arxiv.org/abs/2607.06560
+  issues:
+    - status: needs_review
+      social_statement: The model, corpus, benchmark, paper, and demo are all open under CC BY-NC 4.0.
+      source_statement: The paper confirms a public model and corpus but does not establish one license covering every artifact.
+      explanation: Verify each model, dataset, code, and demo license before use, especially for commercial deployment.
+
+graph_ready:
+  primary_entity: {id: "model:sensenova-vision", name: SenseNova-Vision, type: model}
+  topics: [computer_vision, unified_generation, multimodal_models, vision_foundation_models]
+  relations:
+    - {subject: "model:sensenova-vision", predicate: adapts, object: "model:bagel-7b-mot"}
+    - {subject: "model:sensenova-vision", predicate: trained_on, object: "dataset:sn-vc-50m"}
+    - {subject: "model:sensenova-vision", predicate: unifies, object: "task_family:heterogeneous_computer_vision"}

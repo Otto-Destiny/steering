@@ -1,0 +1,57 @@
+schema_version: 1
+description: >-
+  One controlled primary strategy family per evaluation candidate. These labels
+  support deterministic diversity scoring and are not relevance judgments.
+
+families:
+  latent-test-time-compute: latent_search
+  agent-native-memory: memory_lifecycle
+  agentic-webgpu-kernels: webgpu_kernel_optimization
+  leanrag: graph_guided_retrieval
+  automem: trainable_memory
+  memoria: versioned_memory
+  local-cpu-tts: speech_synthesis
+  tencentdb-agent-memory: context_compression_memory
+  understand-anything: code_knowledge_graph
+  tabfm: zero_shot_tabular
+  justgrpo: diffusion_rollout_rl
+  mineru-coreai: document_parsing
+  videorag: video_multimodal_retrieval
+  pixelrag: visual_page_retrieval
+  zvec: embedded_vector_database
+  antidoom: repetition_preference_training
+  lmcache: kv_cache_reuse
+  openscience: scientific_agent_workbench
+  v-splade: visual_sparse_retrieval
+  harness-engineering-rsi: harness_engineering
+  unlimited-ocr: long_document_ocr
+  simplemem: memory_compression
+  supermemory: packaged_context_engine
+  nvidia-agent-skills: vendor_specific_skills
+  moss-transcribe-diarize: speech_recognition_diarization
+  trek-grpo: proposal_guided_rl_exploration
+  multi-agent-deliberation: deliberation
+  sensenova-vision: unified_vision_model
+  latent-exploration-decoding: latent_decoding_diversity
+  behavioral-state-decay: behavioral_state_memory
+  exxperts-memory-governance: governed_memory_writes
+  mlcraft: ml_workflow_guidance
+  ml-intern: autonomous_ml_experiment_agent
+  leann: compact_vector_index
+  colibri-moe-offloading: moe_expert_offloading
+  optimizer-aligned-data-selection: optimizer_aware_data_selection
+  art-openpipe: agent_rl_framework
+  low-precision-pretraining: numerical_precision_training
+  rlvr-token-credit: token_credit_assignment
+  autoskills: generic_skill_discovery
+  parallel-draft-refine: draft_refine
+  trace-agentic-training: capability_targeted_training
+  quantized-reasoning-calibration: inference_calibration
+  answer-marginalization: answer_voting
+  proactive-memory-agent: behavioral_state_memory
+  concise-grpo-reasoning: verbosity_reward_training
+  glm-weight-compression: unresolved_lossless_compression
+  deepspec: speculative_draft_training
+  finetuning-generalization-mechanism: activation_routing
+  rl-sft-skill-recombination: skill_recombination
+  dflash: block_diffusion_speculation

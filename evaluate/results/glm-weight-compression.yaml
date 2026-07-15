@@ -1,0 +1,75 @@
+schema_version: 1
+candidate_id: glm-weight-compression
+evaluation_status: ready_for_human_review
+primary_category: post_only
+
+ingestion:
+  social_source: https://x.com/brianbellx/status/2076432307687215494
+  capture_method: x_public_oembed_from_telegram_export
+  bundled_self_posts: 1
+  other_authors_excluded: true
+  selected_artifact:
+    type: social_post
+    canonical_url: https://x.com/brianbellx/status/2076432307687215494
+    full_text_used: true
+  retained_binary_artifacts: []
+  note: The post promises a writeup and repository in the next post, but replies were not captured and no official artifact could be resolved; images were not analyzed.
+
+knowledge:
+  artifact:
+    title: GLM-5.2 lossless weight-compression claim
+    short_name: null
+    kind: unresolved_social_claim
+    version: null
+    published_at: null
+    authors: [Brian Bell]
+    maturity: unverified_post_only
+  concise_idea: >-
+    Claim that GLM-5.2 weights can remain losslessly compressed in VRAM, reducing storage from
+    1,403 GB to 980 GB without quantization, retraining, or reconstruction of the full model.
+  problem_addressed: The BF16-scale GLM-5.2 checkpoint exceeds the aggregate VRAM of many multi-GPU servers.
+  method: []
+  capabilities:
+    - Claimed 423 GB reduction while preserving weights bit-for-bit.
+    - Claimed direct use of the compressed representation in VRAM.
+  requirements: []
+  evidence:
+    - claim: GLM-5.2 can be reduced from 1,403 GB to 980 GB losslessly.
+      result: The author states a 423 GB reduction for 753B weights with no quantization or retraining.
+      context: Single truncated X root post; no code, writeup, benchmark, or reproduction was available.
+      source_location: Original X post
+  limitations:
+    - The compression algorithm, data format, kernels, decompression cost, and hardware are unknown.
+    - The promised writeup and repository were outside the captured post and could not be resolved.
+    - Bit-exactness, VRAM figures, throughput, and actual model execution are unverified.
+    - This record is not sufficient for an engineering recommendation or implementation attempt.
+  engineering_relevance:
+    applicability: A lead to revisit if the official writeup and implementation become available.
+    not_a_fit_for: Current architecture decisions, capacity planning, or production deployment.
+    adoption_posture: do_not_adopt_until_primary_artifact_is_resolved
+  evidence_quality:
+    support_type: unverified_author_social_claim
+    independently_validated: false
+    confidence: low
+  adoption_readiness:
+    implementation_available: null
+    license: null
+    compute_infrastructure:
+      training: {device: null, count: null, memory_per_device: null}
+      inference: {device: null, count: null, memory_per_device: null}
+    minimum_validation: Resolve the promised repository, inspect the format and kernels, verify bit identity, then reproduce memory and throughput on a smaller model before GLM-5.2.
+
+source_reconciliation:
+  authoritative_source: https://x.com/brianbellx/status/2076432307687215494
+  issues:
+    - status: needs_review
+      social_statement: The weights are bit-for-bit exact and remain compressed in VRAM while reducing 1,403 GB to 980 GB.
+      source_statement: No accompanying official writeup, repository, or benchmark was available in the captured material.
+      explanation: Preserve this as an unresolved claim until the next-post artifact is captured.
+
+graph_ready:
+  primary_entity: {id: claim:glm-5.2-lossless-weight-compression, name: GLM-5.2 lossless weight-compression claim, type: claim}
+  topics: [model_compression, inference, memory_efficiency]
+  relations:
+    - {subject: claim:glm-5.2-lossless-weight-compression, predicate: concerns, object: model:glm-5.2}
+    - {subject: claim:glm-5.2-lossless-weight-compression, predicate: status, object: status:unverified}

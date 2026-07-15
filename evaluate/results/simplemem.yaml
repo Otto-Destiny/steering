@@ -1,0 +1,91 @@
+schema_version: 1
+candidate_id: simplemem
+evaluation_status: ready_for_human_review
+
+ingestion:
+  social_source: https://x.com/DanKornas/status/2075121780235042846
+  capture_method: logged_in_visible_playwright_plus_linked_primary_source
+  bundled_self_posts: 2
+  other_authors_excluded: true
+  selected_artifact:
+    type: repository
+    canonical_url: https://github.com/aiming-lab/SimpleMem
+    full_text_used: repository_readme
+  retained_binary_artifacts: []
+  note: The root post and its same-author link reply were bundled; the image was not analyzed because the official repository was available.
+
+knowledge:
+  artifact:
+    title: SimpleMem
+    short_name: SimpleMem
+    kind: open_source_tool
+    version: v0.3.0
+    published_at: '2026-05-21'
+    authors: [AIMing Lab]
+    maturity: research_implementation
+
+  concise_idea: >-
+    A unified agent-memory package that compresses interactions into structured memories,
+    synthesizes related information, and plans retrieval by intent across text and multimodal inputs.
+  problem_addressed: >-
+    Long-running agents need relevant past context without repeatedly sending an ever-growing raw conversation history.
+  method:
+    - Compress raw interactions into structured semantic memory units.
+    - Synthesize related memories online instead of treating every observation independently.
+    - Plan retrieval from the current intent, then combine semantic and lexical retrieval where applicable.
+    - Route the Python API to text or multimodal memory; expose text memory through MCP.
+  capabilities:
+    - Text memory with semantic compression, synthesis, and intent-aware retrieval.
+    - Multimodal ingestion for text, image, audio, and video through the Python package.
+    - Retrieval optimization with EvolveMem and hybrid FAISS/BM25 retrieval in Omni-SimpleMem.
+  requirements:
+    - Python 3.10 or newer.
+    - An OpenAI-compatible LLM API and configured embedding model.
+    - Additional local dependencies for multimodal processing and retrieval optimization.
+
+  evidence:
+    - claim: The authors report better long-context memory quality with lower inference-token use.
+      result: 26.4% average F1 improvement on LoCoMo and about 30x fewer inference tokens than prior systems.
+      context: Maintainer-reported benchmark results; not independent validation.
+      source_location: https://github.com/aiming-lab/SimpleMem
+    - claim: One package supports text and multimodal memory paths.
+      result: The v0.3.0 README documents automatic backend routing, with MCP for text and Python for full multimodal support.
+      context: Documented implementation behavior.
+      source_location: https://github.com/aiming-lab/SimpleMem
+
+  limitations:
+    - Memory construction and retrieval require model/API calls, so quality, latency, privacy, and cost depend on the configured providers.
+    - Compression and synthesis can omit details or propagate an incorrect interpretation and must be tested on the target workload.
+    - The headline LoCoMo gains are author-reported and do not establish superiority for every agent workload.
+    - Multimodal support has more dependencies and is not exposed fully through the text-focused MCP path.
+
+  engineering_relevance:
+    applicability: Useful for agents that need persistent text or multimodal memory with less repeated context.
+    not_a_fit_for: Applications requiring lossless archival recall, no external model calls, or proven performance on an unevaluated domain.
+    adoption_posture: experimental_candidate_not_default_recommendation
+
+  evidence_quality:
+    support_type: official_repository_with_author_benchmark_and_reproduction_assets
+    independently_validated: false
+    confidence: medium
+
+  adoption_readiness:
+    implementation_available: true
+    license: MIT
+    compute_infrastructure:
+      training: {device: null, count: null, memory_per_device: null}
+      inference: {device: null, count: null, memory_per_device: null}
+    minimum_validation: >-
+      Compare recall quality, factual retention, latency, token/API cost, privacy behavior, and failure recovery against a raw-history baseline on representative agent traces.
+
+source_reconciliation:
+  authoritative_source: https://github.com/aiming-lab/SimpleMem
+  issues: []
+
+graph_ready:
+  primary_entity: {id: tool:simplemem, name: SimpleMem, type: open_source_tool}
+  topics: [agent_memory, memory_compression, multimodal_memory, intent_aware_retrieval]
+  relations:
+    - {subject: tool:simplemem, predicate: compresses, object: concept:agent-interaction-history}
+    - {subject: tool:simplemem, predicate: supports, object: concept:multimodal-memory}
+    - {subject: tool:simplemem, predicate: exposes, object: protocol:mcp-text-memory}

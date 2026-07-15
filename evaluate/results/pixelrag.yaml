@@ -1,0 +1,114 @@
+schema_version: 1
+candidate_id: pixelrag
+evaluation_status: ready_for_human_review_with_partial_social_capture
+
+ingestion:
+  social_source: https://x.com/DAIEvolutionHub/status/2074133351452336156
+  capture_method: dataset_export_plus_linked_primary_repository
+  bundled_self_posts: null
+  other_authors_excluded: null
+  selected_artifact:
+    type: repository
+    canonical_url: https://github.com/StarTrail-org/PixelRAG
+    full_text_used: repository_readme
+  retained_binary_artifacts: []
+  note: Saved X and LinkedIn summaries were available, but comments/self-replies were not inspected; the official repository was used as authority.
+
+knowledge:
+  artifact:
+    title: "PIXELRAG: Web Screenshots Beat Text for Retrieval-Augmented Generation"
+    short_name: PixelRAG
+    kind: open_source_research_implementation
+    version: v0.3.0
+    published_at: '2026'
+    authors: [Yichuan Wang, Zhifei Li, Zirui Wang, Paul Teiletche, Lesheng Jin, Matei Zaharia, Joseph E. Gonzalez, Sewon Min]
+    maturity: preprint_with_released_software
+
+  concise_idea: >-
+    Render web pages and documents into screenshot tiles, embed and retrieve the pixels directly,
+    and let a vision-language reader answer without flattening away tables, charts, or layout.
+  problem_addressed: >-
+    Text parsing discards visual structure and non-text information that can be essential for
+    retrieval and answering over webpages, PDFs, dashboards, and reports.
+  method:
+    - Render URLs, PDFs, or local documents into screenshot tiles with Chromium/Playwright tooling.
+    - Embed tiles using Qwen3-VL-Embedding-2B, optionally LoRA-fine-tuned on screenshot retrieval data.
+    - Build a FAISS visual index and retrieve relevant tiles from text or image queries.
+    - Pass retrieved screenshots to a vision-language reader for answer generation.
+  capabilities:
+    - Layout-preserving retrieval across webpages, PDFs, and images.
+    - Local rendering, indexing, and serving components plus a hosted Wikipedia search endpoint.
+    - A prebuilt visual index covering 8.28 million Wikipedia pages.
+  requirements:
+    - Python 3.10 or newer and Chrome/Chromium or the supported headless renderer.
+    - Qwen3-VL-Embedding-2B or compatible visual embeddings and FAISS storage.
+    - Significant disk capacity for large indexes; one downloadable Wikipedia base index is about 217 GB.
+
+  evidence:
+    - claim: PixelRAG preserves information that text parsing can remove.
+      result: The released pipeline retrieves screenshot tiles containing tables, charts, layout, and infographics instead of flattened text chunks.
+      context: Supported by implementation and demonstrations; downstream accuracy remains corpus/model dependent.
+      source_location: https://github.com/StarTrail-org/PixelRAG#what-it-is
+    - claim: The implementation scales beyond toy document sets.
+      result: The official hosted endpoint serves a prebuilt index of 8.28 million Wikipedia pages.
+      context: Maintainer-operated service; the downloadable base index is approximately 217 GB.
+      source_location: https://github.com/StarTrail-org/PixelRAG#search-a-pre-built-index
+
+  limitations:
+    - Screenshot rendering and visual embedding add browser, compute, storage, and indexing costs absent from text-only retrieval.
+    - A large prebuilt Wikipedia index is about 217 GB, and corpus updates require rerendering/reindexing affected content.
+    - Retrieval quality depends on rendering consistency, viewport/tiling choices, visual embeddings, and the downstream VLM.
+    - Dynamic, authenticated, interactive, or inaccessible pages need separate capture and permission handling.
+
+  engineering_relevance:
+    applicability: >-
+      Strong candidate when tables, diagrams, spatial layout, or visual-only evidence materially
+      affects retrieval over documents and webpages.
+    not_a_fit_for: >-
+      Likely inefficient for clean text corpora where ordinary parsing is accurate and cheap, or
+      deployments unable to absorb screenshot-index storage and visual-model costs.
+    adoption_posture: experimental_candidate_not_default_recommendation
+
+  evidence_quality:
+    support_type: official_repository_preprint_and_released_pipeline
+    independently_validated: false
+    confidence: medium
+
+  adoption_readiness:
+    implementation_available: true
+    license: Apache-2.0
+    compute_infrastructure:
+      training:
+        device: CUDA-compatible GPU
+        count: null
+        memory_per_device: null
+      inference:
+        device: CPU, CUDA GPU, or Apple Silicon MPS
+        count: null
+        memory_per_device: null
+    minimum_validation: >-
+      Compare against text RAG on representative layout-rich and text-only queries; measure recall,
+      grounded answer accuracy, render/index latency, storage, VLM cost, and page-change stability.
+
+source_reconciliation:
+  authoritative_source: https://github.com/StarTrail-org/PixelRAG
+  issues:
+    - status: needs_review
+      social_statement: PixelRAG does not read HTML.
+      source_statement: PixelRAG renders pages through a browser and retrieves screenshots rather than parsed text.
+      explanation: The retrieval representation is pixel-native, but browser rendering still consumes the webpage; the social wording is shorthand, not literal architecture.
+    - status: needs_review
+      social_statement: It beats text pipelines by 18.1% and reduces token cost about threefold.
+      source_statement: These exact figures are not documented in the selected official repository README.
+      explanation: Preserve the metrics as unverified social claims until checked against the matching paper version and evaluation conditions.
+
+graph_ready:
+  primary_entity:
+    id: software:pixelrag
+    name: PixelRAG
+    type: software
+  topics: [visual_retrieval, rag, web_content, document_layout]
+  relations:
+    - {subject: software:pixelrag, predicate: renders, object: artifact:screenshot-tiles}
+    - {subject: software:pixelrag, predicate: uses, object: model:qwen3-vl-embedding-2b}
+    - {subject: software:pixelrag, predicate: preserves, object: concept:visual-document-layout}

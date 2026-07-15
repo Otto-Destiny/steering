@@ -1,0 +1,70 @@
+schema_version: 1
+candidate_id: memoria
+evaluation_status: ready_for_human_review
+
+ingestion:
+  social_source: https://x.com/DanKornas/status/2073056611770228927
+  capture_method: logged_in_visible_playwright
+  bundled_self_posts: 3
+  other_authors_excluded: true
+  selected_artifact:
+    type: repository
+    canonical_url: https://github.com/matrixorigin/Memoria
+  retained_binary_artifacts: []
+  note: The repository README was sufficient; the social image and newsletter link were not processed.
+
+knowledge:
+  artifact:
+    title: Memoria
+    kind: open_source_agent_memory_system
+    license: Apache-2.0
+    implementation: primarily_Rust
+    maturity: released_but_requires_local_validation
+  concise_idea: >-
+    A persistent MCP-accessible agent-memory layer built on MatrixOne that applies database-native
+    snapshots, branches, diffs, merges, provenance, and rollback to memory mutations.
+  capabilities:
+    - Git-like snapshots, zero-copy branches, merge, diff, and point-in-time rollback.
+    - Hybrid vector and full-text retrieval across persistent memory types.
+    - Contradiction detection, low-confidence quarantine, reflection, and audit trails.
+    - Cloud mode or self-hosted Docker deployment with a local embedding option.
+    - MCP integration with Codex, Claude Code, Cursor, Gemini CLI, Kiro, and other compatible agents.
+  method:
+    - Store canonical memories in MatrixOne using immutable storage, MVCC, and Copy-on-Write versioning.
+    - Expose store, retrieve, search, correct, purge, snapshot, branch, merge, and governance operations as agent tools.
+    - Use steering rules to guide retrieval, memory hygiene, session lifecycle, and safe branching workflows.
+  requirements:
+    - Memoria CLI and an MCP-compatible agent.
+    - A cloud token, or Docker plus MatrixOne for self-hosting.
+    - An embedding configuration chosen before first self-hosted startup because vector dimension is schema-locked.
+  evidence:
+    - "The README documents the claimed versioning, retrieval, governance, deployment, and MCP operations."
+    - "The repository contains released code, tests, deployment files, and an Apache-2.0 license."
+    - "No independent agent-quality or hallucination-reduction benchmark is presented in the selected README."
+  limitations:
+    - Product claims are primarily maintainer-reported and need workload-specific evaluation.
+    - Self-hosting introduces MatrixOne, Docker, embedding, backup, and operational complexity.
+    - Automatic contradiction detection or quarantine can itself make mistakes and needs review and rollback policy.
+    - Git-like memory operations do not by themselves establish that stored memories are true or useful.
+  engineering_relevance:
+    applicability: >-
+      Relevant when an agent needs persistent, auditable, reversible memory and isolated experiments
+      are more important than using the lightest possible memory store.
+    trial_plan:
+      - Benchmark retrieval quality, mutation latency, storage growth, rollback correctness, and contradiction false positives.
+      - Test a poisoned-memory recovery scenario before production adoption.
+      - Compare operational cost with a simpler vector-plus-relational memory implementation.
+    adoption_posture: promising_open_source_candidate_requires_benchmarking
+
+source_reconciliation:
+  authoritative_source: https://github.com/matrixorigin/Memoria
+  issues: []
+
+graph_ready:
+  primary_entity: {id: "tool:memoria", name: Memoria, type: tool}
+  topics: [agent_memory, versioned_memory, auditability, hybrid_retrieval, mcp]
+  relations:
+    - {subject: "tool:memoria", predicate: uses, object: "database:matrixone"}
+    - {subject: "tool:memoria", predicate: exposes, object: "interface:mcp"}
+    - {subject: "tool:memoria", predicate: enables, object: "capability:memory_rollback"}
+    - {subject: "tool:memoria", predicate: combines, object: "technique:vector_and_full_text_retrieval"}

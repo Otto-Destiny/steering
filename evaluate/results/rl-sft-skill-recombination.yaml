@@ -1,0 +1,89 @@
+schema_version: 1
+candidate_id: rl-sft-skill-recombination
+evaluation_status: ready_for_human_review
+primary_category: paper
+
+ingestion:
+  social_source: https://www.linkedin.com/posts/maxime-labonne_what-does-rl-actually-add-on-top-of-sft-activity-7482382702726393856-zuWH
+  capture_method: linkedin_public_metadata_from_telegram_export
+  bundled_self_posts: 1
+  other_authors_excluded: null
+  selected_artifact:
+    type: research_paper
+    canonical_url: https://arxiv.org/abs/2606.18089
+    full_text_used: https://arxiv.org/pdf/2606.18089
+  retained_binary_artifacts: []
+  note: LinkedIn comments were unavailable; text was extracted from the official paper and the temporary PDF was not retained in the project.
+
+knowledge:
+  artifact:
+    title: 'From Reasoning Traces to Reusable Modules: Understanding Compositional Generalization in Language Model Reasoning'
+    short_name: Reusable Modules study
+    kind: sft_rl_compositional_generalization_study
+    version: arXiv:2606.18089v2
+    published_at: '2026-07-05'
+    authors: [Lingjing Kong, Xin Liu, Guangyi Chen, Martin Q. Ma, Xiangchen Song, Yuekai Sun, Mikhail Yurochkin, Taylor W. Killian, Ruslan Salakhutdinov, Kun Zhang, Eric P. Xing, Zhengzhong Liu]
+    maturity: ICML_2026_paper
+  concise_idea: >-
+    Model reasoning as reusable skills plus routing modules: SFT supplies compound traces containing
+    the modules, while outcome-reward RL separates and recombines them for unseen compositions.
+  problem_addressed: SFT can imitate complete reasoning traces yet fail when familiar operations must be rearranged or composed at greater depth.
+  method:
+    - Formalize reasoning traces with hierarchical latent selections for skills and routing.
+    - Train Llama-3.1-8B-Instruct on synthetic string transformations with 24 skills and 10 routers.
+    - Compare SFT alone with final-answer RL under controlled atomic, compound, overlap, and depth settings.
+    - Check whether the same signature appears in 643 math traces from Qwen3-4B variants.
+  capabilities:
+    - Separates coverage of atomic operations from generalization to unseen compositions.
+    - Tests the roles of compound versus isolated RL traces and SFT-RL distribution overlap.
+    - Provides a data-design hypothesis for staged SFT and RL reasoning training.
+  requirements:
+    - SFT traces that cover each required skill within compositions.
+    - Outcome-verifiable RL tasks and multiple rollouts per prompt.
+    - Full post-training access to an open model; exact accelerator hardware is not reported in the paper text.
+  evidence:
+    - claim: RL improves compositional generalization beyond SFT.
+      result: Across unseen depths, RL averaged a 40.3 percentage-point gain over SFT in the controlled task.
+      context: Synthetic string transformations on Llama-3.1-8B-Instruct.
+      source_location: Paper, Controlled Experiments
+    - claim: Compound RL traces matter more than isolated module exposure.
+      result: Accuracy was 4.8% for SFT, 14.8% with atomic-module RL, and 42.6% with compound-trace RL.
+      context: Fixed SFT initialization and RL budget.
+      source_location: Paper, Table 1
+    - claim: The mechanism has a real-model consistency check.
+      result: The study maps 643 problems from MATH-500, AIME, AMC, and GSM8K using Qwen3-4B and its thinking variant.
+      context: A small observational check, not the same controlled causal experiment.
+      source_location: Paper, Real-world Validation
+  limitations:
+    - Main causal evidence comes from synthetic string transformations rather than natural reasoning distributions.
+    - The real-model check covers only 643 math problems and does not establish the mechanism at frontier scale.
+    - The hierarchical module interpretation is a theoretical model of behavior, not direct neural-circuit identification.
+    - Final-answer reward and exact-match synthetic tasks are cleaner than many real engineering domains.
+    - Hardware, implementation license, and public training code are not established by the selected paper.
+  engineering_relevance:
+    applicability: Useful for designing SFT coverage and RL curricula that test novel skill compositions rather than repeating SFT problems.
+    not_a_fit_for: A universal claim that RL always generalizes, or direct evidence for arbitrary domains, models, and reward schemes.
+    adoption_posture: promising_training_design_hypothesis_requires_domain_reproduction
+  evidence_quality:
+    support_type: conference_paper_with_theory_controlled_experiments_and_small_real_model_check
+    independently_validated: false
+    confidence: medium_high
+  adoption_readiness:
+    implementation_available: null
+    license: null
+    compute_infrastructure:
+      training: {device: null, count: null, memory_per_device: null}
+      inference: {device: null, count: null, memory_per_device: null}
+    minimum_validation: Build a small domain-specific skill-composition benchmark and compare SFT, atomic-only RL, compound RL, and SFT-RL overlap under equal budgets.
+
+source_reconciliation:
+  authoritative_source: https://arxiv.org/abs/2606.18089
+  issues: []
+
+graph_ready:
+  primary_entity: {id: paper:reasoning-traces-reusable-modules, name: Reusable Modules study, type: paper}
+  topics: [reinforcement_learning, supervised_fine_tuning, reasoning, compositional_generalization]
+  relations:
+    - {subject: method:sft, predicate: supplies, object: concept:compound_reasoning_traces}
+    - {subject: method:reinforcement_learning, predicate: decomposes, object: concept:reusable_atomic_modules}
+    - {subject: method:reinforcement_learning, predicate: enables, object: capability:skill_recombination}

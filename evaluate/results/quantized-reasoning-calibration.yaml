@@ -1,0 +1,90 @@
+schema_version: 1
+candidate_id: quantized-reasoning-calibration
+evaluation_status: ready_for_human_review
+
+ingestion:
+  social_source: https://x.com/VukRosic99/status/2076331498958193020
+  capture_method: telegram_export_with_public_oembed_text
+  bundled_self_posts: 1
+  other_authors_excluded: null
+  selected_artifact:
+    type: paper
+    canonical_url: https://arxiv.org/abs/2606.00206
+    full_text_used: https://arxiv.org/html/2606.00206
+  retained_binary_artifacts: []
+  note: X replies were unavailable; the root post and complete paper HTML were used. The social image was unnecessary.
+
+knowledge:
+  artifact:
+    title: "Quantized Reasoning Models Think They Need to Think Longer, but They Do Not"
+    short_name: Quantized Reasoning Overthinking
+    kind: research_paper_and_training_free_decoding_intervention
+    version: arXiv:2606.00206v1
+    published_at: '2026-05-29'
+    authors: [Sanae Lotfi, Polina Kirichenko, Steven Li, Zechun Liu]
+    maturity: initial_preprint
+  concise_idea: >-
+    Aggressive post-training quantization can amplify hesitation and branching at uncertain token
+    positions; applying a fixed logit penalty to curated overthinking markers can shorten reasoning
+    and sometimes recover accuracy without retraining.
+  problem_addressed: >-
+    Low-bit quantized reasoning models may become both less accurate and much more verbose, eroding
+    the expected latency and cost benefits of compression.
+  method:
+    - Compare token distributions from quantized and full-precision reasoning models using KL divergence.
+    - Identify English hesitation and branch-opening tokens overrepresented at high-entropy positions.
+    - Subtract a fixed penalty from the logits of 50 curated overthinking markers during decoding.
+  capabilities:
+    - Training-free intervention compatible with multiple post-training quantization methods.
+    - Reduces chain-of-thought length while preserving or improving accuracy in the reported settings.
+    - Provides a diagnostic for compression-sensitive token positions.
+  requirements:
+    - White-box access to generation logits and the ability to modify them at decoding time.
+    - A model-specific validation sweep for penalty strength and marker vocabulary.
+    - Full-precision and quantized checkpoints for the KL diagnostic, though not for applying the penalty alone.
+  evidence:
+    - claim: Aggressive quantization can jointly reduce accuracy and increase reasoning length.
+      result: On MATH-500, 3-bit AWQ changed DeepSeek-R1-Distill-Qwen-1.5B from 85.6% accuracy and 5.2K tokens to 47.0% and 23.4K tokens.
+      context: One model, benchmark, and aggressive quantization configuration.
+      source_location: Paper Figure 2 and Section 4.1
+    - claim: Penalizing overthinking markers improved the accuracy-cost trade-off.
+      result: Across five models, three quantization methods, and five benchmarks, CoT length fell 12-23%; overthinking errors fell by up to 58%.
+      context: Author-reported results with the best tested penalty per configuration.
+      source_location: Paper abstract and Table 1
+  limitations:
+    - The marker list is manually curated for English reasoning models and may not transfer across languages or tokenizers.
+    - A fixed penalty can suppress legitimate reconsideration; strength requires model- and task-specific validation.
+    - Evaluation covers math, coding, and science benchmarks rather than open-ended agents or production traffic.
+    - The proposed explanation covers one failure mode and is not a complete causal account of quantization degradation.
+    - Training and inference hardware are not reported in the paper text.
+  engineering_relevance:
+    applicability: >-
+      Useful for self-hosted low-bit reasoning models whose measured output length rises while accuracy falls
+      relative to a full-precision baseline.
+    not_a_fit_for: >-
+      Not applicable to closed APIs without logit control, and unnecessary when mild quantization already
+      preserves both accuracy and response length.
+    adoption_posture: low_complexity_experiment_after_model_specific_quantization_regression_test
+  evidence_quality:
+    support_type: full_preprint_with_multimodel_benchmarks_and_ablations
+    independently_validated: false
+    confidence: medium
+  adoption_readiness:
+    implementation_available: false
+    license: null
+    compute_infrastructure:
+      training: {device: null, count: null, memory_per_device: null}
+      inference: {device: accelerator_capable_of_target_quantized_model, count: null, memory_per_device: null}
+    minimum_validation: Compare accuracy, output tokens, latency, and overthinking errors against unmodified quantized and full-precision decoding across representative tasks and penalty strengths.
+
+source_reconciliation:
+  authoritative_source: https://arxiv.org/abs/2606.00206
+  issues: []
+
+graph_ready:
+  primary_entity: {id: "method:quantized-reasoning-logit-penalty", name: Overthinking-marker logit penalty, type: method}
+  topics: [quantization, reasoning, calibration, inference_efficiency]
+  relations:
+    - {subject: "failure_mode:quantization_amplified_overthinking", predicate: increases, object: "metric:reasoning_length"}
+    - {subject: "method:quantized-reasoning-logit-penalty", predicate: mitigates, object: "failure_mode:quantization_amplified_overthinking"}
+    - {subject: "method:quantized-reasoning-logit-penalty", predicate: requires, object: "capability:logit_control"}

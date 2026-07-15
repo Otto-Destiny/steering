@@ -1,0 +1,105 @@
+schema_version: 1
+candidate_id: unlimited-ocr
+evaluation_status: ready_for_human_review
+primary_category: open_source_tool
+
+ingestion:
+  social_source: https://www.linkedin.com/posts/arindam2004_baidu-just-open-sourced-an-ocr-model-that-activity-7476976483903737856--mN9
+  capture_method: linkedin_public_metadata_from_telegram_export
+  bundled_self_posts: 1
+  other_authors_excluded: null
+  selected_artifact:
+    type: research_paper
+    canonical_url: https://arxiv.org/abs/2606.23050
+    full_text_used: https://arxiv.org/html/2606.23050
+  retained_binary_artifacts: []
+  note: LinkedIn comments were unavailable; the complete official paper was used and post images were unnecessary.
+
+knowledge:
+  artifact:
+    title: Unlimited OCR Works
+    short_name: Unlimited OCR
+    kind: open_source_long_horizon_ocr_model
+    version: arXiv:2606.23050v1
+    published_at: '2026-06-22'
+    authors: [Youyang Yin, Huanhuan Liu, YY, Qunyi Xie, Chaorun Liu, Shiqi Yang, Shaohua Wang, Zhanlong Liu, Hao Zou, Jinyue Chen, Shu Wei, Jingjing Wu, Mingxin Huang, Zhen Wu, Guibin Wang, Tengyu Du, Lei Jia]
+    maturity: preprint_with_released_code_and_weights
+
+  concise_idea: >-
+    Replace decoder self-attention with Reference Sliding Window Attention so every output token
+    sees all visual reference tokens but only a fixed recent output window, bounding decode-side
+    KV cache and sustaining multi-page OCR.
+  problem_addressed: >-
+    Standard end-to-end OCR decoders accumulate KV cache and slow down as generated document text grows,
+    while page-by-page pipelines lose cross-page state.
+  method:
+    - Retain DeepSeek OCR's high-compression DeepEncoder and 3B-total/500M-active MoE decoder.
+    - Replace all decoder attention layers with R-SWA.
+    - Keep full visual/prompt prefix KV plus a fixed causal output window of 128 tokens by default.
+    - Continue-train the decoder at 32K context while freezing the encoder.
+  capabilities:
+    - One-pass parsing across dozens of pages with bounded decode-side KV cache.
+    - Text, formula, table, and reading-order extraction.
+    - Released code and model weights for the described system.
+  requirements:
+    - GPU inference for the 3B-total, 500M-active model and high-resolution page images.
+    - Document pages converted to 1024x1024 images for multi-page Base mode.
+    - A maximum 32K sequence in the evaluated model; page capacity depends on visual prefill size.
+
+  evidence:
+    - claim: Unlimited OCR improves end-to-end document parsing accuracy.
+      result: Overall OmniDocBench scores were 93.23 on v1.5 and 93.92 on v1.6; DeepSeek OCR scored 87.01 on v1.5.
+      context: Author evaluation against benchmark-repository baselines.
+      source_location: Paper, Table 1 and Main Results
+    - claim: It can parse more than 40 pages in one pass.
+      result: The in-house 40+ page set reported edit distance 0.1069 and Distinct-35 96.90%.
+      context: At least ten books per page-count group; in-house rather than public long-document benchmark.
+      source_location: Paper, Long-horizon Parsing
+    - claim: R-SWA sustains long-output throughput.
+      result: At 6000 output tokens, theoretical TPS was 7847.71 versus 5822.87 for DeepSeek OCR, about a 35% advantage.
+      context: Ideal-concurrency efficiency analysis with fixed prefill length.
+      source_location: Paper, Efficiency Analysis
+
+  limitations:
+    - It is not truly unlimited: the 32K context and growing visual prefill still cap page count.
+    - The 40+ page evaluation is an in-house set, not a public benchmark.
+    - Small text becomes difficult in 1024x1024 multi-page Base mode, contributing to long-document errors.
+    - Training used roughly two million OCR samples, including synthetic multi-page concatenations; real-domain generalization needs testing.
+    - The source is a v1 preprint and author evaluation, not independent validation.
+
+  engineering_relevance:
+    applicability: >-
+      Useful for multi-page document ingestion where cross-page continuity and bounded long-output
+      KV cache matter more than page-level parallelism.
+    not_a_fit_for: >-
+      Not an actually unlimited parser, a CPU-first OCR engine, or a validated replacement for
+      page-parallel pipelines on every document distribution.
+    adoption_posture: strong_experimental_candidate_requires_public_long_document_retest
+
+  evidence_quality:
+    support_type: author_preprint_with_released_implementation
+    independently_validated: false
+    confidence: medium_high
+
+  adoption_readiness:
+    implementation_available: true
+    license: null
+    compute_infrastructure:
+      training: {device: NVIDIA A800, count: null, memory_per_device: null}
+      inference: {device: NVIDIA GPU, count: null, memory_per_device: null}
+    minimum_validation: >-
+      Re-test representative 1-, 10-, 20-, and 40-page PDFs against a page-parallel OCR baseline,
+      measuring extraction quality, repetitions, memory, throughput, and failure recovery.
+
+source_reconciliation:
+  authoritative_source: https://arxiv.org/abs/2606.23050
+  issues: []
+  note: The paper supports the 3B-total/500M-active architecture, bounded decode KV cache, 40+ page evaluation, and reported OmniDocBench v1.5/v1.6 leading scores.
+
+graph_ready:
+  primary_entity: {id: model:unlimited-ocr, name: Unlimited OCR, type: model}
+  topics: [document_ai, ocr, long_context, efficient_attention]
+  relations:
+    - {subject: model:unlimited-ocr, predicate: uses, object: technique:reference-sliding-window-attention}
+    - {subject: model:unlimited-ocr, predicate: extends, object: model:deepseek-ocr}
+    - {subject: technique:reference-sliding-window-attention, predicate: bounds, object: resource:decode-kv-cache}

@@ -1,0 +1,91 @@
+schema_version: 1
+candidate_id: supermemory
+evaluation_status: ready_for_human_review
+
+ingestion:
+  social_source: null
+  capture_method: direct_primary_source
+  bundled_self_posts: null
+  other_authors_excluded: null
+  selected_artifact:
+    type: repository
+    canonical_url: https://github.com/supermemoryai/supermemory
+    full_text_used: repository_readme
+  retained_binary_artifacts: []
+  note: The saved item was already the official repository, so no social-thread capture or image processing was needed.
+
+knowledge:
+  artifact:
+    title: Supermemory
+    short_name: supermemory
+    kind: open_source_tool
+    version: null
+    published_at: null
+    authors: [supermemoryai]
+    maturity: active_open_source_product
+
+  concise_idea: >-
+    A self-hostable memory and context layer that extracts information from user content,
+    recalls relevant memories, and injects a persistent profile into AI applications.
+  problem_addressed: >-
+    AI applications need reusable long-term context across sessions, projects, data formats, and model providers.
+  method:
+    - Save or forget content through memory tools and extract usable memories from it.
+    - Recall memories by query and retrieve a user profile for contextual responses.
+    - Scope memories by project or container to limit cross-context leakage.
+    - Connect applications through the API or MCP-compatible clients.
+  capabilities:
+    - Persistent memory, recall, profile context, and project-scoped isolation.
+    - Extraction from PDFs, images with OCR, videos with transcription, and code with AST-aware chunking.
+    - Cloud use or local self-hosting with integrations for common agent clients.
+  requirements:
+    - The repository's application and service dependencies for self-hosting.
+    - Appropriate extraction, model, database, and storage configuration for the chosen deployment.
+    - Access-control and retention policies for user memory.
+
+  evidence:
+    - claim: The repository provides an implementation for persistent AI memory and context.
+      result: It documents save/forget, recall, profile, project scoping, API, MCP, cloud, and local deployment paths.
+      context: Official maintainer documentation.
+      source_location: https://github.com/supermemoryai/supermemory
+    - claim: The project reports leading long-memory benchmark performance.
+      result: The README claims first-place results on LongMemEval, LoCoMo, and ConvoMem.
+      context: Maintainer-reported headline; exact target behavior still requires independent validation.
+      source_location: https://github.com/supermemoryai/supermemory
+
+  limitations:
+    - Benchmark leadership is a maintainer claim and does not prove quality, latency, or cost for a specific application.
+    - Automatic extraction can save incorrect, stale, sensitive, or unwanted information without explicit governance.
+    - Local deployment adds operational dependencies for extraction, storage, models, and service orchestration.
+    - Multimodal quality depends on upstream OCR, transcription, and parsing components.
+
+  engineering_relevance:
+    applicability: Useful as a shared context service for assistants or agents needing persistent, scoped, multimodal memory.
+    not_a_fit_for: Systems that cannot tolerate inferred profile data, lack memory governance, or require a lightweight in-process store only.
+    adoption_posture: experimental_candidate_not_default_recommendation
+
+  evidence_quality:
+    support_type: official_repository_with_maintainer_benchmark_claims
+    independently_validated: false
+    confidence: medium
+
+  adoption_readiness:
+    implementation_available: true
+    license: MIT
+    compute_infrastructure:
+      training: {device: null, count: null, memory_per_device: null}
+      inference: {device: null, count: null, memory_per_device: null}
+    minimum_validation: >-
+      Test retrieval precision, stale-memory correction, project isolation, deletion, privacy, latency, and total extraction/model cost on representative user histories.
+
+source_reconciliation:
+  authoritative_source: https://github.com/supermemoryai/supermemory
+  issues: []
+
+graph_ready:
+  primary_entity: {id: tool:supermemory, name: Supermemory, type: open_source_tool}
+  topics: [agent_memory, context_engine, multimodal_extraction, self_hosting]
+  relations:
+    - {subject: tool:supermemory, predicate: provides, object: capability:persistent-agent-context}
+    - {subject: tool:supermemory, predicate: scopes_by, object: concept:project-container}
+    - {subject: tool:supermemory, predicate: integrates_via, object: protocol:mcp}

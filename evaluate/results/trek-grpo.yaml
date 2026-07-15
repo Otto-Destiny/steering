@@ -1,0 +1,93 @@
+schema_version: 1
+candidate_id: trek-grpo
+evaluation_status: ready_for_human_review_with_partial_social_capture
+
+ingestion:
+  social_source: https://x.com/askalphaxiv/status/2075050843221467607
+  capture_method: dataset_export_plus_linked_primary_source
+  thread_capture_status: partial_unavailable
+  bundled_self_posts: null
+  self_replies_inspected: false
+  other_authors_excluded: null
+  selected_artifact:
+    type: paper
+    canonical_url: https://arxiv.org/abs/2607.05339
+    full_text_used: https://arxiv.org/html/2607.05339
+  retained_binary_artifacts: []
+  note: The exported root post was available, but author self-replies were not; the full paper was used and no social image was analyzed.
+
+knowledge:
+  artifact:
+    title: 'TREK: Distill to Explore, Reinforce to Refine'
+    short_name: TREK
+    kind: paper
+    version: arXiv:2607.05339v1
+    published_at: '2026-07-06'
+    authors: [Yuanda Xu, Zhengze Zhou, Kayhan Behdin, Jelena Markovic-Voronov, Hejian Sang, Xiaomin Li, Wenhui Zhu, Xinchen Du, Aida Rahmattalabi, Ran He, Sen Na, Zhipeng Wang, Alborz Geramifard]
+    maturity: preprint
+
+  concise_idea: >-
+    Repair GRPO's exploration failure on hard prompts by briefly distilling verified proposal solutions
+    that remain reachable by the student, then resume on-policy reinforcement learning.
+  problem_addressed: >-
+    When a policy repeatedly samples only incorrect trajectories, outcome-reward RL has no positive signal to reinforce.
+  method:
+    - Identify hard prompts where the current policy has low pass rate.
+    - Obtain candidate solutions from a teacher or the same model with additional context and verify them.
+    - Rank verified proposals by student likelihood and retain the most reachable examples.
+    - Apply a short forward-KL distillation stage, then continue ordinary on-policy GRPO.
+  capabilities:
+    - Expands the policy's support on hard reasoning or agent tasks without permanently replacing on-policy RL.
+    - Uses either an external teacher or self-context proposals.
+    - Filters proposals through task verifiers and reachability ranking.
+  requirements:
+    - A GRPO training pipeline and a student policy.
+    - A reliable task verifier for proposed solutions.
+    - A proposal source plus extra teacher/verifier compute during training.
+
+  evidence:
+    - claim: TREK improves reasoning performance over GRPO for Qwen3-8B.
+      result: AIME 2025 average@16 rose from 36.9 to 40.3 and AIME 2024 from 47.9 to 51.1; self-context reached 38.5 and 49.6.
+      context: Author-reported experiments in an arXiv v1 paper.
+      source_location: https://arxiv.org/abs/2607.05339
+    - claim: The method also improves agent-task results.
+      result: ALFWorld rose from 75.8 to 82.8 and ScienceWorld from 12.5 to 26.7.
+      context: Author-reported task results.
+      source_location: https://arxiv.org/abs/2607.05339
+
+  limitations:
+    - Performance depends on verifier quality; false approvals can teach incorrect trajectories.
+    - Reachability based on normalized likelihood is imperfect and sensitive to wording and verbosity.
+    - Proposal generation and verification add training cost beyond standard GRPO.
+    - The study is an arXiv v1 preprint on selected models and tasks, not evidence of universal benefit.
+
+  engineering_relevance:
+    applicability: Useful when verifiable RL training stalls because the student rarely discovers successful trajectories on hard prompts.
+    not_a_fit_for: Open-ended tasks without trustworthy outcome verification or projects unable to afford proposal and verifier calls.
+    adoption_posture: experimental_candidate_not_default_recommendation
+
+  evidence_quality:
+    support_type: author_preprint_with_empirical_comparisons
+    independently_validated: false
+    confidence: medium
+
+  adoption_readiness:
+    implementation_available: null
+    license: null
+    compute_infrastructure:
+      training: {device: NVIDIA H200, count: null, memory_per_device: null}
+      inference: {device: null, count: null, memory_per_device: null}
+    minimum_validation: >-
+      Reproduce a GRPO baseline, measure hard-prompt pass rate, verifier precision, proposal acceptance, final task success, training stability, and total added teacher/verifier cost.
+
+source_reconciliation:
+  authoritative_source: https://arxiv.org/abs/2607.05339
+  issues: []
+
+graph_ready:
+  primary_entity: {id: method:trek, name: TREK, type: paper}
+  topics: [reinforcement_learning, grpo, exploration, teacher_guidance, reasoning]
+  relations:
+    - {subject: method:trek, predicate: extends, object: method:grpo}
+    - {subject: method:trek, predicate: distills, object: artifact:verified-proposal-solutions}
+    - {subject: method:trek, predicate: addresses, object: failure:hard-prompt-exploration}

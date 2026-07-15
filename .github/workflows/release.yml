@@ -1,0 +1,95 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Verify tag, version, and changelog
+        if: github.event_name == 'push'
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: >-
+          python -c "import os,pathlib,tomllib;
+          root=pathlib.Path('.');
+          version=tomllib.loads((root/'pyproject.toml').read_text(encoding='utf-8'))['project']['version'];
+          assert os.environ['RELEASE_TAG']==f'v{version}', 'tag and project version differ';
+          assert f'## [{version}]' in (root/'CHANGELOG.md').read_text(encoding='utf-8'), 'version missing from changelog'"
+      - name: Synchronize locked environment
+        run: uv sync --all-extras --dev --locked
+      - name: Run full verification
+        run: uv run python scripts/check.py
+      - name: Build release distributions
+        run: uv build
+      - name: Clean-wheel install and import
+        run: >-
+          python -m venv .release-venv &&
+          .release-venv/bin/python -m pip install dist/*.whl &&
+          .release-venv/bin/python -c "import importlib.metadata as m, steering; print(m.version('steering'), steering.__file__)"
+      - name: Generate SPDX SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: spdx-json
+          output-file: steering.spdx.json
+          upload-artifact: false
+      - name: Upload distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-distributions
+          path: dist/*
+          if-no-files-found: error
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-sbom
+          path: steering.spdx.json
+          if-no-files-found: error
+
+  github-release:
+    if: github.event_name == 'push'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+      - name: Publish GitHub release artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" release-assets/* --verify-tag --generate-notes
+
+  publish-pypi:
+    if: github.event_name == 'push' && vars.PUBLISH_TO_PYPI == 'true'
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-distributions
+          path: dist
+      - name: Publish with trusted identity
+        uses: pypa/gh-action-pypi-publish@release/v1

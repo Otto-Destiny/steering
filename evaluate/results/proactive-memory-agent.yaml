@@ -1,0 +1,90 @@
+schema_version: 1
+candidate_id: proactive-memory-agent
+evaluation_status: ready_for_human_review
+
+ingestion:
+  social_source: https://x.com/askalphaxiv/status/2076401489027764420
+  capture_method: telegram_export_with_public_oembed_text
+  bundled_self_posts: 1
+  other_authors_excluded: null
+  selected_artifact:
+    type: paper
+    canonical_url: https://arxiv.org/abs/2607.08716
+    full_text_used: https://arxiv.org/html/2607.08716
+  retained_binary_artifacts: []
+  note: X replies were unavailable; the root post and complete paper HTML were used. The social image was unnecessary.
+
+knowledge:
+  artifact:
+    title: "Remember When It Matters: Proactive Memory Agent for Long-Horizon Agents"
+    short_name: Proactive Memory Agent
+    kind: research_paper_and_agent_architecture
+    version: arXiv:2607.08716v1
+    published_at: '2026-07-09'
+    authors: [Yifan Wu, Lizhu Zhang, Yuhang Zhou, Mingyi Wang, Bo Peng, Serena Li, Xiangjun Fan, Zhuokai Zhao]
+    maturity: early_preprint_with_code
+  concise_idea: >-
+    Run a separate memory agent beside an unchanged action agent to maintain structured execution
+    state and selectively inject a grounded reminder only when that state should affect the next decision.
+  problem_addressed: >-
+    In long trajectories, requirements, environment facts, failed attempts, diagnoses, and subgoals
+    can remain recorded yet stop influencing behavior, a failure the paper calls behavioral state decay.
+  method:
+    - Update a structured memory bank from a recent trajectory window.
+    - Separately decide whether to inject a memory-grounded reminder or remain silent.
+    - Keep reminders transient and leave the action agent's instructions, tools, and decoding unchanged.
+    - Optionally train an open-weight memory policy with SFT followed by GRPO.
+  capabilities:
+    - Reactivates requirements, environment facts, failure diagnoses, progress, and policy state.
+    - Plugs into existing terminal and conversational tool-use harnesses.
+    - Separates memory maintenance from the decision of when memory should enter the control loop.
+  requirements:
+    - A second model call at configured trigger points; the reported main setup invokes it every step.
+    - Structured memory state and provenance sufficient to ground reminders.
+    - Calibration because speculative, redundant, or mistimed reminders can hurt performance.
+  evidence:
+    - claim: Proactive memory improved weaker action agents.
+      result: Sonnet 4.5 pass@1 rose 37.6% to 45.9% on 85 Terminal-Bench tasks and 55.0% to 61.8% across 278 tau2-Bench tasks.
+      context: Claude Opus 4.6 served as the memory agent.
+      source_location: Paper Table 1
+    - claim: Benefits persisted but were smaller with a stronger action agent.
+      result: Opus 4.6 gained 2.4 points on Terminal-Bench and 2.5 points on tau2-Bench.
+      context: Same frontier model family was used for memory intervention.
+      source_location: Paper Table 1
+  limitations:
+    - Calling a frontier memory model every step adds substantial token cost and latency.
+    - The memory agent can inject speculative, redundant, or unnecessary concerns.
+    - Evaluation covers two benchmark families and a fixed invocation schedule rather than broad production workloads.
+    - Open-weight policy training is presented as preliminary and transfers only partially.
+    - Training hardware and full deployment resource requirements are not reported.
+  engineering_relevance:
+    applicability: >-
+      Relevant to long-horizon coding and tool-use agents that repeatedly lose track of verified
+      requirements, previous failures, or policy state despite those facts appearing in the trace.
+    not_a_fit_for: >-
+      Not justified for short tasks, low-value steps, or systems that cannot afford a second model
+      call and a carefully evaluated reminder policy.
+    adoption_posture: promising_architecture_requires_cost_aware_triggering_and_calibration
+  evidence_quality:
+    support_type: full_preprint_with_benchmarks_ablations_and_code
+    independently_validated: false
+    confidence: medium
+  adoption_readiness:
+    implementation_available: true
+    license: null
+    compute_infrastructure:
+      training: {device: null, count: null, memory_per_device: null}
+      inference: {device: model_provider_API_or_local_accelerator, count: null, memory_per_device: null}
+    minimum_validation: Compare selective reminders, full-bank exposure, ordinary retrieval, always-on injection, and no-memory baselines while measuring success, latency, token cost, and harmful interventions.
+
+source_reconciliation:
+  authoritative_source: https://arxiv.org/abs/2607.08716
+  issues: []
+
+graph_ready:
+  primary_entity: {id: "method:proactive-memory-agent", name: Proactive Memory Agent, type: method}
+  topics: [agent_memory, proactive_retrieval, long_horizon_agents, behavioral_state_decay]
+  relations:
+    - {subject: "method:proactive-memory-agent", predicate: mitigates, object: "failure_mode:behavioral_state_decay"}
+    - {subject: "method:proactive-memory-agent", predicate: maintains, object: "artifact:structured_memory_bank"}
+    - {subject: "method:proactive-memory-agent", predicate: injects, object: "artifact:transient_grounded_reminder"}

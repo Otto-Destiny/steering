@@ -1,0 +1,110 @@
+schema_version: 1
+candidate_id: mineru-coreai
+evaluation_status: ready_for_human_review
+
+ingestion:
+  social_source: https://x.com/JackdeS11/status/2074052522088743381
+  capture_method: logged_in_visible_playwright
+  bundled_self_posts: 1
+  other_authors_excluded: true
+  selected_artifact:
+    type: model
+    canonical_url: https://huggingface.co/mlboydaisuke/MinerU2.5-Pro-CoreAI
+    full_text_used: model_card
+  retained_binary_artifacts: []
+  note: The linked video thumbnail was not processed because the model card documents the implementation and tests directly.
+
+knowledge:
+  artifact:
+    title: MinerU2.5-Pro Core AI
+    short_name: MinerU2.5-Pro-CoreAI
+    kind: on_device_document_parsing_model_port
+    version: null
+    published_at: null
+    authors: []
+    maturity: community_port
+
+  concise_idea: >-
+    Port the 1.2B MinerU2.5-Pro Qwen2-VL document model to Apple Core AI bundles for
+    private, on-device whole-page layout detection and region recognition.
+  problem_addressed: >-
+    Conventional OCR can recover text while losing reading order, tables, formulas, and
+    page structure or requiring a separate layout detector.
+  method:
+    - Run a layout pass to identify typed regions and reading order.
+    - Crop each region and run recognition prompts for text, tables, formulas, or figures.
+    - Assemble recognized regions into Markdown/JSON, HTML tables, and LaTeX.
+    - Use fp16 vision plus an int8 linear decoder with chunked prefill on Apple GPU hardware.
+  capabilities:
+    - Single-page OCR and structured document parsing on supported Apple devices.
+    - Output for headings, paragraphs, tables, formulas, figures, and reading order.
+    - Single-pass iPhone reading and heavier two-stage structured parsing on Mac-tier hardware.
+  requirements:
+    - Apple Core AI pipelined runtime and compatible compiled model bundles.
+    - Apple GPU hardware; the documented tests use M4 Max and iPhone 17 Pro.
+    - Host-side preprocessing and MinerU layout/recognition orchestration.
+
+  evidence:
+    - claim: A page photo was converted on-device into headings, paragraphs, and tables.
+      result: Maintainer reports a correct warm iPhone 17 Pro run at about four seconds per page.
+      context: Single-page, single-pass path in a real ReadDoc app.
+      source_location: https://huggingface.co/mlboydaisuke/MinerU2.5-Pro-CoreAI#verified-m4-max--iphone-17-pro-gpu-core-ai-pipelined-engine
+    - claim: The int8 decoder preserved the tested OCR output relative to fp16.
+      result: Greedy generation was byte-identical; argmax flips occurred only at visual-token positions.
+      context: Maintainer parity tests over one documented sample/reference ladder.
+      source_location: https://huggingface.co/mlboydaisuke/MinerU2.5-Pro-CoreAI#verified-m4-max--iphone-17-pro-gpu-core-ai-pipelined-engine
+
+  limitations:
+    - The model card recommends single-page inputs; dense small text can require a larger export grid.
+    - Full two-stage structured extraction is Mac-tier and reported at roughly 11 seconds load plus 11 seconds per page.
+    - The results are maintainer tests on limited pages and Apple hardware, not an independent document benchmark of this port.
+    - It is a community port not affiliated with Apple or OpenDataLab; int4 is not shipped because of quality risk.
+
+  engineering_relevance:
+    applicability: >-
+      Useful for privacy-sensitive Apple applications that need local document OCR while
+      preserving layout, tables, formulas, and reading order.
+    not_a_fit_for: >-
+      Not a demonstrated choice for high-throughput multi-page server ingestion, non-Apple
+      hardware, or dense documents without device-specific quality testing.
+    adoption_posture: experimental_candidate_not_default_recommendation
+
+  evidence_quality:
+    support_type: maintainer_model_card_with_parity_checks
+    independently_validated: false
+    confidence: medium
+
+  adoption_readiness:
+    implementation_available: true
+    license: Apache-2.0
+    compute_infrastructure:
+      training:
+        device: null
+        count: null
+        memory_per_device: null
+      inference:
+        device: Apple GPU via Core AI pipelined engine
+        count: null
+        memory_per_device: null
+    minimum_validation: >-
+      Test representative scans, tables, formulas, reading order, warm/cold latency, memory,
+      and output parity on every target Apple device before adoption.
+
+source_reconciliation:
+  authoritative_source: https://huggingface.co/mlboydaisuke/MinerU2.5-Pro-CoreAI
+  issues:
+    - status: needs_review
+      social_statement: The model reads whole pages fully on-device on iPhone 17 Pro.
+      source_statement: The card reports a successful iPhone run, but its Notes also say iPhone h18p throughput is pending device verification.
+      explanation: On-device functionality is supported, while the performance status is internally inconsistent and should not be treated as settled.
+
+graph_ready:
+  primary_entity:
+    id: model:mineru2.5-pro-coreai
+    name: MinerU2.5-Pro Core AI
+    type: model
+  topics: [document_ai, ocr, on_device_ai, structured_extraction]
+  relations:
+    - {subject: model:mineru2.5-pro-coreai, predicate: ports, object: model:mineru2.5-pro-2605-1.2b}
+    - {subject: model:mineru2.5-pro-coreai, predicate: runs_on, object: platform:apple-core-ai}
+    - {subject: model:mineru2.5-pro-coreai, predicate: extracts, object: concept:structured-document-content}

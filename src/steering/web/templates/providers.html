@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}AI Providers · STEERING{% endblock %}
+{% block content %}
+  <header class="page-heading">
+    <p class="eyebrow">Settings</p><h1>AI providers</h1>
+    <p>Keys go directly to the operating-system credential store. Saved secrets are never returned to this page.</p>
+  </header>
+  <form class="panel form-stack" action="/settings/providers" method="post" hx-post="/settings/providers" hx-target="#provider-result">
+    <div class="form-row"><label>Provider ID <input name="provider_id" required pattern="[A-Za-z0-9][A-Za-z0-9_.-]{0,63}" placeholder="openai"></label><label>Role <select name="role"><option value="both">Generation and embedding</option><option value="generation">Generation</option><option value="embedding">Embedding</option></select></label></div>
+    <label>Base URL <input type="url" name="base_url" required placeholder="https://api.example.com/v1"></label>
+    <div class="form-row"><label>Generation model <input name="generation_model"></label><label>Embedding model <input name="embedding_model"></label><label>Embedding dimension <input type="number" name="embedding_dimension" value="256" min="8" max="65536"></label></div>
+    <div class="form-row">
+      <label>Generation API key <input type="password" name="generation_api_key" autocomplete="new-password" placeholder="Leave blank to keep its saved key"></label>
+      <label>Embedding API key <input type="password" name="embedding_api_key" autocomplete="new-password" placeholder="Leave blank to keep its saved key"></label>
+    </div>
+    <p class="hint">The selected role connections are tested before any settings or keys are saved.</p>
+    <button class="button primary" type="submit">Test and save provider</button>
+  </form>
+  <div id="provider-result" class="result-region" aria-live="polite"></div>
+  <section class="card-list" aria-label="Configured providers">
+    {% for provider in providers %}
+      <article class="card" id="provider-{{ provider.provider_id }}">
+        <div class="section-heading"><h2>{{ provider.provider_id }}</h2><span>{{ provider.roles|join(', ') or 'inactive' }}</span></div>
+        <p class="mono">{{ provider.base_url }}</p>
+        <dl><dt>Generation</dt><dd>{{ provider.generation_model or 'Not configured' }} · {{ provider.generation_key_fingerprint or 'No saved key' }}</dd><dt>Embedding</dt><dd>{{ provider.embedding_model or 'Not configured' }} · {{ provider.embedding_dimension }} · {{ provider.embedding_key_fingerprint or 'No saved key' }}</dd></dl>
+        <div class="actions">
+          {% for role in provider.roles %}
+            <form method="post" action="/settings/providers/{{ provider.provider_id }}/test" hx-post="/settings/providers/{{ provider.provider_id }}/test" hx-target="#provider-result"><input type="hidden" name="role" value="{{ role }}"><button class="button" type="submit">Test {{ role }}</button></form>
+            <form method="post" action="/settings/providers/{{ provider.provider_id }}/delete-key" hx-post="/settings/providers/{{ provider.provider_id }}/delete-key" hx-target="#provider-result"><input type="hidden" name="role" value="{{ role }}"><button class="button danger" type="submit">Delete {{ role }} key</button></form>
+          {% endfor %}
+        </div>
+      </article>
+    {% else %}<div class="empty"><p>No providers configured.</p></div>{% endfor %}
+  </section>
+{% endblock %}

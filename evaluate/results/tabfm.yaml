@@ -1,0 +1,89 @@
+schema_version: 1
+candidate_id: tabfm
+evaluation_status: ready_for_human_review
+
+ingestion:
+  social_source: https://x.com/ModelScope2022/status/2074063363634557262
+  capture_method: logged_in_visible_playwright
+  bundled_self_posts: 1
+  other_authors_excluded: true
+  selected_artifact:
+    type: model_card
+    canonical_url: https://modelscope.ai/models/google/tabfm-1.0.0-pytorch
+  retained_binary_artifacts: []
+
+knowledge:
+  artifact:
+    title: TabFM 1.0.0 (PyTorch)
+    kind: tabular_foundation_model
+    developer: Google Research
+    version: 1.0.0
+    weights_license: TabFM Non-Commercial License v1.0
+    code_license: Apache-2.0
+    maturity: released_research_model
+
+  concise_idea: >-
+    Perform zero-shot tabular classification or regression by passing training rows and target
+    rows as in-context input to a pretrained model, without task-specific weight updates.
+
+  method:
+    - Encode mixed numerical and categorical cells with column attention.
+    - Alternate row and column attention to capture feature and example interactions.
+    - Compress each row into a dense representation.
+    - Use a 24-block causal ICL transformer over row embeddings to predict test rows.
+    - Pretrain on hundreds of millions of synthetic SCM-generated datasets.
+
+  capabilities:
+    - Binary and multiclass classification with at most 10 classes.
+    - Regression on continuous targets.
+    - pandas DataFrame and NumPy inputs with no dataset-specific tuning required.
+    - Separate classification and regression PyTorch checkpoints.
+
+  requirements:
+    - Python with tabfm[pytorch] and the appropriate model checkpoint.
+    - Labeled training rows supplied as context alongside rows to predict.
+    - Sufficient memory for all context rows; usage grows with training-set size.
+    - Non-commercial, non-production use under the released weights license.
+
+  reported_evidence:
+    - benchmark: TabArena
+      scope: 38 classification and 13 regression datasets, with 700 to 150000 samples.
+      result: >-
+        The model card reports that default zero-shot TabFM outperforms heavily tuned supervised
+        baselines including gradient-boosted trees; no aggregate numeric score is stated there.
+    - evidence_scope: Google-authored model card mirrored by ModelScope.
+
+  limitations:
+    - Classification has a hard maximum of 10 classes.
+    - It is optimized for up to 500 features; very wide-table behavior may degrade.
+    - Memory use scales with the number of context rows.
+    - Real-domain, minority-group, and edge-distribution behavior is not fully characterized.
+    - It may lose to a task-specific tuned model on a given dataset.
+    - The weights prohibit commercial and production use and are not an officially supported Google product.
+
+  engineering_relevance:
+    applicability: >-
+      Useful as a fast zero-shot tabular baseline or prototype when training and tuning a separate
+      model per dataset is undesirable.
+    trial_plan:
+      - Compare against tuned gradient boosting using held-out accuracy, calibration, latency, and memory.
+      - Test on representative domain and subgroup slices before any high-stakes use.
+      - Verify that the license fits the intended deployment before integration.
+    adoption_posture: evaluation_only_candidate_due_to_noncommercial_weights
+
+source_reconciliation:
+  authoritative_source: https://modelscope.ai/models/google/tabfm-1.0.0-pytorch
+  issues: []
+  note: The social summary is consistent with the model card when restricted to the reported TabArena evaluation.
+
+graph_ready:
+  primary_entity:
+    id: model:tabfm-1.0.0
+    name: TabFM 1.0.0
+    type: model
+  topics: [tabular_ml, foundation_models, zero_shot_learning, in_context_learning]
+  relations:
+    - {subject: model:tabfm-1.0.0, predicate: performs, object: task:tabular-classification}
+    - {subject: model:tabfm-1.0.0, predicate: performs, object: task:tabular-regression}
+    - {subject: model:tabfm-1.0.0, predicate: uses, object: technique:row-column-attention}
+    - {subject: model:tabfm-1.0.0, predicate: trained_on, object: dataset:synthetic-scm-tables}

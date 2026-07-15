@@ -1,0 +1,110 @@
+schema_version: 1
+candidate_id: videorag
+evaluation_status: ready_for_human_review_with_partial_social_capture
+
+ingestion:
+  social_source: https://x.com/tom_doerr/status/2073957036799177156
+  capture_method: public_oembed_plus_linked_primary_source
+  bundled_self_posts: null
+  other_authors_excluded: null
+  selected_artifact:
+    type: repository
+    canonical_url: https://github.com/HKUDS/VideoRAG
+    full_text_used: repository_readme
+  retained_binary_artifacts: []
+  note: The logged-in thread capture was unavailable; only saved post metadata and the official repository were used, so self-replies were not inspected.
+
+knowledge:
+  artifact:
+    title: "VideoRAG: Retrieval-Augmented Generation with Extreme Long-Context Videos"
+    short_name: VideoRAG
+    kind: open_source_research_implementation
+    version: null
+    published_at: '2025'
+    authors: [Xubin Ren, Lingrui Xu, Long Xia, Shuaiqiang Wang, Dawei Yin, Chao Huang]
+    maturity: research_prototype
+
+  concise_idea: >-
+    Index long and cross-video knowledge through a textual knowledge graph plus visual/audio
+    embeddings, then retrieve only query-relevant clips and grounded text for answer generation.
+  problem_addressed: >-
+    Long-video models and text-only RAG lose cross-video relations, visual detail, temporal
+    context, or exceed practical context limits when video collections span many hours.
+  method:
+    - Split videos into clips, transcribe audio, and caption sampled frames with a VLM.
+    - Build a cross-video entity graph from caption/transcript text and encode clips in a multimodal space.
+    - Retrieve through both graph/text matching and visual embedding similarity.
+    - Filter clips, generate query-aware descriptions, and answer from retrieved video and text evidence.
+  capabilities:
+    - Question answering across multiple long videos.
+    - Textual, audio, and visual retrieval with cross-video knowledge integration.
+    - An open LongerVideos benchmark with 164 videos, 602 queries, and 134.6 total hours.
+  requirements:
+    - Video decoding, ASR, a VLM, a multimodal encoder, embeddings, and an answer-generating LLM.
+    - Model checkpoints and API/provider configuration used by the algorithm implementation.
+    - GPU capacity for practical indexing and inference; the repository documents a single RTX 3090 path.
+
+  evidence:
+    - claim: VideoRAG improves long-video QA over its backbone models.
+      result: Official repository reports 60.2% Video-MME long-video accuracy versus 56.3% for MiniCPM-o and MiniCPM-V with subtitles.
+      context: Author-run evaluation; scores may fluctuate because of LLM generation.
+      source_location: https://github.com/HKUDS/VideoRAG#performance-comparison
+    - claim: The framework was evaluated on extreme long-context collections.
+      result: LongerVideos contains 164 videos, 602 queries, and about 134.6 hours across lectures, documentaries, and entertainment.
+      context: Authors' benchmark rather than an independent production deployment.
+      source_location: https://github.com/HKUDS/VideoRAG#longervideos-benchmark
+
+  limitations:
+    - Indexing invokes ASR, VLM captioning, LLM graph extraction, embeddings, and filtering, creating substantial preprocessing and API cost.
+    - Main LongerVideos comparisons use author-created data and LLM-based judging; independent domain evaluation is still needed.
+    - The repository reports generation-related score fluctuation and has no packaged release.
+    - The current implementation is noncommercial because ImageBind carries a CC BY-NC-SA license, although the framework architecture is MIT.
+
+  engineering_relevance:
+    applicability: >-
+      Useful for searchable lecture libraries, archives, or multi-video collections where answers
+      require both visual events and relations across distant clips.
+    not_a_fit_for: >-
+      Excessive for short videos or transcript-only questions, and the current implementation is
+      unsuitable for commercial use without replacing restricted dependencies.
+    adoption_posture: experimental_candidate_not_default_recommendation
+
+  evidence_quality:
+    support_type: author_paper_repository_and_reproducible_benchmark_assets
+    independently_validated: false
+    confidence: medium
+
+  adoption_readiness:
+    implementation_available: true
+    license: framework_MIT_current_implementation_noncommercial_due_to_ImageBind
+    compute_infrastructure:
+      training:
+        device: null
+        count: null
+        memory_per_device: null
+      inference:
+        device: NVIDIA RTX 3090
+        count: 1
+        memory_per_device: 24 GB
+    minimum_validation: >-
+      Benchmark target videos against transcript RAG and a long-video baseline; measure retrieval
+      recall, grounded answer quality, index time, storage, API cost, latency, and license compliance.
+
+source_reconciliation:
+  authoritative_source: https://github.com/HKUDS/VideoRAG
+  issues:
+    - status: needs_review
+      social_statement: VideoRAG enables chatting with hundreds of hours of video.
+      source_statement: The repository presents this as a capability, while its published LongerVideos benchmark totals about 134.6 hours.
+      explanation: The direction is supported, but the broad scale claim exceeds the size of the reported benchmark and needs workload-specific validation.
+
+graph_ready:
+  primary_entity:
+    id: software:videorag
+    name: VideoRAG
+    type: software
+  topics: [multimodal_rag, video_retrieval, long_context, knowledge_graphs]
+  relations:
+    - {subject: software:videorag, predicate: uses, object: technique:cross-video-knowledge-graph}
+    - {subject: software:videorag, predicate: uses, object: technique:multimodal-clip-retrieval}
+    - {subject: software:videorag, predicate: evaluated_on, object: benchmark:longervideos}

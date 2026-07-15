@@ -1,0 +1,97 @@
+schema_version: 1
+candidate_id: nvidia-agent-skills
+evaluation_status: ready_for_human_review_with_partial_social_capture
+
+ingestion:
+  social_source: https://x.com/DivyanshT91162/status/2075060803410210817
+  capture_method: dataset_export_plus_linked_primary_source
+  thread_capture_status: partial_unavailable
+  bundled_self_posts: null
+  self_replies_inspected: false
+  other_authors_excluded: null
+  selected_artifact:
+    type: repository
+    canonical_url: https://github.com/NVIDIA/skills
+    full_text_used: repository_readme
+  retained_binary_artifacts: []
+  note: The exported root post was available, but author self-replies were not; no image analysis was used because the official repository was sufficient.
+
+knowledge:
+  artifact:
+    title: NVIDIA Agent Skills
+    short_name: NVIDIA Skills
+    kind: open_source_tool
+    version: null
+    published_at: null
+    authors: [NVIDIA]
+    maturity: evolving_official_catalog
+
+  concise_idea: >-
+    A catalog of portable instruction packages that teach coding agents how to work with NVIDIA CUDA-X,
+    AI Blueprints, and platform tools, with signatures and evaluation artifacts for verified entries.
+  problem_addressed: >-
+    General coding agents often lack reliable, current procedures for specialized NVIDIA developer tools and workflows.
+  method:
+    - Package domain instructions and supporting resources as agent skills.
+    - Mirror skills from NVIDIA product repositories into one searchable catalog.
+    - Sign verified skill cards and attach evaluation datasets and benchmark reports.
+    - Install skills into supported coding-agent clients through the skills CLI.
+  capabilities:
+    - Reusable NVIDIA-specific instructions for Codex, Claude, Cursor, Kiro, and other supported clients.
+    - Daily catalog synchronization from product repositories.
+    - Cryptographic verification and Tier-3 evaluation artifacts for NVIDIA-verified skills.
+  requirements:
+    - A compatible agent client and skills installer.
+    - Product-specific NVIDIA software, services, credentials, or hardware where required by an individual skill.
+    - Review of each skill's own prerequisites and license before use.
+
+  evidence:
+    - claim: NVIDIA publishes an installable catalog of agent skills.
+      result: The repository documents npx installation and compatible agent clients.
+      context: Official vendor repository.
+      source_location: https://github.com/NVIDIA/skills
+    - claim: Verified skills include provenance and evaluation material.
+      result: The repository specifies a signed skill card, detached OMS signature, Tier-3 evaluation dataset, and BENCHMARK.md.
+      context: Catalog verification design; it does not independently validate every underlying NVIDIA product claim.
+      source_location: https://github.com/NVIDIA/skills
+
+  limitations:
+    - A skill is an instruction package, not the underlying model, library, service, or compute resource.
+    - Catalog entries can be revised, renamed, consolidated, or removed as product workflows evolve.
+    - Individual skills may still require proprietary services, credentials, or NVIDIA hardware.
+    - Official evaluations are vendor-provided and target-specific; real projects still need execution tests.
+
+  engineering_relevance:
+    applicability: Useful when a coding agent must apply current NVIDIA platform procedures with less prompt rediscovery.
+    not_a_fit_for: Workflows unrelated to NVIDIA products or teams unable to satisfy a selected skill's underlying dependencies.
+    adoption_posture: experimental_candidate_not_default_recommendation
+
+  evidence_quality:
+    support_type: official_vendor_repository_with_signed_evaluation_artifacts
+    independently_validated: false
+    confidence: high
+
+  adoption_readiness:
+    implementation_available: true
+    license: Apache-2.0 AND CC-BY-4.0
+    compute_infrastructure:
+      training: {device: null, count: null, memory_per_device: null}
+      inference: {device: null, count: null, memory_per_device: null}
+    minimum_validation: >-
+      Verify the skill signature, inspect its instructions and dependencies, then run its evaluation cases inside the target agent and NVIDIA environment before enabling it broadly.
+
+source_reconciliation:
+  authoritative_source: https://github.com/NVIDIA/skills
+  issues:
+    - status: needs_review
+      social_statement: NVIDIA made the same reusable building blocks available for everyone to study, customize, and integrate.
+      source_statement: The repository opens portable skill instructions, while underlying NVIDIA tools, services, models, and hardware retain their own requirements and licenses.
+      explanation: The post overgeneralizes the scope of what was made reusable; the open artifact is the skill catalog, not every underlying capability.
+
+graph_ready:
+  primary_entity: {id: tool:nvidia-agent-skills, name: NVIDIA Agent Skills, type: open_source_tool}
+  topics: [agent_skills, developer_tooling, nvidia_platform, skill_verification]
+  relations:
+    - {subject: tool:nvidia-agent-skills, predicate: instructs, object: concept:coding-agent}
+    - {subject: tool:nvidia-agent-skills, predicate: covers, object: ecosystem:nvidia-platform}
+    - {subject: tool:nvidia-agent-skills, predicate: verifies_with, object: mechanism:oms-signature}

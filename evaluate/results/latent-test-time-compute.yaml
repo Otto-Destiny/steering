@@ -1,0 +1,152 @@
+schema_version: 1
+candidate_id: latent-test-time-compute
+evaluation_status: ready_for_human_review
+
+ingestion:
+  social_source: https://x.com/che_shr_cat/status/2071726309214925206
+  capture_method: logged_in_visible_playwright
+  bundled_self_posts: 10
+  other_authors_excluded: true
+  selected_artifact:
+    type: paper
+    canonical_url: https://arxiv.org/abs/2605.19943
+    full_text_used: https://arxiv.org/html/2605.19943
+  retained_binary_artifacts: []
+  note: Images and the paper were not stored; only their source links and extracted knowledge were retained.
+
+knowledge:
+  artifact:
+    title: Probabilistic Tiny Recursive Model
+    short_name: PTRM
+    kind: research_paper
+    version: arXiv:2605.19943v1
+    submitted_at: '2026-05-19'
+    authors:
+      - Amin Sghaier
+      - Ali Parviz
+      - Alexia Jolicoeur-Martineau
+    maturity: preprint
+
+  concise_idea: >-
+    Turn deterministic Tiny Recursive Model inference into stochastic, parallel latent-space
+    search by injecting Gaussian noise at every deep recursion step, then select the candidate
+    answer with the pretrained model's Q head.
+
+  problem_addressed: >-
+    Deterministic TRM trajectories can become trapped in latent-space basins that decode to an
+    incorrect answer, even when another reachable trajectory would solve the problem.
+
+  method:
+    - Run K independent inference trajectories for the same input.
+    - Inject Gaussian noise into each trajectory's latent state at every deep recursion step.
+    - Decode the resulting candidate answers.
+    - Rank the candidates with the existing Q head and return the highest-scoring answer.
+
+  requirements:
+    - A pretrained TRM checkpoint.
+    - A Q head trained as a correctness predictor during normal TRM training.
+    - Additional inference compute for parallel rollouts.
+    - A task where candidate answers can be meaningfully scored by the verifier.
+
+  reported_results:
+    - benchmark: PPBench golden set
+      deterministic_accuracy: 62.6%
+      ptrm_accuracy: 91.2%
+      comparison: Frontier LLM direct-strategy accuracy reported as 55.1%.
+      model_size: 7M parameters
+      source_scope: Paper abstract and experiments
+    - benchmark: Sudoku-Extreme
+      deterministic_accuracy: 87.4%
+      ptrm_accuracy: 98.75%
+      model_size: 5M parameters
+      source_scope: Paper abstract and implementation details
+    - benchmark: Maze-Hard
+      observation: Pass@K rises from 83.8% to nearly 96%, but the Q head cannot reliably select all newly found correct rollouts.
+      source_scope: Paper verifier analysis
+
+  advantages:
+    - Adds a parallel width-scaling axis to TRM inference.
+    - Requires no PTRM-specific retraining or task-specific test-time augmentation.
+    - Parallel rollouts are easier to parallelize than additional sequential recursion depth.
+    - Noise-only exploration avoids test-time backpropagation.
+
+  limitations:
+    - Evidence is concentrated on reasoning puzzles rather than general AI tasks.
+    - Only a subset of PPBench and relatively small grids were evaluated.
+    - Gains are smaller on some tasks, including ARC-AGI-2 and Heyawake.
+    - The Q head is a verifier bottleneck; exploration gains do not always translate into selected-answer gains.
+    - More rollouts increase inference compute and can affect latency even when monetary cost is low.
+    - The work is an arXiv v1 preprint, so it should be treated as experimental rather than automatically preferred because it is recent.
+
+  negative_result: >-
+    Q-gradient-guided Langevin sampling produced no measurable gain beyond its noise term at
+    matched settings. The simpler recurrent Gaussian-noise approach was equally effective and
+    avoided retraining and test-time backpropagation.
+
+  engineering_relevance:
+    applicability: >-
+      Relevant when designing a specialized recursive latent-reasoning model for verifiable,
+      mostly unique-answer tasks and when parallel inference is affordable.
+    not_a_fit_for: >-
+      This is not evidence that PTRM is a drop-in replacement for general-purpose LLM agents,
+      open-ended generation, or arbitrary frontier-model training.
+    trial_plan:
+      - Establish a deterministic TRM baseline on the target task.
+      - Sweep rollout count and noise scale under a fixed compute budget.
+      - Measure pass@K separately from verifier-selected accuracy.
+      - Calibrate or replace the verifier if the pass@K versus selected-answer gap is large.
+      - Compare accuracy, wall-clock latency, throughput, and cost before adoption.
+    adoption_posture: experimental_candidate_not_default_recommendation
+
+source_reconciliation:
+  authoritative_source: https://arxiv.org/abs/2605.19943
+  social_summary_quality: useful_but_contains_material_overstatement
+  discrepancies:
+    - social_claim: A 5M-parameter model beat frontier LLMs on the highlighted puzzle comparison.
+      finding: >-
+        The paper's PPBench comparison with frontier LLMs uses the 7M TRM-Att model. The 5M
+        TRM-MLP variant is used for Sudoku-Extreme, so the opening post conflates two settings.
+      disposition: corrected_from_paper
+    - social_claim: The inference cost was less than 1/100,000th of the frontier-LLM cost.
+      finding: >-
+        The paper abstract states less than 0.0001x cost, while the thread later gives $0.001
+        versus $38.51, which is approximately 1/38,510. Neither supports the stronger opening wording.
+      disposition: not_supported_as_written
+    - social_claim: No retraining is needed.
+      finding: >-
+        Correct for adding PTRM inference to an already trained TRM checkpoint, but the underlying
+        TRM and its Q correctness head must already have been trained.
+      disposition: retained_with_scope
+
+graph_ready:
+  primary_entity:
+    id: method:probabilistic-tiny-recursive-model
+    name: Probabilistic Tiny Recursive Model
+    type: method
+  topics:
+    - latent_reasoning
+    - test_time_compute
+    - stochastic_search
+    - recursive_models
+    - verifier_guided_selection
+  relations:
+    - subject: method:probabilistic-tiny-recursive-model
+      predicate: extends
+      object: architecture:tiny-recursive-model
+    - subject: method:probabilistic-tiny-recursive-model
+      predicate: uses
+      object: technique:recurrent-gaussian-latent-noise
+    - subject: method:probabilistic-tiny-recursive-model
+      predicate: selects_with
+      object: component:trm-q-head
+    - subject: method:probabilistic-tiny-recursive-model
+      predicate: enables
+      object: concept:test-time-width-scaling
+    - subject: component:trm-q-head
+      predicate: limits
+      object: outcome:realized-ptrm-gain
+
+review_questions:
+  - Does this capture enough practical detail to recall PTRM during a relevant architecture-design session?
+  - Are the limitations and social-source corrections prominent enough to prevent overconfident adoption?
+  - Is the compact relation set sufficient, or should any relation be removed before the production graph design?

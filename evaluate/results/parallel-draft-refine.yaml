@@ -1,0 +1,92 @@
+schema_version: 1
+candidate_id: parallel-draft-refine
+evaluation_status: ready_for_human_review_with_partial_social_capture
+
+ingestion:
+  social_source: https://x.com/anirudhg9119/status/2075700229064597827
+  capture_method: dataset_export_plus_direct_primary_link
+  thread_capture_status: partial_unavailable
+  bundled_self_posts: null
+  self_replies_inspected: false
+  other_authors_excluded: null
+  selected_artifact:
+    type: paper
+    canonical_url: https://arxiv.org/abs/2510.01123
+    full_text_used: https://arxiv.org/html/2510.01123
+  retained_binary_artifacts: []
+  note: The root post directly linked the official paper; author self-replies were unavailable and the social image was not analyzed.
+
+knowledge:
+  artifact:
+    title: 'Rethinking Thinking Tokens: LLMs as Improvement Operators'
+    short_name: PDR
+    kind: paper
+    version: arXiv:2510.01123v1
+    published_at: '2025-10-01'
+    authors: [Lovish Madaan, Aniket Didolkar, Suchin Gururangan, John Quan, Ruan Silva, Ruslan Salakhutdinov, Manzil Zaheer, Sanjeev Arora, Anirudh Goyal]
+    maturity: preprint
+
+  concise_idea: >-
+    Parallel-Distill-Refine replaces one long reasoning trace with rounds of diverse parallel drafts, a bounded synthesized workspace, and refinement conditioned on that workspace.
+  problem_addressed: >-
+    Long chain-of-thought couples accuracy to context length and sequential latency, while naive repeated attempts either forget progress or replay an ever-growing history.
+  method:
+    - Generate diverse candidate solutions in parallel within each round.
+    - Distill agreements, disagreements, intermediate results, and open subgoals into a bounded textual workspace.
+    - Refine a solution using that workspace and use the result to seed the next round.
+    - Optionally train with operator-consistent RL that unrolls the same read/write process used at inference.
+  capabilities:
+    - Trades additional parallel compute for accuracy without proportionally increasing per-call context or sequential depth.
+    - Supports a degree-one sequential-refinement special case.
+    - Keeps reasoning state bounded through a freshly synthesized round-wise workspace.
+  requirements:
+    - Multiple model calls per round and orchestration for parallel drafting, distillation, and refinement.
+    - A model capable of useful self-verification, compression, diversification, and revision.
+    - Explicit token, latency, context, and total-compute budgets.
+
+  evidence:
+    - claim: PDR improved math accuracy over long chain-of-thought at matched sequential budgets.
+      result: The paper reports gains of 11 percentage points on AIME 2024 and 9 points on AIME 2025.
+      context: Author-reported experimental configurations; parallel drafts increase total compute.
+      source_location: https://arxiv.org/abs/2510.01123
+    - claim: PDR can improve the accuracy-latency trade-off for current models.
+      result: On one AIME 2025 setting, o3-mini rose from 73.5 with long CoT to 77.1 with sequential refinement and 82.9 with PDR.
+      context: Selected model/task result from the paper, not a universal guarantee.
+      source_location: https://arxiv.org/abs/2510.01123
+
+  limitations:
+    - Parallelism lowers sequential depth but increases total generated tokens, inference compute, and orchestration complexity.
+    - Incorrect drafts can poison the compact workspace through anchoring; the paper shows substantial degradation when only incorrect candidates are admitted.
+    - The main evidence is on verifiable mathematical reasoning and may not transfer to open-ended or tool-using agents.
+    - Operator-consistent RL used up to 288 H200 GPUs in the reported PDR setup, making training reproduction expensive.
+
+  engineering_relevance:
+    applicability: Useful when reasoning latency is constrained but parallel inference is available and summaries can preserve verifiable intermediate progress.
+    not_a_fit_for: Cost-constrained workloads, weak self-verifiers, or tasks where a compressed workspace can silently discard critical evidence.
+    adoption_posture: experimental_candidate_not_default_recommendation
+
+  evidence_quality:
+    support_type: author_preprint_with_multi_model_math_experiments
+    independently_validated: false
+    confidence: medium
+
+  adoption_readiness:
+    implementation_available: null
+    license: null
+    compute_infrastructure:
+      training: {device: NVIDIA H200, count: 288, memory_per_device: null}
+      inference: {device: null, count: null, memory_per_device: null}
+    minimum_validation: >-
+      Compare long CoT, sample-and-select, sequential refinement, and PDR under separately reported sequential latency, total tokens, context length, dollar cost, and task accuracy; inspect poisoned-workspace failures.
+
+source_reconciliation:
+  authoritative_source: https://arxiv.org/abs/2510.01123
+  issues: []
+
+graph_ready:
+  primary_entity: {id: method:parallel-distill-refine, name: Parallel-Distill-Refine, type: paper}
+  topics: [reasoning, parallel_inference, test_time_compute, bounded_workspace]
+  relations:
+    - {subject: method:parallel-distill-refine, predicate: generates, object: artifact:parallel-drafts}
+    - {subject: method:parallel-distill-refine, predicate: compresses_into, object: artifact:bounded-workspace}
+    - {subject: method:parallel-distill-refine, predicate: trades_off, object: property:total-compute-for-sequential-latency}

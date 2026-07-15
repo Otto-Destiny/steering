@@ -1,0 +1,90 @@
+schema_version: 1
+candidate_id: trace-agentic-training
+evaluation_status: ready_for_human_review
+
+ingestion:
+  social_source: https://x.com/hangoo_kang/status/2074533653900898771
+  capture_method: telegram_export_with_public_oembed_text
+  bundled_self_posts: 1
+  other_authors_excluded: null
+  selected_artifact:
+    type: paper
+    canonical_url: https://arxiv.org/abs/2604.05336
+    full_text_used: https://arxiv.org/html/2604.05336
+  retained_binary_artifacts: []
+  note: X replies were unavailable; the root post and complete paper HTML were used. The social image was unnecessary.
+
+knowledge:
+  artifact:
+    title: "TRACE: Capability-Targeted Agentic Training"
+    short_name: TRACE
+    kind: research_paper_and_agent_training_system
+    version: arXiv:2604.05336v2
+    published_at: '2026-07-02'
+    authors: [Hangoo Kang, Tarun Suresh, Jon Saad-Falcon, Azalia Mirhoseini]
+    maturity: revised_preprint_with_code
+  concise_idea: >-
+    Contrast successful and failed agent trajectories to identify recurring capability deficits,
+    generate a verifiable synthetic environment for each deficit, train separate RL LoRA adapters,
+    and route among them through a learned mixture-of-experts gate.
+  problem_addressed: >-
+    Direct agent RL has sparse task-level feedback, while broad synthetic data may spend compute on
+    capabilities unrelated to the failures of the target model and environment.
+  method:
+    - Label recurring capabilities as present, lacking, or unnecessary by contrasting successful and failed trajectories.
+    - Generate seeded synthetic environments that isolate a selected capability and provide automatically verifiable rewards.
+    - Train one LoRA adapter per capability with GRPO while freezing the base model.
+    - Train token-level routing gates over the frozen capability adapters.
+  capabilities:
+    - Targets training at model- and environment-specific failure patterns.
+    - Preserves target tool schemas, interaction protocols, and output constraints in synthetic environments.
+    - Composes a small set of interpretable capability adapters at inference.
+  requirements:
+    - Representative successful and failed trajectories with reliable task success labels.
+    - Verifiable target tasks and generated environments whose outcomes can be checked automatically.
+    - LLM calls for capability analysis and environment generation, plus multi-GPU RL training.
+  evidence:
+    - claim: TRACE improved both evaluated agent backbones on two target environments.
+      result: Qwen3-30B-A3B gained 15.3 points on tau2-Bench and 15.0 points on SWE-bench Verified; Qwen3.6-27B reached 59.1% and 73.2%, respectively.
+      context: Paper-reported pass rate and Pass@1 under matched benchmark settings.
+      source_location: Paper Tables 1 and 2
+    - claim: Capability-targeted training was more rollout-efficient than direct or prompt-based baselines.
+      result: With fewer than one-fourth of the rollouts, TRACE exceeded GRPO and GEPA by 10.4 and 8.6 points on tau2-Bench.
+      context: Qwen3-30B-A3B experiments.
+      source_location: Paper abstract and Section 4
+  limitations:
+    - Evidence is author-reported and limited to tau2-Bench, SWE-bench Verified, and an appendix ToolSandbox evaluation.
+    - Capability discovery depends on an LLM analysis agent and must be checked for stability and misattribution.
+    - Synthetic environments can omit important target-environment dynamics despite preserving interfaces.
+    - Separate RL adapters and routing add substantial training and operational complexity.
+  engineering_relevance:
+    applicability: >-
+      Relevant when an agent produces enough labeled trajectories to reveal repeated capability-level failures
+      and the team can construct verifiable synthetic tasks around those deficits.
+    not_a_fit_for: >-
+      Not a lightweight fix for low-volume agents, tasks without reliable success checks, or teams unable to
+      afford multi-GPU RL and generated-environment validation.
+    adoption_posture: promising_training_system_requires_reproduction_and_synthetic_environment_audit
+  evidence_quality:
+    support_type: full_revised_preprint_with_code_and_multibenchmark_ablations
+    independently_validated: false
+    confidence: medium
+  adoption_readiness:
+    implementation_available: true
+    license: CC-BY-4.0_paper_code_license_not_confirmed
+    compute_infrastructure:
+      training: {device: NVIDIA_A100, count: 4-8, memory_per_device: 80GB}
+      inference: {device: accelerator_for_27B_or_30B_model, count: null, memory_per_device: null}
+    minimum_validation: Reproduce capability-selection stability, baseline comparisons, synthetic-task validity, target-benchmark gains, and routing overhead on the intended agent environment.
+
+source_reconciliation:
+  authoritative_source: https://arxiv.org/abs/2604.05336
+  issues: []
+
+graph_ready:
+  primary_entity: {id: "system:trace-agentic-training", name: TRACE, type: method}
+  topics: [agent_training, capability_targeting, reinforcement_learning, synthetic_environments]
+  relations:
+    - {subject: "system:trace-agentic-training", predicate: identifies, object: "concept:capability_deficit"}
+    - {subject: "system:trace-agentic-training", predicate: trains, object: "artifact:capability_lora_adapter"}
+    - {subject: "system:trace-agentic-training", predicate: uses, object: "architecture:mixture_of_experts_router"}

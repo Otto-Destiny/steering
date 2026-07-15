@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Add knowledge · STEERING{% endblock %}
+{% block content %}
+  <header class="page-heading">
+    <p class="eyebrow">Capture</p>
+    <h1>Add knowledge</h1>
+    <p>Submit a social post, repository, paper, webpage, plain text, or a newline-separated batch.</p>
+  </header>
+  <form class="panel form-stack" action="/add" method="post" enctype="multipart/form-data"
+        hx-post="/add" hx-target="#add-result" hx-swap="innerHTML" hx-indicator="#add-progress">
+    <fieldset class="choice-row">
+      <legend>Input type</legend>
+      <label><input type="radio" name="mode" value="url" checked> URL</label>
+      <label><input type="radio" name="mode" value="text"> Pasted text</label>
+      <label><input type="radio" name="mode" value="batch"> Batch</label>
+      <label><input type="radio" name="mode" value="browser"> Authorized browser</label>
+    </fieldset>
+    <label for="source">URL or text</label>
+    <textarea id="source" name="source" rows="7" maxlength="250000" placeholder="https://… or paste the source text"></textarea>
+    <label for="batch">Batch URLs <span class="hint">one per line</span></label>
+    <textarea id="batch" name="batch" rows="6" placeholder="https://example.com/one&#10;https://example.com/two"></textarea>
+    <label for="batch-file">Optional UTF-8 batch file <span class="hint">maximum 500 KB</span></label>
+    <input id="batch-file" type="file" name="batch_file" accept=".txt,.csv,.yaml,.yml">
+    <label for="knowledge-file">PDF, image, or document <span class="hint">processed in memory; binary discarded; maximum 20 MiB</span></label>
+    <input id="knowledge-file" type="file" name="knowledge_file" accept=".pdf,image/jpeg,image/png,image/webp,image/gif,text/plain,text/html,application/json,application/xml">
+    <label class="check"><input type="checkbox" name="authorize_upload"> I authorize STEERING to inspect this uploaded file.</label>
+    <label class="check"><input type="checkbox" name="authorize_browser"> I authorize this capture in STEERING's isolated visible browser profile.</label>
+    <button class="button primary" type="submit">Capture source</button>
+    <span id="add-progress" class="htmx-indicator" role="status">Capturing and extracting…</span>
+  </form>
+  <div id="add-result" class="result-region" aria-live="polite"></div>
+  <section class="panel form-stack" aria-labelledby="browser-login-heading">
+    <h2 id="browser-login-heading">Prepare signed-in browser capture</h2>
+    <p>Open STEERING's isolated visible profile, sign in yourself, then close the browser to save the session.</p>
+    <form class="form-stack" action="/browser/login" method="post" hx-post="/browser/login" hx-target="#browser-login-result">
+      <label for="login-url">Platform login URL</label>
+      <input id="login-url" name="login_url" type="url" required placeholder="https://www.linkedin.com/login">
+      <label class="check"><input type="checkbox" name="authorize_login" required> I authorize STEERING to open its isolated browser profile.</label>
+      <button class="button" type="submit">Open managed login browser</button>
+    </form>
+    <div id="browser-login-result" class="result-region" aria-live="polite"></div>
+  </section>
+{% endblock %}

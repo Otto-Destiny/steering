@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "candidate_id": "trek-grpo",
+  "capture_method": "logged_in_visible_playwright",
+  "root_url": "https://x.com/askalphaxiv/status/2075050843221467607",
+  "root_author_handle": "askalphaxiv",
+  "root_post_id": "2075050843221467607",
+  "capture_policy": {
+    "self_replies_bundled": true,
+    "other_authors_excluded": true,
+    "media_downloaded": false,
+    "documents_downloaded": false,
+    "max_thread_span_hours": 48
+  },
+  "thread": {
+    "post_count": 2,
+    "raw_same_author_post_count": 2,
+    "posts": [
+      {
+        "post_id": "2075050843221467607",
+        "handle": "askalphaxiv",
+        "status_url": "https://x.com/askalphaxiv/status/2075050843221467607",
+        "posted_at": "2026-07-09T02:54:08.000Z",
+        "author_label": "alphaXiv\n@askalphaxiv",
+        "text": "This paper, TREK, makes GRPO better at hard problems by solving its exploration problem.\n\nWhen the student keeps sampling wrong paths, RL has nothing useful to reinforce.\n\nSo TREK would asks a teacher, or the same model with extra context, to find verified correct solutions. It then teaches the student only the closest ones, so those paths become sampleable.\n\nWhich means GRPO can refine them normally.",
+        "media": [
+          {
+            "url": "https://pbs.twimg.com/media/HMwPu6SWUAA_Rye?format=jpg&name=360x360",
+            "alt": "Image"
+          }
+        ]
+      },
+      {
+        "post_id": "2075050845360590904",
+        "handle": "askalphaxiv",
+        "status_url": "https://x.com/askalphaxiv/status/2075050845360590904",
+        "posted_at": "2026-07-09T02:54:08.000Z",
+        "author_label": "alphaXiv\n@askalphaxiv\n·\nJul 9",
+        "text": "read more:",
+        "media": []
+      }
+    ],
+    "discarded_same_author_posts": []
+  },
+  "source_selection": {
+    "selected_source": {
+      "url": "https://www.alphaxiv.org/abs/2607.05339",
+      "artifact_type": "web_source",
+      "found_in_post_id": "2075050845360590904",
+      "link_text": "TREK: Distill to Explore, Reinforce to Refine"
+    },
+    "ranked_sources": [
+      {
+        "url": "https://www.alphaxiv.org/abs/2607.05339",
+        "artifact_type": "web_source",
+        "found_in_post_id": "2075050845360590904",
+        "link_text": "TREK: Distill to Explore, Reinforce to Refine"
+      }
+    ],
+    "linked_social_sources": []
+  }
+}

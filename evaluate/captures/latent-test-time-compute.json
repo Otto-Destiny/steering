@@ -1,0 +1,161 @@
+{
+  "schema_version": 1,
+  "candidate_id": "latent-test-time-compute",
+  "capture_method": "logged_in_visible_playwright",
+  "root_url": "https://x.com/che_shr_cat/status/2071726309214925206",
+  "root_author_handle": "che_shr_cat",
+  "root_post_id": "2071726309214925206",
+  "capture_policy": {
+    "self_replies_bundled": true,
+    "other_authors_excluded": true,
+    "media_downloaded": false,
+    "documents_downloaded": false
+  },
+  "thread": {
+    "post_count": 10,
+    "posts": [
+      {
+        "post_id": "2071726309214925206",
+        "handle": "che_shr_cat",
+        "status_url": "https://x.com/che_shr_cat/status/2071726309214925206",
+        "posted_at": "2026-06-29T22:43:37.000Z",
+        "author_label": "Grigory Sapunov\n@che_shr_cat",
+        "text": "1/\nA 5M-parameter model just beat frontier LLMs on hard logical puzzles at less than 1/100,000th of the inference cost.\n\nHow? By scaling test-time compute in continuous latent space rather than discrete token space.\n\nLet's unpack how this works.",
+        "media": [
+          {
+            "url": "https://pbs.twimg.com/media/HMA-djMXMAAuswB?format=jpg&name=360x360",
+            "alt": "Image"
+          }
+        ]
+      },
+      {
+        "post_id": "2071726312759194048",
+        "handle": "che_shr_cat",
+        "status_url": "https://x.com/che_shr_cat/status/2071726312759194048",
+        "posted_at": "2026-06-29T22:43:38.000Z",
+        "author_label": "Grigory Sapunov\n@che_shr_cat\n·\nJun 29",
+        "text": "2/\nThe paper: Probabilistic Tiny Recursive Model (PTRM) by Amin Sghaier, Ali Parviz, and \n@jm_alexia\n.\n\nIt solves a massive issue in Tiny Recursive Models (TRMs): they get trapped in suboptimal basins of their latent space during reasoning.",
+        "media": []
+      },
+      {
+        "post_id": "2071726315980410955",
+        "handle": "che_shr_cat",
+        "status_url": "https://x.com/che_shr_cat/status/2071726315980410955",
+        "posted_at": "2026-06-29T22:43:39.000Z",
+        "author_label": "Grigory Sapunov\n@che_shr_cat\n·\nJun 29",
+        "text": "3/\nInstead of a single deterministic rollout, PTRM runs K parallel trajectories.\n\nAt each recursion step, it injects small Gaussian noise directly into the latent state:\nz_t = rec(x, z_{t-1} + noise)\n\nThis noise helps the trajectory escape local attractors.",
+        "media": [
+          {
+            "url": "https://pbs.twimg.com/media/HMA-5kIXwAApCd9?format=jpg&name=360x360",
+            "alt": "Image"
+          }
+        ]
+      },
+      {
+        "post_id": "2071726318794789311",
+        "handle": "che_shr_cat",
+        "status_url": "https://x.com/che_shr_cat/status/2071726318794789311",
+        "posted_at": "2026-06-29T22:43:39.000Z",
+        "author_label": "Grigory Sapunov\n@che_shr_cat\n·\nJun 29",
+        "text": "4/\nHow do we choose the right trajectory at the end?\n\nThe authors repurposed the pre-trained Q-head (originally used only for halting during training) as a zero-shot verifier.\n\nThe path with the highest Q-head confidence score is selected. No retraining needed.",
+        "media": []
+      },
+      {
+        "post_id": "2071726321764352272",
+        "handle": "che_shr_cat",
+        "status_url": "https://x.com/che_shr_cat/status/2071726321764352272",
+        "posted_at": "2026-06-29T22:43:40.000Z",
+        "author_label": "Grigory Sapunov\n@che_shr_cat\n·\nJun 29",
+        "text": "5/\nYou might expect gradient-guided search (like Langevin sampling) to work better than random noise.\n\nBut empirical ablation showed that pushing latents along gradients yielded no benefit over pure Gaussian noise.\n\nPure noise is simple, fast, and requires zero backprop.",
+        "media": [
+          {
+            "url": "https://pbs.twimg.com/media/HMA_JcxWUAAKTC6?format=jpg&name=360x360",
+            "alt": "Image"
+          }
+        ]
+      },
+      {
+        "post_id": "2071726325555974473",
+        "handle": "che_shr_cat",
+        "status_url": "https://x.com/che_shr_cat/status/2071726325555974473",
+        "posted_at": "2026-06-29T22:43:41.000Z",
+        "author_label": "Grigory Sapunov\n@che_shr_cat\n·\nJun 29",
+        "text": "6/\nThe results are wild:\n• PPBench accuracy: 62.6% -> 91.2%\n• Sudoku-Extreme: 98.75%\n• Cost: $0.001 per solution vs $38.51 for a frontier LLM ensemble\n\nThis proves that massive autoregressive models aren't the only path to deep reasoning.",
+        "media": [
+          {
+            "url": "https://pbs.twimg.com/media/HMA_WrEXEAA6Z82?format=jpg&name=360x360",
+            "alt": "Image"
+          }
+        ]
+      },
+      {
+        "post_id": "2071726329389601147",
+        "handle": "che_shr_cat",
+        "status_url": "https://x.com/che_shr_cat/status/2071726329389601147",
+        "posted_at": "2026-06-29T22:43:42.000Z",
+        "author_label": "Grigory Sapunov\n@che_shr_cat\n·\nJun 29",
+        "text": "7/\nThe main limitation? The verifier bottleneck.\n\nPTRM is bounded by the accuracy of the Q-head. In tasks like Maze-Hard, there is a large gap between the theoretical oracle performance (95.6%) and the Q-head selected performance (85.1%).",
+        "media": [
+          {
+            "url": "https://pbs.twimg.com/media/HMBAFh_W8AA_qmS?format=jpg&name=360x360",
+            "alt": "Image"
+          }
+        ]
+      },
+      {
+        "post_id": "2071726331964858497",
+        "handle": "che_shr_cat",
+        "status_url": "https://x.com/che_shr_cat/status/2071726331964858497",
+        "posted_at": "2026-06-29T22:43:43.000Z",
+        "author_label": "Grigory Sapunov\n@che_shr_cat\n·\nJun 29",
+        "text": "8/\nThis work shows that test-time scaling can happen entirely in continuous latent space.\n\nAs we hit the limits of token-based search (MCTS, RL), exploring continuous, multi-step perturbations in compact models looks incredibly promising.",
+        "media": []
+      },
+      {
+        "post_id": "2071726334657593398",
+        "handle": "che_shr_cat",
+        "status_url": "https://x.com/che_shr_cat/status/2071726334657593398",
+        "posted_at": "2026-06-29T22:43:43.000Z",
+        "author_label": "Grigory Sapunov\n@che_shr_cat\n·\nJun 29",
+        "text": "9/\nRead my full breakdown here:\n\nhttps://\narxiviq.substack.com/p/probabilisti\nc-tiny-recursive-model\n…\n\nCheck out the paper:\n\nhttps://\narxiv.org/abs/2605.19943\n\nWhat are your thoughts on continuous vs. discrete test-time scaling? Let me know!",
+        "media": []
+      },
+      {
+        "post_id": "2071726338440851532",
+        "handle": "che_shr_cat",
+        "status_url": "https://x.com/che_shr_cat/status/2071726338440851532",
+        "posted_at": "2026-06-29T22:43:44.000Z",
+        "author_label": "Grigory Sapunov\n@che_shr_cat\n·\nJun 29",
+        "text": "10/\nI also made a visual breakdown of how these latent trajectories escape bad basins.",
+        "media": [
+          {
+            "url": "https://pbs.twimg.com/media/HMA_3KBXAAE0Td7?format=jpg&name=360x360",
+            "alt": "Image"
+          }
+        ]
+      }
+    ]
+  },
+  "source_selection": {
+    "selected_source": {
+      "url": "https://arxiv.org/abs/2605.19943",
+      "artifact_type": "paper",
+      "found_in_post_id": "2071726334657593398",
+      "link_text": "https://\narxiv.org/abs/2605.19943"
+    },
+    "ranked_sources": [
+      {
+        "url": "https://arxiv.org/abs/2605.19943",
+        "artifact_type": "paper",
+        "found_in_post_id": "2071726334657593398",
+        "link_text": "https://\narxiv.org/abs/2605.19943"
+      },
+      {
+        "url": "https://arxiviq.substack.com/p/probabilistic-tiny-recursive-model",
+        "artifact_type": "author_explanation",
+        "found_in_post_id": "2071726334657593398",
+        "link_text": "https://\narxiviq.substack.com/p/probabilisti\nc-tiny-recursive-model\n…"
+      }
+    ]
+  }
+}

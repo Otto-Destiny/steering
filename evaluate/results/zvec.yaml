@@ -1,0 +1,93 @@
+schema_version: 1
+candidate_id: zvec
+evaluation_status: ready_for_human_review
+
+ingestion:
+  social_source: https://x.com/EngMoElgaraihy/status/2074144130419065313
+  capture_method: telegram_export_with_public_oembed_text
+  bundled_self_posts: 1
+  other_authors_excluded: null
+  selected_artifact:
+    type: repository
+    canonical_url: https://github.com/alibaba/zvec
+    full_text_used: https://github.com/alibaba/zvec#readme
+  retained_binary_artifacts: []
+  note: X replies were unavailable; the exported root-post text and Alibaba's official repository were used. Images were not needed.
+
+knowledge:
+  artifact:
+    title: Zvec
+    short_name: Zvec
+    kind: open_source_in_process_vector_database
+    version: v0.5.0
+    published_at: '2026-06-12'
+    authors: [Alibaba]
+    maturity: released_and_battle_tested_by_maintainer
+  concise_idea: >-
+    Embed a durable vector database directly inside an application, avoiding a separate database
+    service while supporting dense, sparse, full-text, filtered, and hybrid retrieval.
+  problem_addressed: >-
+    Small and local AI applications may need production-oriented retrieval without operating a
+    separate vector-database server or cloud service.
+  method:
+    - Run as an in-process library with collections stored locally.
+    - Index dense or sparse vectors in memory or on disk and combine them with full-text search and scalar filtering.
+    - Use write-ahead logging for persistence; allow concurrent readers while keeping writes single-process exclusive.
+  capabilities:
+    - Dense, sparse, multi-vector, full-text, filtered, and hybrid retrieval.
+    - DiskANN for larger-than-memory indexes.
+    - Python, Node.js, Go, Rust, and Dart/Flutter SDKs.
+    - Linux, macOS, and Windows support on the documented architectures.
+  requirements:
+    - A supported 64-bit OS and language runtime; Python support requires Python 3.10-3.14.
+    - Local memory and storage sized for the collection and selected index.
+    - A single writer per collection.
+  evidence:
+    - claim: Zvec is deployable without a separate database server.
+      result: The official README documents a pure-local, in-process installation and API.
+      context: Maintainer documentation, not an independent comparison.
+      source_location: Official repository README, Features and Installation
+    - claim: It supports production-oriented retrieval and durability features.
+      result: The implementation documents dense/sparse/full-text hybrid search, WAL persistence, DiskANN, and concurrent reads.
+      context: Maintainer-documented implementation features.
+      source_location: Official repository README, v0.5.0 and Features
+  limitations:
+    - The selected source provides maintainer claims rather than independent production validation.
+    - Single-process-exclusive writes may not fit high-write or distributed workloads.
+    - In-process deployment couples database resource use and failure impact to the host application.
+    - Local deployment does not automatically make total cost lower than a managed service; operations and scale still matter.
+  engineering_relevance:
+    applicability: >-
+      Useful for local-first RAG, embedded agents, notebooks, edge applications, or single-node
+      services that need hybrid retrieval with minimal infrastructure.
+    not_a_fit_for: >-
+      Not the default choice for workloads requiring distributed writes, managed multi-tenancy,
+      cross-region availability, or independent database scaling.
+    adoption_posture: practical_candidate_pending_workload_benchmark
+  evidence_quality:
+    support_type: official_repository_and_maintainer_documentation
+    independently_validated: false
+    confidence: medium
+  adoption_readiness:
+    implementation_available: true
+    license: Apache-2.0
+    compute_infrastructure:
+      training: {device: null, count: null, memory_per_device: null}
+      inference: {device: CPU, count: null, memory_per_device: null}
+    minimum_validation: Benchmark recall, query latency, index-build time, memory/disk use, crash recovery, and writer contention on the target corpus.
+
+source_reconciliation:
+  authoritative_source: https://github.com/alibaba/zvec
+  issues:
+    - status: needs_review
+      social_statement: Zvec will eliminate RAG infrastructure complexity and cloud bills.
+      source_statement: Zvec is an in-process local database, but the repository does not establish universal cost elimination.
+      explanation: Treat the social wording as promotion; cost and operational fit depend on workload and scale.
+
+graph_ready:
+  primary_entity: {id: "tool:zvec", name: Zvec, type: tool}
+  topics: [vector_database, embedded_database, local_first, hybrid_retrieval]
+  relations:
+    - {subject: "tool:zvec", predicate: enables, object: "architecture:in_process_retrieval"}
+    - {subject: "tool:zvec", predicate: supports, object: "technique:hybrid_dense_sparse_full_text_search"}
+    - {subject: "tool:zvec", predicate: constrains, object: "operation:single_process_writes"}

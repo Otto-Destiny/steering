@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Design Lab · STEERING{% endblock %}
+{% block content %}
+  <header class="page-heading">
+    <p class="eyebrow">Architecture-active recall</p><h1>Design Lab</h1>
+    <p>Describe the architecture and constraints. STEERING will return evidence-aware options and minimal experiments.</p>
+  </header>
+  <form class="panel form-stack" action="/design" method="post" hx-post="/design" hx-target="#design-review" hx-indicator="#design-progress">
+    <label for="architecture">Architecture or technical problem</label>
+    <textarea id="architecture" name="architecture" rows="8" maxlength="50000" required></textarea>
+    <label for="requirements">Requirements and constraints</label>
+    <textarea id="requirements" name="requirements" rows="5" maxlength="20000"></textarea>
+    <label for="concerns">Specific concerns <span class="hint">one per line</span></label>
+    <textarea id="concerns" name="concerns" rows="4"></textarea>
+    <div class="form-row"><label>Project <select name="project_id"><option value="">No project</option>{% for project in projects %}<option value="{{ project.id }}">{{ project.name }}</option>{% endfor %}</select></label><label>Option limit <input name="limit" type="number" value="12" min="1" max="12"></label></div>
+    <button class="button primary" type="submit">Review architecture</button>
+    <span id="design-progress" class="htmx-indicator" role="status">Retrieving and reviewing…</span>
+  </form>
+  <section id="design-review" class="result-region" aria-live="polite">{% if review %}{% include "partials/design_review.html" %}{% endif %}</section>
+{% endblock %}

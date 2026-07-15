@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <title>{% block title %}STEERING{% endblock %}</title>
+    <link rel="stylesheet" href="/static/app.css">
+    <script src="/static/htmx.min.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="STEERING home">STEERING <span>0.1</span></a>
+      <nav aria-label="Primary navigation">
+        <a href="/add" {% if current_path == '/add' %}aria-current="page"{% endif %}>Add</a>
+        <a href="/search" {% if current_path == '/search' %}aria-current="page"{% endif %}>Search</a>
+        <a href="/design" {% if current_path == '/design' %}aria-current="page"{% endif %}>Design Lab</a>
+        <a href="/projects" {% if current_path.startswith('/projects') %}aria-current="page"{% endif %}>Projects</a>
+        <a href="/issues" {% if current_path == '/issues' %}aria-current="page"{% endif %}>
+          Issues <span class="count" aria-label="{{ unresolved_count }} unresolved">{{ unresolved_count }}</span>
+        </a>
+        <a href="/settings/providers" {% if current_path == '/settings/providers' %}aria-current="page"{% endif %}>Settings</a>
+      </nav>
+    </header>
+    <main id="main" class="page-shell">
+      {% block content %}{% endblock %}
+    </main>
+    <footer>Local-first engineering recall, grounded in sources you chose to keep.</footer>
+  </body>
+</html>

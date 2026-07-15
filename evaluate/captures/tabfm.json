@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "candidate_id": "tabfm",
+  "capture_method": "logged_in_visible_playwright",
+  "root_url": "https://x.com/ModelScope2022/status/2074063363634557262",
+  "root_author_handle": "ModelScope2022",
+  "root_post_id": "2074063363634557262",
+  "capture_policy": {
+    "self_replies_bundled": true,
+    "other_authors_excluded": true,
+    "media_downloaded": false,
+    "documents_downloaded": false
+  },
+  "thread": {
+    "post_count": 1,
+    "posts": [
+      {
+        "post_id": "2074063363634557262",
+        "handle": "ModelScope2022",
+        "status_url": "https://x.com/ModelScope2022/status/2074063363634557262",
+        "posted_at": "2026-07-06T09:30:14.000Z",
+        "author_label": "ModelScope\n@ModelScope2022",
+        "text": "TabFM is here for zero-shot tabular prediction. \n \nhttps://\nmodelscope.ai/models/google/\ntabfm-1.0.0-pytorch\n…\n\n On TabArena, it was evaluated across 51 datasets and beats heavily tuned supervised baselines, including gradient-boosted trees, without task-specific fine-tuning.\n\nWhat it does:\n• Classification and regression on mixed numerical + categorical tables\n•  In-context learning from training rows to test-row predictions\n•  No hyperparameter search or task-specific fine-tuning\n•  Alternating row/column attention + row compression\n\nLicense: TabFM Non-Commercial v1.0 for weights, Apache 2.0 for code.",
+        "media": [
+          {
+            "url": "https://pbs.twimg.com/media/HMiNo0pW0AAud-f?format=jpg&name=small",
+            "alt": "Image"
+          },
+          {
+            "url": "https://pbs.twimg.com/media/HMiNof4XoAA4mYD?format=jpg&name=360x360",
+            "alt": "Image"
+          }
+        ]
+      }
+    ]
+  },
+  "source_selection": {
+    "selected_source": {
+      "url": "https://modelscope.ai/models/google/tabfm-1.0.0-pytorch",
+      "artifact_type": "web_source",
+      "found_in_post_id": "2074063363634557262",
+      "link_text": "https://\nmodelscope.ai/models/google/\ntabfm-1.0.0-pytorch\n…"
+    },
+    "ranked_sources": [
+      {
+        "url": "https://modelscope.ai/models/google/tabfm-1.0.0-pytorch",
+        "artifact_type": "web_source",
+        "found_in_post_id": "2074063363634557262",
+        "link_text": "https://\nmodelscope.ai/models/google/\ntabfm-1.0.0-pytorch\n…"
+      }
+    ]
+  }
+}

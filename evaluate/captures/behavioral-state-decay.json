@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "candidate_id": "behavioral-state-decay",
+  "capture_method": "logged_in_visible_playwright",
+  "root_url": "https://x.com/omarsar0/status/2075603504543269136",
+  "root_author_handle": "omarsar0",
+  "root_post_id": "2075603504543269136",
+  "capture_policy": {
+    "self_replies_bundled": true,
+    "other_authors_excluded": true,
+    "media_downloaded": false,
+    "documents_downloaded": false,
+    "max_thread_span_hours": 48
+  },
+  "thread": {
+    "post_count": 1,
+    "raw_same_author_post_count": 1,
+    "posts": [
+      {
+        "post_id": "2075603504543269136",
+        "handle": "omarsar0",
+        "status_url": "https://x.com/omarsar0/status/2075603504543269136",
+        "posted_at": "2026-07-10T15:30:12.000Z",
+        "author_label": "elvis\n@omarsar0",
+        "text": "New research from Meta.\n\n(bookmark it)\n\nIt's on how to fix agents that forget previously made decisions.\n\nIt's well know that long-horizon agents keep forgetting decisions they already made. Meta researchers give this failure a name, behavioral state decay, where task facts, prior attempts, and open subgoals get buried in the context window or pushed past it, so they stop influencing the next action.\n\nTheir fix runs a separate memory agent alongside an unmodified action agent. It maintains a structured memory bank from the recent trajectory and decides, each step, whether to inject a memory-grounded reminder or stay silent. The module is plug-and-play with frontier agents and existing harnesses.\n\nIt lifts pass@1 for both weaker and stronger action agents on Terminal-Bench 2.0 and tau-squared-Bench.\n\nOverall, they find that memory that actively surfaces the right fact at the right moment is a more useful primitive than passive retrieval that only fires when the agent thinks to ask.\n\nPaper: \nhttps://\narxiv.org/abs/2607.08716\n\nLearn to build effective AI agents in our academy: \nhttps://\nacademy.dair.ai",
+        "media": [
+          {
+            "url": "https://pbs.twimg.com/media/HM4GYwrbYAAOXEo?format=jpg&name=360x360",
+            "alt": "Image"
+          }
+        ]
+      }
+    ],
+    "discarded_same_author_posts": []
+  },
+  "source_selection": {
+    "selected_source": {
+      "url": "https://arxiv.org/abs/2607.08716",
+      "artifact_type": "paper",
+      "found_in_post_id": "2075603504543269136",
+      "link_text": "https://\narxiv.org/abs/2607.08716"
+    },
+    "ranked_sources": [
+      {
+        "url": "https://arxiv.org/abs/2607.08716",
+        "artifact_type": "paper",
+        "found_in_post_id": "2075603504543269136",
+        "link_text": "https://\narxiv.org/abs/2607.08716"
+      },
+      {
+        "url": "https://academy.dair.ai",
+        "artifact_type": "web_source",
+        "found_in_post_id": "2075603504543269136",
+        "link_text": "https://\nacademy.dair.ai"
+      }
+    ],
+    "linked_social_sources": []
+  }
+}

@@ -1,0 +1,85 @@
+schema_version: 1
+candidate_id: ml-intern
+evaluation_status: ready_for_human_review
+primary_category: open_source_tool
+
+ingestion:
+  social_source: https://www.linkedin.com/posts/sumanth077_autonomous-ml-engineer-from-huggingface-activity-7481352116712833024-sOB-
+  capture_method: linkedin_public_metadata_from_telegram_export
+  bundled_self_posts: 1
+  other_authors_excluded: null
+  selected_artifact:
+    type: repository
+    canonical_url: https://github.com/huggingface/ml-intern
+    full_text_used: https://github.com/huggingface/ml-intern/blob/main/README.md
+  retained_binary_artifacts: []
+  note: LinkedIn comments were unavailable; the official Hugging Face repository was selected and no image processing was needed.
+
+knowledge:
+  artifact:
+    title: ML Intern
+    short_name: ml-intern
+    kind: autonomous_ml_engineering_agent
+    version: null
+    published_at: null
+    authors: [Aksel Joonas Reedi, Henri Bonamy, Yoan Di Cosmo, Leandro von Werra, Lewis Tunstall]
+    maturity: active_open_source_project_without_tagged_release
+  concise_idea: >-
+    Give an agent direct access to Hugging Face research, datasets, repositories, compute jobs,
+    GitHub search, and execution tools so it can research and implement ML tasks through a long tool loop.
+  problem_addressed: ML work often requires fragmented research, coding, execution, training-job, and model-sharing steps.
+  method:
+    - Run an LLM tool loop with planning, context management, approvals, and repeated-pattern detection.
+    - Expose Hugging Face docs, papers, datasets, repositories, Jobs, local or sandbox tools, GitHub search, and MCP tools.
+    - Support interactive sessions and a headless auto-approval mode.
+    - Auto-compact long context and optionally persist traces to a private Hugging Face dataset.
+  capabilities:
+    - Research and implement ML tasks using the Hugging Face ecosystem.
+    - Run locally or use a private Hugging Face Space sandbox and remote Jobs.
+    - Use hosted or OpenAI-compatible local models and add custom MCP servers.
+  requirements:
+    - Python environment managed with uv.
+    - A Hugging Face token for routed inference, Hub actions, and sandbox tools; GitHub token for code search.
+    - A separately running OpenAI-compatible server when using a local model.
+  evidence:
+    - claim: The agent integrates research, code, data, and compute operations.
+      result: Its documented tool router covers Hugging Face docs, papers, repositories, datasets, Jobs, GitHub search, execution, planning, and MCP.
+      context: Implemented architecture documented by the maintainers.
+      source_location: Official README, Architecture
+    - claim: It supports guarded execution.
+      result: The loop includes approval checks; remote sandbox tools are opt-in, while default CLI tools act on the local checkout.
+      context: Headless mode auto-approves, so safety depends on invocation mode.
+      source_location: Official README, Usage and Agentic Loop
+  limitations:
+    - Autonomous output quality is model- and prompt-dependent; no end-to-end correctness benchmark is given.
+    - Default CLI read/write/edit/bash tools operate on the local filesystem unless sandbox mode is selected.
+    - Hosted inference and remote compute can incur user-billed costs.
+    - Session traces upload by default to a private Hub dataset unless sharing is disabled.
+    - Headless mode auto-approval materially increases execution risk.
+  engineering_relevance:
+    applicability: Useful for supervised ML research prototypes tightly coupled to Hugging Face assets and compute.
+    not_a_fit_for: Unattended production changes, fixed-cost workflows, or tasks requiring guaranteed research and model correctness.
+    adoption_posture: experimental_candidate_not_default_recommendation
+  evidence_quality:
+    support_type: official_repository_documentation
+    independently_validated: false
+    confidence: medium_high
+  adoption_readiness:
+    implementation_available: true
+    license: Apache-2.0
+    compute_infrastructure:
+      training: {device: null, count: null, memory_per_device: null}
+      inference: {device: local_or_hosted_model_endpoint, count: null, memory_per_device: null}
+    minimum_validation: Use sandbox mode on a small task; verify approvals, code correctness, job cost, artifacts, trace privacy, and recovery from a failed tool loop.
+
+source_reconciliation:
+  authoritative_source: https://github.com/huggingface/ml-intern
+  issues: []
+
+graph_ready:
+  primary_entity: {id: tool:ml-intern, name: ML Intern, type: tool}
+  topics: [autonomous_ml, training_automation, research_agents, hugging_face]
+  relations:
+    - {subject: tool:ml-intern, predicate: integrates_with, object: platform:hugging_face}
+    - {subject: tool:ml-intern, predicate: uses, object: pattern:agentic_tool_loop}
+    - {subject: tool:ml-intern, predicate: supports, object: protocol:mcp}

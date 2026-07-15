@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "candidate_id": "tencentdb-agent-memory",
+  "capture_method": "logged_in_visible_playwright",
+  "root_url": "https://x.com/HowToPrompt__/status/2074122800961614184",
+  "root_author_handle": "HowToPrompt__",
+  "root_post_id": "2074122800961614184",
+  "capture_policy": {
+    "self_replies_bundled": true,
+    "other_authors_excluded": true,
+    "media_downloaded": false,
+    "documents_downloaded": false
+  },
+  "thread": {
+    "post_count": 5,
+    "posts": [
+      {
+        "post_id": "2074122800961614184",
+        "handle": "HowToPrompt__",
+        "status_url": "https://x.com/HowToPrompt__/status/2074122800961614184",
+        "posted_at": "2026-07-06T13:26:25.000Z",
+        "author_label": "How To Prompt\n@HowToPrompt__",
+        "text": "China has killed the entire vector database industry.\n\nThey open-sourced TencentDB Agent Memory. It gives any AI agent long-term memory that runs 100% locally.\n\nNo Pinecone. No cloud APIs. No repeating yourself every session.\n\n- 61% fewer tokens\n- PersonaMem accuracy: 48% → 76%\n- Zero external API dependencies\n- Runs on plain SQLite\n\nMost memory systems compress your history into an opaque vector pile. when recall goes wrong, you're guessing. this one doesn't compress, it builds a semantic pyramid.\n\nL0 Conversation → L1 Atom → L2 Scenario → L3 Persona.\n\nShort-term state gets encoded as a Mermaid graph in your agent's context. verbose tool logs get offloaded to disk. when the agent needs proof, it drills back via node_id to the exact raw log.\n\nno lossy compression. every layer is readable markdown you can just open and inspect.\n\n5.1k stars. 100% Open Source.",
+        "media": [
+          {
+            "url": "https://pbs.twimg.com/media/HMjDjl4a0AAcgQ3?format=jpg&name=360x360",
+            "alt": "Image"
+          }
+        ]
+      },
+      {
+        "post_id": "2074122803922813147",
+        "handle": "HowToPrompt__",
+        "status_url": "https://x.com/HowToPrompt__/status/2074122803922813147",
+        "posted_at": "2026-07-06T13:26:26.000Z",
+        "author_label": "How To Prompt\n@HowToPrompt__\n·\nJul 6",
+        "text": "",
+        "media": []
+      },
+      {
+        "post_id": "2076947822998667673",
+        "handle": "HowToPrompt__",
+        "status_url": "https://x.com/HowToPrompt__/status/2076947822998667673",
+        "posted_at": "2026-07-14T08:32:03.000Z",
+        "author_label": "How To Prompt\n@HowToPrompt__\n·\n3h",
+        "text": "Someone just rewrote 40 years of PostgreSQL from scratch in Rust.\n\nand it already passes 100% of the official Postgres tests!\n\nIt's called pgrust. Not a fork. A full ground-up reimplementation that already passes all 46,066 queries in postgres 18.3's official test suite.",
+        "media": [
+          {
+            "url": "https://pbs.twimg.com/media/HNLM_Vba8AAgry_?format=jpg&name=360x360",
+            "alt": "Image"
+          }
+        ]
+      },
+      {
+        "post_id": "2076903425590399389",
+        "handle": "HowToPrompt__",
+        "status_url": "https://x.com/HowToPrompt__/status/2076903425590399389",
+        "posted_at": "2026-07-14T05:35:38.000Z",
+        "author_label": "How To Prompt\n@HowToPrompt__\n·\n6h",
+        "text": "US Navy researchers just proved you can make malware invisible to an AI by hiding a note inside it.\n\nThe researchers tested AI agents powered by LLMs, the same agents currently being integrated into cybersecurity toolchains to automate malware analysis.\n\nThey discovered a new",
+        "media": [
+          {
+            "url": "https://pbs.twimg.com/media/HNKkdIBbsAAPZeo?format=jpg&name=360x360",
+            "alt": "Image"
+          }
+        ]
+      },
+      {
+        "post_id": "2076780105817612305",
+        "handle": "HowToPrompt__",
+        "status_url": "https://x.com/HowToPrompt__/status/2076780105817612305",
+        "posted_at": "2026-07-13T21:25:36.000Z",
+        "author_label": "How To Prompt\n@HowToPrompt__\n·\n14h",
+        "text": "You can now run 744B parameter model on a laptop with just 25GB RAM.\n\nan Italian developer just open-sourced Colibrì, a tiny C engine that streams experts straight from disk on demand.\n\n→ pure C. zero dependencies.\n→ no GPU. no python at runtime.\n\nhe built the whole thing on a",
+        "media": [
+          {
+            "url": "https://pbs.twimg.com/media/HNI0NmOaoAAACVi?format=jpg&name=360x360",
+            "alt": "Image"
+          }
+        ]
+      }
+    ]
+  },
+  "source_selection": {
+    "selected_source": null,
+    "ranked_sources": []
+  }
+}

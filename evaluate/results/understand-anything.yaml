@@ -1,0 +1,84 @@
+schema_version: 1
+candidate_id: understand-anything
+evaluation_status: ready_for_human_review
+
+ingestion:
+  social_source: https://x.com/DAIEvolutionHub/status/2074084604097765643
+  capture_method: logged_in_visible_playwright
+  bundled_self_posts: 1
+  other_authors_excluded: true
+  selected_artifact:
+    type: repository
+    canonical_url: https://github.com/Egonex-AI/Understand-Anything
+  retained_binary_artifacts: []
+
+knowledge:
+  artifact:
+    title: Understand Anything
+    kind: open_source_code_intelligence_tool
+    license: MIT
+    maturity: active_open_source_project
+
+  concise_idea: >-
+    Build a persistent, interactive knowledge graph from a codebase by combining deterministic
+    Tree-sitter structure extraction with LLM-generated semantic descriptions and tours.
+
+  method:
+    - Parse imports, exports, calls, functions, classes, and inheritance with Tree-sitter.
+    - Run parallel file analyzers, then architecture and graph-review stages.
+    - Use an LLM for summaries, tags, layers, business domains, tours, and implicit wiki relations.
+    - Save the graph locally and incrementally re-analyze only changed files.
+
+  capabilities:
+    - Searchable, clickable graph with structural and business-domain views.
+    - Codebase chat, focused explanations, diff impact analysis, and onboarding tours.
+    - Knowledge-base graphing and multilingual generated output.
+    - Read-only local dashboard after a graph has been generated.
+
+  requirements:
+    - A supported coding-agent platform and model provider for initial analysis.
+    - Significant token budget for the first scan of a large repository, or a capable local model.
+    - Node.js 18 or newer for the standalone graph viewer.
+
+  evidence:
+    - Structural edges are deterministic Tree-sitter outputs; semantic fields are LLM-generated.
+    - File analyzers run in parallel in batches, with up to five concurrent analyzers.
+    - Subsequent scans are incremental and can run from a post-commit hook.
+    - No independent accuracy or developer-productivity benchmark was found in the selected repository documentation.
+
+  limitations:
+    - Initial full-repository analysis can consume substantial model tokens.
+    - Semantic summaries and business mappings can be wrong even when structural edges are reproducible.
+    - The graph becomes stale unless manual or automatic incremental updates are enabled.
+    - Generated graph files can become large; the README suggests Git LFS above 10 MB.
+
+  engineering_relevance:
+    applicability: >-
+      Useful for onboarding, architecture exploration, impact analysis, and supplying coding agents
+      with reusable repository context.
+    trial_plan:
+      - Run it on one medium repository and manually verify sampled nodes, calls, and impact paths.
+      - Measure initial and incremental token cost against direct agent exploration.
+      - Keep semantic conclusions advisory until a developer checks them against source code.
+    adoption_posture: useful_trial_candidate_not_authoritative_program_analysis
+
+source_reconciliation:
+  authoritative_source: https://github.com/Egonex-AI/Understand-Anything
+  issues:
+    - social_statement: Six agents analyze the project in parallel.
+      finding: >-
+        The main /understand workflow documents five specialized agents; a sixth domain analyzer
+        is added for /understand-domain, and only file analyzers are explicitly parallelized.
+      status: corrected_from_repository
+
+graph_ready:
+  primary_entity:
+    id: tool:understand-anything
+    name: Understand Anything
+    type: tool
+  topics: [code_intelligence, knowledge_graphs, repository_onboarding, impact_analysis]
+  relations:
+    - {subject: tool:understand-anything, predicate: uses, object: parser:tree-sitter}
+    - {subject: tool:understand-anything, predicate: augments_with, object: technique:llm-semantic-analysis}
+    - {subject: tool:understand-anything, predicate: produces, object: artifact:code-knowledge-graph}
+    - {subject: tool:understand-anything, predicate: supports, object: workflow:incremental-analysis}

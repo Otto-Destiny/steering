@@ -1,0 +1,94 @@
+schema_version: 1
+candidate_id: justgrpo
+evaluation_status: ready_for_human_review
+
+ingestion:
+  social_source: https://x.com/Chinazhidx/status/2074028265292075128
+  capture_method: logged_in_visible_playwright
+  bundled_self_posts: 3
+  other_authors_excluded: true
+  discovery_source: https://blog.icml.cc/2026/07/05/announcing-the-icml-2026-awards/
+  selected_artifact:
+    type: research_paper
+    canonical_url: https://arxiv.org/abs/2601.15165
+    full_text_used: https://arxiv.org/html/2601.15165
+  retained_binary_artifacts: []
+
+knowledge:
+  artifact:
+    title: "The Flexibility Trap: Rethinking the Value of Arbitrary Order in Diffusion Language Models"
+    short_name: JustGRPO
+    kind: research_paper
+    version: arXiv:2601.15165v4
+    venue: ICML 2026
+    recognition: Outstanding Paper Award
+    maturity: peer_reviewed_conference_paper
+
+  concise_idea: >-
+    Train a diffusion language model with ordinary left-to-right GRPO rollouts to preserve
+    exploration at uncertain reasoning forks, while retaining diffusion parallel decoding at inference.
+
+  problem_addressed: >-
+    Confidence-based arbitrary-order decoding can postpone high-entropy logical connectors until
+    surrounding context removes their ambiguity, reducing reachable solution diversity.
+
+  method:
+    - Treat the diffusion LLM as an autoregressive policy only during RL rollout and optimization.
+    - Apply standard GRPO with exact sequence likelihood instead of diffusion-specific approximations.
+    - Leave the diffusion architecture unchanged and use parallel samplers at inference.
+    - Optionally compute ratios only for the top 25% highest-entropy positions in JustGRPO-Fast.
+
+  requirements:
+    - A diffusion language model that can generate in left-to-right order; experiments use LLaDA 8B Instruct.
+    - Verifiable rewards and RL data for mathematics or code.
+    - Substantial training compute; reported experiments use 16 NVIDIA H100 GPUs.
+    - Full-parameter fine-tuning in the main paper setup.
+
+  reported_results:
+    - benchmark: GSM8K
+      result_at_generation_length_256: "89.1%"
+    - benchmark: MATH-500
+      result_at_generation_length_256: "45.1%"
+    - benchmark: HumanEval
+      result_at_generation_length_256: "49.4%"
+    - benchmark: MBPP
+      result_at_generation_length_256: "52.4%"
+    - observation: >-
+        On MBPP, the gain over the original model widened from 10.6 points at one token per step
+        to 25.5 points at five tokens per step with the EB parallel sampler.
+
+  limitations:
+    - Evidence is limited to one 8B diffusion-model family and math/code benchmarks.
+    - Many system-level baseline numbers use heterogeneous training and decoding settings, though aligned reproductions are also reported.
+    - Exact GRPO requires per-position likelihood work and has higher per-iteration overhead.
+    - The main setup uses 16 H100 GPUs and full fine-tuning, limiting accessibility.
+    - Results do not show that autoregressive rollout is best for every diffusion task or constrained puzzle domain.
+
+  engineering_relevance:
+    applicability: >-
+      Relevant when post-training diffusion LLMs for verifiable reasoning and wanting a simpler
+      objective without giving up parallel inference.
+    trial_plan:
+      - Reproduce against the existing diffusion-RL baseline under identical data and compute.
+      - Measure pass@k, final accuracy, wall time, and speed-quality trade-offs under parallel decoding.
+      - Try JustGRPO-Fast if exact per-position likelihood dominates training cost.
+    adoption_posture: strong_research_candidate_for_diffusion_llm_rl_not_general_default
+
+source_reconciliation:
+  authoritative_source: https://arxiv.org/abs/2601.15165
+  issues: []
+  note: >-
+    The social claims of the ICML award, 89.1% GSM8K accuracy, and preserved parallel decoding
+    are supported; the 89.1% result is specifically at generation length 256 on LLaDA 8B Instruct.
+
+graph_ready:
+  primary_entity:
+    id: method:justgrpo
+    name: JustGRPO
+    type: method
+  topics: [reinforcement_learning, diffusion_language_models, reasoning, parallel_decoding]
+  relations:
+    - {subject: method:justgrpo, predicate: applies, object: algorithm:grpo}
+    - {subject: method:justgrpo, predicate: trains_with, object: decoding_order:autoregressive}
+    - {subject: method:justgrpo, predicate: preserves, object: capability:parallel-diffusion-decoding}
+    - {subject: phenomenon:entropy-degradation, predicate: limits, object: capability:reasoning-exploration}

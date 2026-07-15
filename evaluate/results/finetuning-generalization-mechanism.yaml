@@ -1,0 +1,89 @@
+schema_version: 1
+candidate_id: finetuning-generalization-mechanism
+evaluation_status: ready_for_human_review
+primary_category: paper
+
+ingestion:
+  social_source: https://x.com/askalphaxiv/status/2076523915883495874
+  capture_method: x_public_oembed_from_telegram_export
+  bundled_self_posts: 1
+  other_authors_excluded: true
+  selected_artifact:
+    type: research_paper
+    canonical_url: https://arxiv.org/abs/2607.08393
+    full_text_used: https://arxiv.org/pdf/2607.08393
+  retained_binary_artifacts: []
+  note: X replies were unavailable; text was extracted from the official paper and the temporary PDF was not retained in the project.
+
+knowledge:
+  artifact:
+    title: Towards Mechanistically Understanding Why Memorized Knowledge Fails to Generalize in Large Language Model Finetuning
+    short_name: Knowing-Using Gap study
+    kind: mechanistic_finetuning_study
+    version: arXiv:2607.08393v1
+    published_at: '2026-07-09'
+    authors: [Lu Dai, Ziyang Rao, Yili Wang, Hanqing Wang, Hao Liu, Hui Xiong]
+    maturity: preprint_with_code_and_data
+  concise_idea: >-
+    Diagnose cases where fine-tuning has stored a new fact but failed to route its representation
+    into computation-effective layers required for downstream reasoning.
+  problem_addressed: Direct recall can become accurate before a fine-tuned model can use the same injected knowledge in multi-step reasoning.
+  method:
+    - Fine-tune multiple Qwen2.5 and Llama models on unseen STARK knowledge.
+    - Track direct memorization and downstream generalization over training time.
+    - Use self-patching to relocate internal activations and identify causally useful layer-to-layer routes.
+    - Apply a heuristic based on effective patch locations to improve failed cases.
+  capabilities:
+    - Quantifies accuracy and temporal forms of the Knowing-Using Gap.
+    - Maps where injected knowledge is stored versus where it becomes useful for reasoning.
+    - Tests a practical activation-routing heuristic across domains and model scales.
+  requirements:
+    - Access to model internals and activations; the method is not available for closed API-only models.
+    - Fine-tuning and repeated layer-patching interventions across many checkpoints and tasks.
+    - The reference experiments used NVIDIA A800 GPUs and substantial system memory.
+  evidence:
+    - claim: Memorization and downstream use can separate during fine-tuning.
+      result: Direct-recall performance rises before generalization, producing both an accuracy gap and temporal lag.
+      context: Cross-domain experiments on Qwen2.5 1.5B/3B/7B and Llama 1B/3B/8B families.
+      source_location: Paper, Knowing-Using Gap experiments
+    - claim: Failed generalization can reflect routing rather than absent knowledge.
+      result: Self-patching finds activation relocations that recover failed reasoning cases, supporting knowledge-circuit misalignment.
+      context: Causal intervention evidence; the proposed mechanism remains a hypothesis rather than a universal theorem.
+      source_location: Paper, Self-Patching
+    - claim: The diagnosis supports a partial repair.
+      result: The heuristic recovers 58-75% of oracle headroom in generalization failures.
+      context: Author experiments across domains.
+      source_location: Paper, Heuristic Strategy
+  limitations:
+    - Self-patching is intervention-intensive and requires white-box access.
+    - The study uses selected knowledge-injection datasets, model families, and reasoning tasks; broader transfer is unknown.
+    - Recovering oracle headroom is not the same as eliminating the generalization gap.
+    - The knowledge-circuit misalignment explanation is consistent with the evidence but may not cover every failure mode.
+    - Results are from a new preprint without independent validation.
+  engineering_relevance:
+    applicability: Useful for diagnosing why factual fine-tuning improves recall but not reasoning and for designing evaluations beyond training loss.
+    not_a_fit_for: A cheap production-time fix, closed models, or proof that additional fine-tuning always improves knowledge routing.
+    adoption_posture: research_diagnostic_candidate_not_default_training_recipe
+  evidence_quality:
+    support_type: author_preprint_with_code_data_and_causal_interventions
+    independently_validated: false
+    confidence: medium_high
+  adoption_readiness:
+    implementation_available: true
+    license: null
+    compute_infrastructure:
+      training: {device: NVIDIA_A800, count: 8, memory_per_device: 80_GB}
+      inference: {device: NVIDIA_A800, count: null, memory_per_device: 80_GB}
+    minimum_validation: Reproduce the recall-versus-reasoning gap and sampled self-patching interventions on one target model and domain before using the heuristic.
+
+source_reconciliation:
+  authoritative_source: https://arxiv.org/abs/2607.08393
+  issues: []
+
+graph_ready:
+  primary_entity: {id: paper:knowing-using-gap, name: Knowing-Using Gap study, type: paper}
+  topics: [fine_tuning, knowledge_generalization, mechanistic_analysis, activation_patching]
+  relations:
+    - {subject: paper:knowing-using-gap, predicate: proposes, object: concept:knowledge_circuit_misalignment}
+    - {subject: paper:knowing-using-gap, predicate: introduces, object: technique:self_patching}
+    - {subject: technique:self_patching, predicate: diagnoses, object: failure:memorization_without_generalization}

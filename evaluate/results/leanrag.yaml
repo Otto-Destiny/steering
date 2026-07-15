@@ -1,0 +1,88 @@
+schema_version: 1
+candidate_id: leanrag
+evaluation_status: ready_for_human_review
+
+ingestion:
+  social_source: https://x.com/DanKornas/status/2072580759970259208
+  capture_method: logged_in_visible_playwright
+  bundled_self_posts: 2
+  other_authors_excluded: true
+  selected_artifact:
+    type: repository
+    canonical_url: https://github.com/KnowledgeXLab/LeanRAG
+  retained_binary_artifacts: []
+
+knowledge:
+  artifact:
+    title: "LeanRAG: Knowledge-Graph-Based Generation with Semantic Aggregation and Hierarchical Retrieval"
+    kind: open_source_research_implementation
+    publication_status: accepted_at_AAAI_2026
+    license: MIT
+
+  concise_idea: >-
+    Build a navigable multi-level knowledge graph with explicit relations between aggregated
+    concepts, then retrieve bottom-up from detailed entities along compact graph paths while
+    retaining the original text as generation evidence.
+
+  method:
+    - Extract entities, relations, descriptions, and their source chunks using CommonKG or an LLM-based GraphRAG path.
+    - Cluster related entities, create aggregate summary nodes, and infer explicit relations between aggregates.
+    - Anchor a query to relevant fine-grained entities and retrieve connected paths through the hierarchy.
+    - Return structured graph context plus original source chunks to the answer-generating LLM.
+
+  capabilities:
+    - End-to-end document chunking, graph construction, hierarchical retrieval, and answer generation.
+    - CommonKG and GraphRAG-style knowledge-extraction paths.
+    - Redundancy-aware retrieval spanning detailed entities and higher-level concepts.
+
+  requirements:
+    - Python 3.10 or newer; the repository setup uses a Python 3.11 Conda environment.
+    - Configured LLM service/model for extraction, aggregation, and generation.
+    - Embeddings and storage/compute sufficient to construct and query the graph.
+
+  evidence:
+    - claim: The authors report about 46% lower retrieval redundancy than flat-retrieval baselines.
+      scope: Four QA benchmarks in Mix, Computer Science, Legal, and Agriculture domains.
+      source: https://github.com/KnowledgeXLab/LeanRAG
+    - claim: Removing original textual context reduced the Mix overall score from 8.59 to 7.93.
+      scope: Author ablation; the graph is a navigation index, not a replacement for source text.
+      source: https://arxiv.org/abs/2508.10391
+
+  limitations:
+    - Evidence is limited to four UltraDomain QA datasets and may not transfer to every corpus or query type.
+    - Main answer-quality evaluation uses an LLM judge, so human and task-specific evaluation remains necessary.
+    - Graph extraction, aggregation, relation generation, and tuning add indexing complexity and LLM cost.
+    - Performance depends on extraction quality, clustering, embeddings, source-text retention, and model configuration.
+
+  engineering_relevance:
+    applicability: >-
+      Relevant for multi-document RAG where queries need both specific evidence and relations
+      across concepts, and where redundant retrieved context materially increases token cost.
+    not_a_fit_for: >-
+      Likely excessive for small corpora, simple lookup queries, or systems that cannot afford
+      graph construction and maintenance.
+    trial_plan:
+      - Compare against the current vector or GraphRAG baseline on representative queries.
+      - Measure answer quality, evidence coverage, retrieval redundancy, latency, and indexing/API cost.
+      - Verify that every generated answer remains traceable to retained source chunks.
+    adoption_posture: promising_candidate_requires_domain_evaluation
+
+source_reconciliation:
+  authoritative_source: https://github.com/KnowledgeXLab/LeanRAG
+  issues:
+    - social_statement: The pipeline does not need to retrieve the same evidence twice.
+      artifact_statement: LeanRAG minimizes redundant retrieval and reports an approximate 46% reduction; it does not claim zero duplication.
+      explanation: The opening social sentence overstates a measured reduction as complete elimination.
+      status: needs_review
+
+graph_ready:
+  primary_entity:
+    id: software:leanrag
+    name: LeanRAG
+    type: software
+  topics: [rag, knowledge_graphs, hierarchical_retrieval, retrieval_efficiency]
+  relations:
+    - {subject: software:leanrag, predicate: uses, object: technique:semantic-aggregation}
+    - {subject: software:leanrag, predicate: uses, object: technique:bottom-up-hierarchical-retrieval}
+    - {subject: technique:semantic-aggregation, predicate: connects, object: entity:aggregate-summary-nodes}
+    - {subject: software:leanrag, predicate: preserves_evidence_from, object: artifact:source-text-chunks}

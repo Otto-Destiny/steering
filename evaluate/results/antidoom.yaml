@@ -1,0 +1,105 @@
+schema_version: 1
+candidate_id: antidoom
+evaluation_status: ready_for_human_review
+
+ingestion:
+  social_source: https://www.linkedin.com/posts/liquid-ai-inc_today-we-release-antidoom-an-open-source-activity-7480259904096784385-tRby
+  capture_method: linkedin_public_metadata_from_telegram_export
+  bundled_self_posts: 1
+  other_authors_excluded: null
+  selected_artifact:
+    type: official_engineering_article
+    canonical_url: https://www.liquid.ai/blog/antidoom
+    full_text_used: https://www.liquid.ai/blog/antidoom
+  retained_binary_artifacts: []
+  note: LinkedIn comments were not inspected; Liquid AI's official technical article supplied the method, results, and compute details.
+
+knowledge:
+  artifact:
+    title: Reducing Doom Loops with Final Token Preference Optimization
+    short_name: Antidoom
+    kind: open_source_post_training_method
+    version: null
+    published_at: '2026-07-07'
+    authors: [Sam Paech, Maxime Labonne, Justin Li, Leonie Monigatti, Nathan Ranchin, Tim Seyde, Sergei Tilga]
+    maturity: early_results_with_released_pipeline
+  concise_idea: >-
+    Detect the first token that begins a repetitive reasoning loop and use Final Token Preference
+    Optimization to prefer several coherent alternatives while tightly constraining unrelated logits.
+  problem_addressed: >-
+    Small reasoning models can repeat a reasoning span until context is exhausted; global repetition
+    penalties can harm useful behavior and online-RL remedies are expensive.
+  method:
+    - Generate hard reasoning completions and detect spans repeated at least four times over at least 60 characters.
+    - Target the first token of the first repetition and select up to 20 plausible top-k alternatives.
+    - Train one-token chosen/rejected preferences with FTPO, logit-space regularization, and typically one LoRA epoch.
+    - Stop early because excessive optimization can degrade the model or create new loops.
+  capabilities:
+    - Targets loop-trigger tokens instead of reweighting the full inference distribution.
+    - Supports multiple chosen tokens so suppression does not merely move the failure to one replacement token.
+    - Provides generation, loop detection, dataset construction, and FTPO training code.
+  requirements:
+    - A model checkpoint that exhibits measurable doom loops and a prompt mix that elicits them.
+    - Completion log probabilities for selecting alternative tokens.
+    - LoRA training over attention, MLP, and lm_head modules plus held-out repetition and capability evaluations.
+    - The reported data-generation run used 8 MI325 GPUs for about one hour before the single-GPU training stage.
+  evidence:
+    - claim: Antidoom reduced looping on an early LFM2.5-2.6B checkpoint.
+      result: Doom-loop rate fell from 10.2% to 1.4% on the authors' reasoning-heavy prompt mix.
+      context: Internal Liquid AI experiment; benchmark sample details are not fully reported in the article.
+      source_location: Official article, Results
+    - claim: The method generalized to another small reasoning model.
+      result: Qwen3.5-4B doom-loop rate fell from 22.9% to 1% under greedy sampling.
+      context: Author-reported result; independent replication is absent.
+      source_location: Official article, Results
+    - claim: Over-training is harmful.
+      result: Training beyond chosen_win=0.35 tended to degrade the model and sometimes create new loops.
+      context: Author-reported tuning observation.
+      source_location: Official article, Final Token Preference Optimization
+  limitations:
+    - Evidence covers two small reasoning checkpoints and author-selected hard math/coding prompts.
+    - Results are not independently validated and the official article does not fully specify evaluation sample sizes.
+    - Over-training or over-suppressing common tokens can degrade reasoning or expose new loop triggers.
+    - The method repairs repetitive degeneration; it does not teach new math, coding, or reasoning capability.
+    - Performance near temperature 1.0 declined after treatment in the reported experiments.
+  engineering_relevance:
+    applicability: >-
+      Relevant after confirming that repetitive loops materially reduce a small reasoning model's
+      success rate and when checkpoint-level post-training is feasible.
+    not_a_fit_for: >-
+      Not a remedy for general hallucination, semantic circular reasoning without textual repetition,
+      or models whose main errors are missing knowledge or weak reasoning.
+    adoption_posture: experimental_targeted_post_training_candidate
+  evidence_quality:
+    support_type: official_technical_article_with_open_source_pipeline
+    independently_validated: false
+    confidence: medium
+  adoption_readiness:
+    implementation_available: true
+    license: null
+    compute_infrastructure:
+      training:
+        device: AMD_MI325_GPU
+        count: 1
+        memory_per_device: null
+      inference:
+        device: null
+        count: null
+        memory_per_device: null
+    minimum_validation: Reproduce loop reduction and verify no regression across held-out capability, temperature, style, and non-looping prompts.
+
+source_reconciliation:
+  authoritative_source: https://www.liquid.ai/blog/antidoom
+  issues:
+    - status: needs_review
+      social_statement: Dataset generation takes about two hours on 8 H100s and training takes one to two hours on one H100.
+      source_statement: The official article reports about one hour on 8 MI325 GPUs for generation and one to two hours on 1 MI325 GPU for training.
+      explanation: Hardware and generation-time details in the social post do not match the official article.
+
+graph_ready:
+  primary_entity: {id: "method:antidoom", name: Antidoom, type: method}
+  topics: [post_training, reasoning, repetition_control, preference_optimization]
+  relations:
+    - {subject: "method:antidoom", predicate: uses, object: "method:final_token_preference_optimization"}
+    - {subject: "method:antidoom", predicate: reduces, object: "failure_mode:doom_loop"}
+    - {subject: "method:final_token_preference_optimization", predicate: constrains, object: "distribution:unrelated_logits"}

@@ -1,0 +1,92 @@
+schema_version: 1
+candidate_id: dflash
+evaluation_status: ready_for_human_review
+primary_category: open_source_tool
+
+ingestion:
+  social_source: https://x.com/atomic_chat_hq/status/2076739076691272038
+  capture_method: x_public_oembed_from_telegram_export
+  bundled_self_posts: 1
+  other_authors_excluded: true
+  selected_artifact:
+    type: repository
+    canonical_url: https://github.com/z-lab/dflash
+    full_text_used: https://github.com/z-lab/dflash/blob/main/README.md
+  retained_binary_artifacts: []
+  note: X replies were unavailable; the official repository was selected and post images were not analyzed.
+
+knowledge:
+  artifact:
+    title: 'DFlash: Block Diffusion for Flash Speculative Decoding'
+    short_name: DFlash
+    kind: block_diffusion_speculative_drafter
+    version: null
+    published_at: '2026-02-05'
+    authors: [Jian Chen, Yesheng Liang, Zhijian Liu]
+    maturity: active_open_source_project_with_released_draft_checkpoints
+  concise_idea: >-
+    Replace sequential autoregressive drafting with a lightweight block-diffusion model that proposes
+    a token block in parallel for lossless verification by the unchanged target model.
+  problem_addressed: Autoregressive draft models can become the latency bottleneck in speculative decoding because they still propose tokens sequentially.
+  method:
+    - Condition a small block-diffusion drafter on context features from selected target-model layers.
+    - Predict several masked future positions in parallel rather than rolling out one token at a time.
+    - Verify proposed tokens with the target model so accepted output follows the target distribution.
+  capabilities:
+    - Released drafts for Qwen, Gemma, Kimi, MiniMax, GPT-OSS, and other documented targets.
+    - vLLM, SGLang, Transformers, and MLX inference paths with benchmark tooling.
+    - Official Qwen3.6-27B draft checkpoint matching the model used by the social benchmark.
+  requirements:
+    - Both the supported target model and its matching DFlash draft checkpoint.
+    - A compatible backend; vLLM 0.20.1 or newer includes core support, while some architectures need temporary branches or Docker images.
+    - Accelerator memory sufficient for target plus draft; exact requirement depends on model, precision, context, and backend.
+  evidence:
+    - claim: DFlash removes sequential work from drafting.
+      result: The draft model predicts a block in parallel and the target verifies it through speculative decoding.
+      context: Official implementation and documented architecture.
+      source_location: Official README, Overview
+    - claim: The implementation supports the social post's target family.
+      result: The repository lists a released z-lab/Qwen3.6-27B-DFlash checkpoint.
+      context: Availability does not independently verify the social post's exact RTX 6000 throughput.
+      source_location: Official README, Supported Models
+    - claim: Multiple serving backends are usable.
+      result: The repository documents vLLM, SGLang, Transformers, and MLX paths plus common benchmark datasets.
+      context: Backend and architecture support differ; Transformers is limited to Qwen3 and Llama-3.1.
+      source_location: Official README, Installation and Evaluation
+  limitations:
+    - Speedup varies with predictability, acceptance length, target size, batch, backend, and hardware.
+    - The repository does not substantiate the social post's exact 2.2x RTX 6000 result.
+    - Target and draft must fit together, so speculative decoding adds memory and operational complexity.
+    - Some supported architectures depend on temporary backend branches or custom Docker images.
+    - The official repository says its standalone training recipe is still forthcoming.
+  engineering_relevance:
+    applicability: Useful for latency-sensitive generation on supported targets when draft acceptance offsets added model and verification overhead.
+    not_a_fit_for: Unsupported models, severely memory-constrained serving, or workloads where next tokens are hard to predict.
+    adoption_posture: strong_trial_candidate_requires_workload_specific_benchmark
+  evidence_quality:
+    support_type: official_repository_with_code_models_and_benchmark_harness
+    independently_validated: false
+    confidence: high_for_availability_medium_for_speedup
+  adoption_readiness:
+    implementation_available: true
+    license: MIT
+    compute_infrastructure:
+      training: {device: null, count: null, memory_per_device: null}
+      inference: {device: GPU_or_Apple_Silicon, count: null, memory_per_device: null}
+    minimum_validation: Benchmark baseline, built-in MTP, and DFlash on representative prompts at equal quality settings, tracking latency, throughput, acceptance, VRAM, and failure rate.
+
+source_reconciliation:
+  authoritative_source: https://github.com/z-lab/dflash
+  issues:
+    - status: needs_review
+      social_statement: DFlash makes Qwen3.6-27B 2.2x faster with no quality loss on one RTX 6000.
+      source_statement: The official repository provides the matching checkpoint but not this exact hardware and workload result.
+      explanation: Retain 2.2x as an external benchmark claim pending a reproducible configuration and raw measurements.
+
+graph_ready:
+  primary_entity: {id: tool:dflash, name: DFlash, type: tool}
+  topics: [speculative_decoding, inference_optimization, block_diffusion, local_inference]
+  relations:
+    - {subject: tool:dflash, predicate: uses, object: technique:block_diffusion_drafting}
+    - {subject: technique:block_diffusion_drafting, predicate: parallelizes, object: operation:draft_token_generation}
+    - {subject: tool:dflash, predicate: accelerates, object: operation:autoregressive_inference}

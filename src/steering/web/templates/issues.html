@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Issues · STEERING{% endblock %}
+{% block content %}
+  <header class="page-heading">
+    <p class="eyebrow">Trust review</p><h1>Needs review</h1>
+    <p>Material inconsistencies stay visible until you resolve them. Original snapshots are never rewritten.</p>
+  </header>
+  <section class="card-list">
+    {% for issue in issues %}{% include "partials/issue.html" %}{% else %}<div class="empty"><p>No review issues.</p></div>{% endfor %}
+  </section>
+{% endblock %}

@@ -1,0 +1,90 @@
+schema_version: 1
+candidate_id: deepspec
+evaluation_status: ready_for_human_review
+primary_category: open_source_tool
+
+ingestion:
+  social_source: https://x.com/chenzeling4/status/2076365730602504484
+  capture_method: x_public_oembed_from_telegram_export
+  bundled_self_posts: 1
+  other_authors_excluded: true
+  selected_artifact:
+    type: repository
+    canonical_url: https://github.com/deepseek-ai/DeepSpec
+    full_text_used: https://github.com/deepseek-ai/DeepSpec/blob/main/README.md
+  retained_binary_artifacts: []
+  note: X replies were unavailable; the official repository was used and post images were unnecessary.
+
+knowledge:
+  artifact:
+    title: DeepSpec
+    short_name: DeepSpec
+    kind: speculative_draft_model_training_and_evaluation_framework
+    version: null
+    published_at: '2026-06-26'
+    authors: [DeepSeek-AI]
+    maturity: initial_open_source_release_with_checkpoints
+  concise_idea: >-
+    Provide one reproducible pipeline for preparing target-model traces, caching hidden states,
+    training speculative draft models, and evaluating their token acceptance across benchmarks.
+  problem_addressed: Training a target-specific speculative drafter requires tightly coupled data generation, large hidden-state caches, distributed training, and comparable evaluation.
+  method:
+    - Download prompts and regenerate responses with the target model.
+    - Materialize target hidden-state caches consumed by draft-model training.
+    - Train one worker per visible GPU using algorithm- and target-specific configuration files.
+    - Evaluate acceptance on math, code, chat, and instruction-following benchmarks.
+  capabilities:
+    - Implementations and released checkpoints for DSpark, DFlash, and Eagle3.
+    - Configurations for Qwen3 4B/8B/14B and Gemma 4 12B targets.
+    - End-to-end scripts for data preparation, multi-GPU training, and evaluation.
+  requirements:
+    - Python dependencies plus an inference engine to serve the target during answer regeneration.
+    - Large local or shared storage; the default Qwen3-4B target cache is roughly 38 TB.
+    - Default training assumes one node with eight GPUs, although visible GPU count can be reduced.
+  evidence:
+    - claim: DeepSpec covers the full drafter-development workflow.
+      result: The repository includes data preparation, target caching, training, checkpoints, and evaluation scripts.
+      context: Maintainer documentation and released implementation.
+      source_location: Official README, Workflow
+    - claim: It provides comparable draft-model baselines.
+      result: Released Eagle3, DFlash, and DSpark checkpoints span four documented Qwen3/Gemma targets and share the evaluation pipeline.
+      context: Comparisons require matching repository training settings.
+      source_location: Official README, Released Checkpoints
+  limitations:
+    - The default Qwen3-4B hidden-state cache is about 38 TB, making the reference workflow infrastructure-heavy.
+    - Default scripts assume eight GPUs; device type and memory per GPU are not stated in the README.
+    - Drafts are target- and data-distribution-specific and may need retraining for domain or thinking-mode use.
+    - Acceptance metrics do not by themselves establish wall-clock speedup on a serving stack.
+    - Third-party adapted components retain their own licenses and notices.
+  engineering_relevance:
+    applicability: Useful for teams experimentally training and comparing target-specific speculative drafters at multi-GPU scale.
+    not_a_fit_for: Storage-constrained developers, generic plug-and-play acceleration, or workflows needing guaranteed throughput gains.
+    adoption_posture: experimental_candidate_not_default_recommendation
+  evidence_quality:
+    support_type: official_repository_with_released_code_and_checkpoints
+    independently_validated: false
+    confidence: high_for_availability_medium_for_performance
+  adoption_readiness:
+    implementation_available: true
+    license: MIT_with_third_party_notices
+    compute_infrastructure:
+      training: {device: GPU, count: 8, memory_per_device: null}
+      inference: {device: GPU, count: null, memory_per_device: null}
+    minimum_validation: Run a reduced-data target-cache and training job, then measure acceptance, end-to-end latency, throughput, storage, and quality against plain decoding.
+
+source_reconciliation:
+  authoritative_source: https://github.com/deepseek-ai/DeepSpec
+  issues:
+    - status: needs_review
+      social_statement: Speculative decoding is how DeepSeek gets 2-3x faster inference.
+      source_statement: The repository evaluates draft acceptance but does not document a universal 2-3x serving speedup.
+      explanation: Treat throughput as model-, backend-, hardware-, and workload-specific.
+
+graph_ready:
+  primary_entity: {id: tool:deepspec, name: DeepSpec, type: tool}
+  topics: [speculative_decoding, inference_optimization, draft_models, distributed_training]
+  relations:
+    - {subject: tool:deepspec, predicate: trains, object: artifact:speculative_draft_model}
+    - {subject: tool:deepspec, predicate: supports, object: method:dspark}
+    - {subject: tool:deepspec, predicate: supports, object: method:dflash}
+    - {subject: tool:deepspec, predicate: supports, object: method:eagle3}

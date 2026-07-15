@@ -1,0 +1,87 @@
+schema_version: 1
+candidate_id: agentic-webgpu-kernels
+evaluation_status: ready_for_human_review
+
+ingestion:
+  social_source: https://x.com/googlegemma/status/2072416614188974274
+  capture_method: logged_in_visible_playwright
+  bundled_self_posts: 2
+  other_authors_excluded: true
+  selected_artifact:
+    type: hosted_demo_and_source
+    canonical_url: https://huggingface.co/spaces/webml-community/gemma-4-webgpu-kernels
+    source_url: https://huggingface.co/spaces/webml-community/gemma-4-webgpu-kernels/tree/main
+    selection_note: >-
+      The automatic capture did not retain the quoted original post's link. The official
+      webml-community Space maintained by Xenova was recovered as the primary artifact.
+  retained_binary_artifacts: []
+
+knowledge:
+  artifact:
+    title: Gemma 4 E2B WebGPU Kernels
+    kind: open_source_demo
+    maintainer: Xenova / webml-community
+    maturity: experimental
+
+  concise_idea: >-
+    Use an agent to generate, benchmark, and iteratively optimize custom WGSL compute kernels
+    so a quantized Gemma 4 E2B model can run fully in-browser through WebGPU at high decode speed.
+
+  method:
+    - Generate WebGPU compute shaders for model operations in WGSL.
+    - Benchmark candidates on an Apple M4 Max and refine them with an evolutionary, genetic-style search.
+    - Load the QAT Mobile model in the browser, cache its weights locally, and execute inference on-device.
+
+  capabilities:
+    - Browser-local text generation without sending prompts to a remote inference server.
+    - Inspectable kernel source exposed by the demo.
+    - A practical example of agent-assisted low-level inference optimization.
+
+  requirements:
+    - A browser and device with working WebGPU support.
+    - Sufficient local memory and storage for Gemma 4 E2B weights.
+    - Hardware-specific benchmarking before using the kernels in production.
+
+  evidence:
+    - claim: The official demo reports about 250 tokens per second on an Apple M4 Max.
+      scope: Gemma 4 E2B QAT Mobile; demo-reported result, not an independent benchmark.
+      source: https://huggingface.co/spaces/webml-community/gemma-4-webgpu-kernels/blob/main/index.html
+    - claim: The demo identifies the model as 2.3B effective parameters with a 128K context window and fully on-device execution.
+      scope: Properties presented by the hosted demo.
+      source: https://huggingface.co/spaces/webml-community/gemma-4-webgpu-kernels/blob/main/index.html
+
+  limitations:
+    - The showcased throughput is hardware-specific and the artifact labels the M4 Max tuning experimental.
+    - The artifact does not provide a full independent benchmark protocol, variance, latency breakdown, or broad hardware matrix.
+    - Kernel correctness, model quality, memory use, prompt length, and sustained throughput still require separate validation.
+    - Results for one model and device should not be generalized to other WebGPU models or GPUs.
+
+  engineering_relevance:
+    applicability: >-
+      Useful when exploring private, low-latency browser inference or an agentic workflow for
+      optimizing repeatable GPU kernels against correctness and speed tests.
+    trial_plan:
+      - Reproduce the demo on target browsers and hardware.
+      - Compare optimized and baseline kernels with identical model, prompt, and decoding settings.
+      - Test numerical correctness, output parity, memory use, startup time, and tokens per second.
+    adoption_posture: experimental_candidate_benchmark_before_adoption
+
+source_reconciliation:
+  authoritative_source: https://huggingface.co/spaces/webml-community/gemma-4-webgpu-kernels
+  issues:
+    - social_statement: Gemma 4 reached 255 tokens per second on WebGPU with M4.
+      artifact_statement: The official demo displays approximately 250 tokens per second on M4 Max.
+      explanation: The figures appear to be rounded descriptions of the same first-party demo result; neither establishes performance on other hardware.
+      status: needs_review
+
+graph_ready:
+  primary_entity:
+    id: software:gemma-4-webgpu-kernels
+    name: Gemma 4 E2B WebGPU Kernels
+    type: software
+  topics: [inference_optimization, webgpu, on_device_ai, agentic_code_optimization]
+  relations:
+    - {subject: software:gemma-4-webgpu-kernels, predicate: accelerates, object: model:gemma-4-e2b-qat-mobile}
+    - {subject: software:gemma-4-webgpu-kernels, predicate: runs_on, object: platform:webgpu}
+    - {subject: technique:agentic-kernel-search, predicate: produces, object: artifact:wgsl-compute-kernels}
+    - {subject: software:gemma-4-webgpu-kernels, predicate: demonstrates, object: concept:browser-local-llm-inference}

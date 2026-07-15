@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "candidate_id": "latent-exploration-decoding",
+  "capture_method": "logged_in_visible_playwright",
+  "root_url": "https://x.com/VukRosic99/status/2075401621475918104",
+  "root_author_handle": "VukRosic99",
+  "root_post_id": "2075401621475918104",
+  "capture_policy": {
+    "self_replies_bundled": true,
+    "other_authors_excluded": true,
+    "media_downloaded": false,
+    "documents_downloaded": false,
+    "max_thread_span_hours": 48
+  },
+  "thread": {
+    "post_count": 1,
+    "raw_same_author_post_count": 1,
+    "posts": [
+      {
+        "post_id": "2075401621475918104",
+        "handle": "VukRosic99",
+        "status_url": "https://x.com/VukRosic99/status/2075401621475918104",
+        "posted_at": "2026-07-10T02:08:00.000Z",
+        "author_label": "Vuk Rosić 武克\n@VukRosic99",
+        "text": "RL post-training (GRPO) makes reasoning models more accurate but collapses exploration - temperature tuning stops improving pass@n. The interesting finding: only the final layer's distribution collapses. Intermediate layers stay high-entropy.\n\nLED (Latent Exploration Decoding, RUC + Unimore + Xiaomi) is a training-free decoding trick that taps that hidden diversity. It early-exits intermediate layers through the LM head, keeps only the final layer's top candidates, accumulates the layer distributions, and samples at the depth with the highest entropy. A confidence-gated two-branch rule keeps exploitation when the model is sure, and it only runs during the thinking phase.\n\nAcross 6 reasoning benchmarks and 5 reasoning LLMs (Qwen3, MiMo, DeepSeek-8B, QwQ-32B), LED lifts pass@1 by +0.61 and pass@16 by +1.03 points with under 1% longer generations - and makes raising temperature help again instead of hurt.\n\nMade a short visual breakdown - one diagram per trick. Swipe through. \n\n---\n\npaper - \nhttps://\narxiv.org/abs/2602.01698\nfull summary pdf - \nhttps://\ngist.github.com/vukrosic/d06a3\n1d5360c68618e0de7fac093bdd5\n…\n\n Every Sunday I run a hands-on live AI research with 1 on 1 help: \nhttps://\nskool.com/become-ai-rese\narcher-2669/about\n…",
+        "media": [
+          {
+            "url": "https://pbs.twimg.com/media/HMh8gX-aMAAmY2j?format=jpg&name=360x360",
+            "alt": "Image"
+          },
+          {
+            "url": "https://pbs.twimg.com/media/HMh8gX-bIAAsmzu?format=png&name=360x360",
+            "alt": "Image"
+          },
+          {
+            "url": "https://pbs.twimg.com/media/HMh8gX_boAAgu1q?format=png&name=360x360",
+            "alt": "Image"
+          },
+          {
+            "url": "https://pbs.twimg.com/media/HMh8gX-bAAAJjr_?format=png&name=360x360",
+            "alt": "Image"
+          }
+        ]
+      }
+    ],
+    "discarded_same_author_posts": []
+  },
+  "source_selection": {
+    "selected_source": {
+      "url": "https://arxiv.org/abs/2602.01698",
+      "artifact_type": "paper",
+      "found_in_post_id": "2075401621475918104",
+      "link_text": "https://\narxiv.org/abs/2602.01698"
+    },
+    "ranked_sources": [
+      {
+        "url": "https://arxiv.org/abs/2602.01698",
+        "artifact_type": "paper",
+        "found_in_post_id": "2075401621475918104",
+        "link_text": "https://\narxiv.org/abs/2602.01698"
+      },
+      {
+        "url": "https://gist.github.com/vukrosic/d06a31d5360c68618e0de7fac093bdd5",
+        "artifact_type": "repository",
+        "found_in_post_id": "2075401621475918104",
+        "link_text": "https://\ngist.github.com/vukrosic/d06a3\n1d5360c68618e0de7fac093bdd5\n…"
+      },
+      {
+        "url": "https://maintenance.skool.com/",
+        "artifact_type": "web_source",
+        "found_in_post_id": "2075401621475918104",
+        "link_text": "https://\nskool.com/become-ai-rese\narcher-2669/about\n…"
+      }
+    ],
+    "linked_social_sources": []
+  }
+}

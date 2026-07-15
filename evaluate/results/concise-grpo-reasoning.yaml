@@ -1,0 +1,91 @@
+schema_version: 1
+candidate_id: concise-grpo-reasoning
+evaluation_status: ready_for_human_review
+
+ingestion:
+  social_source: https://x.com/VukRosic99/status/2076489540085375479
+  capture_method: telegram_export_with_public_oembed_text
+  bundled_self_posts: 1
+  other_authors_excluded: null
+  selected_artifact:
+    type: paper
+    canonical_url: https://arxiv.org/abs/2602.19049
+    full_text_used: https://arxiv.org/pdf/2602.19049
+  retained_binary_artifacts: []
+  note: X replies were unavailable; the root post and canonical paper PDF were used. The social image was unnecessary.
+
+knowledge:
+  artifact:
+    title: "IAPO: Information-Aware Policy Optimization for Token-Efficient Reasoning"
+    short_name: IAPO
+    kind: peer_reviewed_research_paper_and_RL_post_training_method
+    version: arXiv:2602.19049v2
+    published_at: '2026-05-29'
+    authors: [Yinhan He, Yaochen Zhu, Mingjia Shi, Wendy Zheng, Lin Su, Xiaoqing Wang, Qi Guo, Jundong Li]
+    maturity: published_at_ICML_2026_with_code
+  concise_idea: >-
+    Replace GRPO's uniform per-completion advantage with token-wise advantages based on estimated
+    conditional mutual information with the final answer, while preserving an exploration term so
+    the model learns to remove low-utility reasoning without collapsing correctness.
+  problem_addressed: >-
+    RL-post-trained reasoning models can be accurate but unnecessarily verbose, while length- or
+    position-only rewards cannot distinguish essential reasoning tokens from redundant ones.
+  method:
+    - Combine sequence reward with token-level informativeness and exploration adjustments.
+    - Estimate each token's conditional mutual information with an early-exit answer-generation prompt.
+    - Reuse prefix KV caches and batch token positions in chunks to reduce MI-estimation overhead.
+    - Apply the resulting token-wise advantages in the GRPO objective.
+  capabilities:
+    - Trains reasoning models toward a better accuracy-per-token trade-off.
+    - Uses token semantics rather than only output length or token position.
+    - Supports 0.5B, 1.5B, and 7B Qwen2.5 models in the reported experiments.
+  requirements:
+    - White-box model training with per-token probabilities, KV-cache access, and GRPO infrastructure.
+    - A verifier or reward function for final-answer correctness.
+    - Additional forward computation and memory for conditional-MI estimation, even with the proposed accelerations.
+  evidence:
+    - claim: IAPO reduced reasoning length while maintaining strong reasoning performance.
+      result: The paper reports reductions up to 47%; on GSM8K with Qwen2.5-7B, Length@32 fell from 156.43 base tokens to 83.97 with IAPO while Pass@32 changed from 0.9851 to 0.9805.
+      context: Author-reported results using native model tokenizers.
+      source_location: Paper abstract and Table 1
+    - claim: The method generalized beyond one model size and mathematical dataset.
+      result: It was evaluated on three Qwen2.5 sizes, three math datasets, and an additional CommonsenseQA study, usually leading or placing second on accuracy-per-token metrics.
+      context: Includes extensive hyperparameter selection and author-run evaluations.
+      source_location: Paper Section 5 and Appendix C
+  limitations:
+    - Conditional-MI values are approximated rather than directly observed.
+    - Even optimized estimation adds significant training complexity, forward computation, and KV-cache memory.
+    - Most evidence is from small-to-mid-sized Qwen2.5 models and math reasoning benchmarks.
+    - Some configurations trade a small amount of Pass@k for large length reductions, so accuracy floors must be explicit.
+    - Reported checkpoints are selected using validation reward and evaluation R@32, which warrants independent reproduction.
+  engineering_relevance:
+    applicability: >-
+      Relevant to teams already doing GRPO-style post-training where reasoning-token cost matters enough
+      to justify a more expensive but semantically informed training objective.
+    not_a_fit_for: >-
+      Not a prompt-only or API-only optimization, and excessive for teams that cannot modify training internals
+      or whose model is already concise under required accuracy constraints.
+    adoption_posture: research_grade_training_method_reproduce_before_large_scale_adoption
+  evidence_quality:
+    support_type: peer_reviewed_paper_with_code_theory_ablations_and_multiscale_evaluation
+    independently_validated: false
+    confidence: medium
+  adoption_readiness:
+    implementation_available: true
+    license: null
+    compute_infrastructure:
+      training: {device: NVIDIA_H100, count: 4_for_0.5B_and_1.5B_or_8_for_7B, memory_per_device: 80GB}
+      inference: {device: NVIDIA_H100, count: 2, memory_per_device: 80GB}
+    minimum_validation: Reproduce accuracy, native-token length, wall-clock time, training overhead, and stability against GRPO and simpler length-aware baselines under a fixed compute budget.
+
+source_reconciliation:
+  authoritative_source: https://arxiv.org/abs/2602.19049
+  issues: []
+
+graph_ready:
+  primary_entity: {id: "method:iapo", name: Information-Aware Policy Optimization, type: method}
+  topics: [reinforcement_learning, reasoning, verbosity_control, token_efficiency]
+  relations:
+    - {subject: "method:iapo", predicate: extends, object: "method:grpo"}
+    - {subject: "method:iapo", predicate: uses, object: "signal:conditional_mutual_information"}
+    - {subject: "method:iapo", predicate: optimizes, object: "metric:accuracy_per_token"}
