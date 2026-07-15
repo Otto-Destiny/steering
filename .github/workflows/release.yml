@@ -51,13 +51,13 @@ jobs:
           output-file: steering.spdx.json
           upload-artifact: false
       - name: Upload distributions
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: python-distributions
           path: dist/*
           if-no-files-found: error
       - name: Upload SBOM
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-sbom
           path: steering.spdx.json
