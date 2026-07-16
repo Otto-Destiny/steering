@@ -71,23 +71,33 @@ optional signed-in browser capture.
 ```powershell
 git clone https://github.com/Otto-Destiny/steering.git
 cd steering
-uv sync --all-extras --dev
-uv run playwright install chromium
+uv sync
 ```
 
-Configure generation and embedding independently. Keys are read through a hidden prompt and stored in
-the operating-system credential store, never the JSON configuration or database.
+Choose Gemini or OpenAI and provide one API key. Copy `.env.example` to the ignored `.env.local`, then
+replace its example values:
 
 ```powershell
-uv run steering configure-provider --role generation --provider-id openai-compatible `
-  --base-url https://api.example.com/v1 --model your-generation-model
-
-uv run steering configure-provider --role embedding --provider-id openai-compatible `
-  --base-url https://api.example.com/v1 --model your-embedding-model --dimension 1536
+Copy-Item .env.example .env.local
 ```
 
-Leave the hidden key prompt blank for an OpenAI-compatible local endpoint that does not require
-authentication. Environment overrides are also supported; see [privacy and security](docs/privacy-security.md).
+```dotenv
+STEERING_PROVIDER=gemini
+STEERING_API_KEY=your-api-key
+```
+
+The reviewed provider preset configures both generation and 768-dimensional embeddings. A generation
+model override is optional. If you prefer the operating-system credential store, use the hidden CLI
+prompt instead:
+
+```powershell
+uv run steering configure --provider gemini
+# Or: uv run steering configure --provider openai
+```
+
+`--model` can override the generation model. Role-specific providers, endpoints, models, and dimensions
+remain available through `configure-provider` and environment overrides for advanced use. Secrets are
+never written to the JSON configuration or Ladybug database.
 
 Start the one localhost daemon:
 
@@ -104,9 +114,30 @@ uv run steering import-telegram path/to/result.json
 uv run steering doctor
 ```
 
-Knowledge construction requires a configured generation model. Until an embedding provider is set,
-STEERING uses a deterministic local lexical embedding fallback so the application and exact/BM25
-retrieval remain usable.
+Knowledge construction requires a configured generation model, and semantic retrieval requires a configured
+embedding provider. A missing provider produces an actionable setup error instead of silently degrading retrieval.
+
+### Optional local embeddings
+
+API embeddings are the default. To keep generation on Gemini or OpenAI while embedding locally, install
+the optional FastEmbed/ONNX dependency and explicitly download the approximately 130 MB model:
+
+```powershell
+uv sync --extra local-embeddings
+uv run steering local-embeddings status
+uv run steering local-embeddings install --accept-download --activate
+```
+
+STEERING verifies the pinned `nomic-ai/nomic-embed-text-v1.5-Q` model revision and checksum before using
+its 768-dimensional embeddings. It never downloads the model at startup. When using `.env.local`, add
+`STEERING_EMBEDDING_PROVIDER=local-fastembed`; `--activate` is sufficient for CLI/keyring configuration.
+
+For signed-in browser capture only:
+
+```powershell
+uv sync --extra browser
+uv run playwright install chromium
+```
 
 ## Connect an AI coding agent
 

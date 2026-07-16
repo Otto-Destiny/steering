@@ -27,6 +27,8 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .hypothesis/
+.test_runtime/
+.uv-cache/
 .tox/
 .nox/
 .coverage
@@ -47,6 +49,8 @@ pip-wheel-metadata/
 *.lbug
 *.lbug.wal
 *.lbug.lock
+*.backup/
+*.pre-v2-backup/
 browser-profile/
 playwright-report/
 test-results/
