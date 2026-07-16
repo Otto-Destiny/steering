@@ -41,8 +41,7 @@ shared tricks, and upgrades on X, LinkedIn, GitHub, and arXiv. STEERING continuo
 evolving research into structured engineering intelligence connected through a knowledge graph.
 Every new discovery becomes connected, searchable, and architecture-ready, so your coding agents
 always design with current knowledge. Query it from Claude Code, Codex, or any MCP-compatible agent.
-Build with today's best ideas, not yesterday's. STEERING is the missing intelligence layer for AI
-engineering today.
+Build with today's best ideas, not yesterday's. STEERING is the missing intelligence layer for AI agents engineering today.
 
 > [!NOTE]
 > **STEERING is currently at `0.1.0` alpha.** The complete local workflow is implemented; resolver and
