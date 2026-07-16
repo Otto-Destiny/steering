@@ -4,8 +4,8 @@ import math
 
 import pytest
 from pydantic import BaseModel
+from tests.support.providers import FakeGenerationProvider, HashEmbeddingProvider
 
-from steering.providers.fake import FakeGenerationProvider, HashEmbeddingProvider
 from steering.providers.unconfigured import (
     GenerationProviderNotConfigured,
     UnconfiguredGenerationProvider,

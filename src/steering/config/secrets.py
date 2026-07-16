@@ -91,6 +91,11 @@ class KeyringSecretStore:
         self._service_name = service_name
 
     def _environment_secret(self, provider_id: str) -> str | None:
+        selected = self._environ.get("STEERING_PROVIDER", "").strip().lower()
+        if selected == provider_id.strip().lower():
+            simple_value = self._environ.get("STEERING_API_KEY")
+            if simple_value:
+                return simple_value
         value = self._environ.get(provider_secret_env_name(provider_id))
         return value or None
 

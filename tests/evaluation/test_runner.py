@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+from tests.support.providers import DeterministicBlake2EmbeddingProvider
 
 from steering.evaluation.corpus import EvaluationCorpusLoader
 from steering.evaluation.runner import _architecture_citations
@@ -21,6 +22,7 @@ async def test_architecture_scenarios_retain_exact_claim_evidence() -> None:
         corpus.records,
         cases,
         evaluation_factory,
+        DeterministicBlake2EmbeddingProvider(dimension=768),
         scenario_limit=2,
     )
 

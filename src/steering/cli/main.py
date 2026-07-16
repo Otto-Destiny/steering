@@ -8,6 +8,7 @@ import getpass
 import importlib
 import inspect
 import json
+import shutil
 import sys
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
@@ -25,13 +26,23 @@ from steering.config.secrets import (
 )
 from steering.config.store import ConfigStore
 from steering.domain.models import ProviderConfig
+from steering.providers.fastembed_local import (
+    LOCAL_PROVIDER_ID,
+    install_local_model,
+    local_model_cache,
+    local_model_status,
+)
+from steering.providers.gemini import (
+    GeminiClient,
+    GeminiEmbeddingProvider,
+    GeminiGenerationProvider,
+)
 from steering.providers.openai_compatible import (
     OpenAICompatibleClient,
     OpenAICompatibleEmbeddingProvider,
     OpenAICompatibleGenerationProvider,
 )
-
-ConnectivityTest = Callable[[str, ProviderConfig, str], Awaitable[None]]
+from steering.providers.presets import PROVIDER_PRESETS, provider_preset
 
 
 class CliError(RuntimeError):
@@ -63,11 +74,36 @@ def _print_json(value: object, output: TextIO) -> None:
     print(json.dumps(_json_safe(value), indent=2, ensure_ascii=False, default=_json_safe), file=output)
 
 
-async def _test_provider_connection(role: str, config: ProviderConfig, secret: str) -> None:
-    client = OpenAICompatibleClient(
-        base_url=str(config.base_url),
-        api_key=SecretStr(secret),
-    )
+async def _test_provider_connection(
+    provider_id: str,
+    role: str,
+    config: ProviderConfig,
+    secret: str,
+) -> None:
+    if provider_id == "gemini":
+        if not secret:
+            raise ValueError("Gemini requires an API key")
+        gemini_client = GeminiClient(
+            base_url=str(config.base_url),
+            api_key=SecretStr(secret),
+        )
+        try:
+            if role == "generation":
+                await GeminiGenerationProvider(
+                    client=gemini_client,
+                    model_id=config.generation_model or "",
+                ).test_connection()
+            else:
+                await GeminiEmbeddingProvider(
+                    client=gemini_client,
+                    model_id=config.embedding_model or "",
+                    dimension=config.embedding_dimension,
+                ).test_connection()
+        finally:
+            await gemini_client.close()
+        return
+
+    client = OpenAICompatibleClient(base_url=str(config.base_url), api_key=SecretStr(secret))
     try:
         if role == "generation":
             generation_provider = OpenAICompatibleGenerationProvider(
@@ -80,6 +116,7 @@ async def _test_provider_connection(role: str, config: ProviderConfig, secret: s
                 client=client,
                 model_id=config.embedding_model or "",
                 dimension=config.embedding_dimension,
+                provider_id=provider_id,
             )
             await embedding_provider.test_connection()
     finally:
@@ -123,7 +160,7 @@ async def _configure_provider(args: argparse.Namespace, context: _CliContext) ->
         api_key_fingerprint=existing.api_key_fingerprint if existing is not None else None,
     )
     try:
-        await _test_provider_connection(args.role, provider, secret)
+        await _test_provider_connection(args.provider_id, args.role, provider, secret)
     except Exception:
         raise CliError(
             "Provider connection test failed; verify the endpoint, model, and credential."
@@ -144,6 +181,64 @@ async def _configure_provider(args: argparse.Namespace, context: _CliContext) ->
         f"Configured {args.role} provider '{args.provider_id}' ({credential}).",
         file=context.stdout,
     )
+
+
+async def _configure(args: argparse.Namespace, context: _CliContext) -> None:
+    preset = provider_preset(args.provider)
+    secret = context.read_secret("API key (hidden): ")
+    if not secret:
+        raise CliError("API key is required.")
+    provider = preset.configuration(generation_model=args.model)
+    try:
+        await _test_provider_connection(preset.provider_id, "generation", provider, secret)
+        await _test_provider_connection(preset.provider_id, "embedding", provider, secret)
+    except Exception:
+        raise CliError(
+            "Provider validation failed; verify the API key, model availability, and rate limit."
+        ) from None
+
+    config = context.config_store.load(apply_env=False)
+    fingerprint = context.secret_store.set_for_role("generation", preset.provider_id, secret)
+    context.secret_store.set_for_role("embedding", preset.provider_id, secret)
+    config.providers[preset.provider_id] = provider
+    config.generation_provider = preset.provider_id
+    config.embedding_provider = preset.provider_id
+    context.config_store.save(config)
+    print(
+        f"Configured {preset.provider_id} for generation and embeddings "
+        f"({_masked_fingerprint(preset.provider_id, fingerprint)}).",
+        file=context.stdout,
+    )
+
+
+async def _local_embeddings(args: argparse.Namespace, context: _CliContext) -> None:
+    status = local_model_status()
+    if args.action == "status":
+        _print_json(status, context.stdout)
+        return
+    if args.action == "install":
+        _print_json(status, context.stdout)
+        if not args.accept_download:
+            raise CliError(
+                "Review the model details above, then rerun with --accept-download to download it."
+            )
+        installed = await asyncio.to_thread(install_local_model)
+        if args.activate:
+            config = context.config_store.load(apply_env=False)
+            config.embedding_provider = LOCAL_PROVIDER_ID
+            context.config_store.save(config)
+        _print_json(installed, context.stdout)
+        return
+    if not args.confirm_remove:
+        raise CliError("Rerun with --confirm-remove to remove the local model cache.")
+    cache = local_model_cache().resolve(strict=False)
+    if cache.exists():
+        shutil.rmtree(cache)
+    config = context.config_store.load(apply_env=False)
+    if config.embedding_provider == LOCAL_PROVIDER_ID:
+        config.embedding_provider = None
+        context.config_store.save(config)
+    _print_json(local_model_status(), context.stdout)
 
 
 def _runtime_module() -> Any:
@@ -317,12 +412,22 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="steering", description="Local AI-engineering recall")
     commands = parser.add_subparsers(dest="command", required=True)
 
+    simple = commands.add_parser("configure", help="configure a tested Gemini or OpenAI preset")
+    simple.add_argument("--provider", choices=tuple(sorted(PROVIDER_PRESETS)), required=True)
+    simple.add_argument("--model", help="optional generation-model override")
+
     configure = commands.add_parser("configure-provider", help="configure and test an AI provider")
     configure.add_argument("--role", choices=("generation", "embedding"), required=True)
     configure.add_argument("--provider-id", default="openai-compatible")
     configure.add_argument("--base-url", required=True)
     configure.add_argument("--model", required=True)
-    configure.add_argument("--dimension", type=int, default=256)
+    configure.add_argument("--dimension", type=int, default=768)
+
+    local = commands.add_parser("local-embeddings", help="manage the optional local ONNX model")
+    local.add_argument("action", choices=("status", "install", "remove"))
+    local.add_argument("--accept-download", action="store_true")
+    local.add_argument("--activate", action="store_true")
+    local.add_argument("--confirm-remove", action="store_true")
 
     add = commands.add_parser("add", help="ingest one URL or a newline-delimited batch")
     source = add.add_mutually_exclusive_group(required=True)
@@ -342,7 +447,7 @@ def build_parser() -> argparse.ArgumentParser:
     restore = commands.add_parser("restore", help="restore a backup without overwriting a database")
     restore.add_argument("backup", type=Path)
     restore.add_argument("--target", type=Path)
-    commands.add_parser("reindex", help="rebuild retrieval indexes")
+    commands.add_parser("reindex", help="back up, re-embed, and rebuild retrieval indexes")
 
     agent = commands.add_parser("agent-config", help="print MCP configuration for a coding agent")
     agent.add_argument("agent", choices=("codex", "claude"))
@@ -351,7 +456,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 async def _dispatch(args: argparse.Namespace, context: _CliContext) -> None:
     handlers: dict[str, Callable[[argparse.Namespace, _CliContext], Awaitable[None]]] = {
+        "configure": _configure,
         "configure-provider": _configure_provider,
+        "local-embeddings": _local_embeddings,
         "add": _add,
         "import-telegram": _import_telegram,
         "jobs": _jobs,

@@ -8,7 +8,7 @@
   <form class="panel form-stack" action="/settings/providers" method="post" hx-post="/settings/providers" hx-target="#provider-result">
     <div class="form-row"><label>Provider ID <input name="provider_id" required pattern="[A-Za-z0-9][A-Za-z0-9_.-]{0,63}" placeholder="openai"></label><label>Role <select name="role"><option value="both">Generation and embedding</option><option value="generation">Generation</option><option value="embedding">Embedding</option></select></label></div>
     <label>Base URL <input type="url" name="base_url" required placeholder="https://api.example.com/v1"></label>
-    <div class="form-row"><label>Generation model <input name="generation_model"></label><label>Embedding model <input name="embedding_model"></label><label>Embedding dimension <input type="number" name="embedding_dimension" value="256" min="8" max="65536"></label></div>
+    <div class="form-row"><label>Generation model <input name="generation_model"></label><label>Embedding model <input name="embedding_model"></label><label>Embedding dimension <input type="number" name="embedding_dimension" value="768" min="8" max="65536"></label></div>
     <div class="form-row">
       <label>Generation API key <input type="password" name="generation_api_key" autocomplete="new-password" placeholder="Leave blank to keep its saved key"></label>
       <label>Embedding API key <input type="password" name="embedding_api_key" autocomplete="new-password" placeholder="Leave blank to keep its saved key"></label>

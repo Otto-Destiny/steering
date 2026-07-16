@@ -511,7 +511,7 @@ class WebController:
             base_url=_string(form, "base_url"),
             generation_model=_string(form, "generation_model") or None,
             embedding_model=_string(form, "embedding_model") or None,
-            embedding_dimension=_string(form, "embedding_dimension", "256"),
+            embedding_dimension=_string(form, "embedding_dimension", "768"),
             generation_api_key=generation_api_key or None,
             embedding_api_key=embedding_api_key or None,
         )
@@ -704,9 +704,8 @@ class WebController:
         return JSONResponse({"backup": str(destination)})
 
     async def api_maintenance_reindex(self, request: Request) -> Response:
-        self.engine.retriever.mark_dirty()
-        await self.engine.retriever.refresh()
-        return JSONResponse({"reindexed": True})
+        count, backup = await self.engine.retriever.reembed_all()
+        return JSONResponse({"reindexed": True, "reembedded_chunks": count, "verified_backup": backup})
 
 
 def create_web_app(

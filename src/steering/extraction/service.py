@@ -563,17 +563,25 @@ class ExtractionService:
             for ordinal, text in enumerate(_chunk_text(snapshot.text, max_chars=2000)):
                 raw.append(text)
                 metadata.append((snapshot, ordinal))
-        embeddings = await self.embedding.embed(raw) if raw else []
+        embeddings = await self.embedding.embed_documents(raw) if raw else []
         for text, embedding, (snapshot, ordinal) in zip(raw, embeddings, metadata, strict=True):
+            source_hash = content_hash(text)
             chunks.append(
                 Chunk(
-                    id=stable_id("chunk", f"{snapshot.id}:{ordinal}:{content_hash(text)}"),
+                    id=stable_id("chunk", f"{snapshot.id}:{ordinal}:{source_hash}"),
                     artifact_id=artifact_id,
                     snapshot_id=snapshot.id,
                     ordinal=ordinal,
                     text=text,
                     locator=f"source:{snapshot.source_url}#part-{ordinal + 1}",
                     embedding=embedding,
+                    embedding_provider=self.embedding.provider_id,
+                    embedding_model=self.embedding.model_id,
+                    embedding_revision=self.embedding.model_revision,
+                    embedding_dimension=self.embedding.dimension,
+                    embedding_task_mode=self.embedding.document_task_mode,
+                    embedding_normalized=self.embedding.normalized,
+                    source_content_hash=source_hash,
                 )
             )
         return chunks

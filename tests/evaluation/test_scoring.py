@@ -44,6 +44,8 @@ def test_recall_diversity_and_canonical_recall(corpus) -> None:
     score = score_rankings([case], {case.id: ["behavioral-state-decay", "lmcache"]}, corpus)
     item = score.cases[0]
     assert item.recall_at_k == 0.5
+    assert item.reciprocal_rank == 1.0
+    assert score.mean_reciprocal_rank == 1.0
     assert item.canonical_recall_at_k == 1.0
     assert item.relevant_hit_families == ("behavioral_state_memory",)
     assert not item.minimum_hits_satisfied

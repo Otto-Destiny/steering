@@ -15,7 +15,6 @@ from typing import Any, Protocol, cast
 from steering.domain.models import ArtifactRecord, SearchQuery
 from steering.domain.protocols import ArtifactRepository, EmbeddingProvider, KnowledgeRetriever
 from steering.evaluation.corpus import EvaluationCorpus, EvaluationCorpusLoader
-from steering.evaluation.embedding import DeterministicBlake2EmbeddingProvider
 from steering.evaluation.scoring import (
     EvaluationCase,
     FactCitation,
@@ -24,6 +23,7 @@ from steering.evaluation.scoring import (
     load_evaluation_cases,
     score_rankings,
 )
+from steering.extraction.service import content_hash
 from steering.intelligence.service import SteeringEngine
 from steering.retrieval.hybrid import HybridRetriever
 
@@ -46,6 +46,53 @@ class _RetrievalRun:
 class _ArchitectureCitationRun:
     scenario_count: int
     facts: tuple[FactCitation, ...]
+
+
+async def _embed_records(
+    records: Sequence[ArtifactRecord], embedding_provider: EmbeddingProvider
+) -> tuple[ArtifactRecord, ...]:
+    """Embed the reviewed corpus with the provider being evaluated."""
+
+    chunks = [
+        chunk
+        for record in records
+        for chunk in record.chunks
+        if not (
+            chunk.embedding
+            and len(chunk.embedding) == embedding_provider.dimension
+            and chunk.embedding_provider == embedding_provider.provider_id
+            and chunk.embedding_model == embedding_provider.model_id
+            and chunk.embedding_revision == embedding_provider.model_revision
+            and chunk.embedding_dimension == embedding_provider.dimension
+            and chunk.embedding_task_mode == embedding_provider.document_task_mode
+            and chunk.embedding_normalized == embedding_provider.normalized
+            and chunk.source_content_hash == content_hash(chunk.text)
+        )
+    ]
+    if not chunks:
+        return tuple(records)
+    vectors = await embedding_provider.embed_documents([chunk.text for chunk in chunks])
+    if len(vectors) != len(chunks):
+        raise ValueError("embedding provider returned an incomplete evaluation batch")
+    embedded = {
+        chunk.id: chunk.model_copy(
+            update={
+                "embedding": vector,
+                "embedding_provider": embedding_provider.provider_id,
+                "embedding_model": embedding_provider.model_id,
+                "embedding_revision": embedding_provider.model_revision,
+                "embedding_dimension": embedding_provider.dimension,
+                "embedding_task_mode": embedding_provider.document_task_mode,
+                "embedding_normalized": embedding_provider.normalized,
+                "source_content_hash": content_hash(chunk.text),
+            }
+        )
+        for chunk, vector in zip(chunks, vectors, strict=True)
+    }
+    return tuple(
+        record.model_copy(update={"chunks": [embedded.get(chunk.id, chunk) for chunk in record.chunks]})
+        for record in records
+    )
 
 
 def _load_factory(spec: str) -> EvaluationFactory:
@@ -83,10 +130,10 @@ async def _retrieve(
     records: Sequence[ArtifactRecord],
     cases: Sequence[EvaluationCase],
     factory: EvaluationFactory,
+    embedding_provider: EmbeddingProvider,
 ) -> _RetrievalRun:
-    provider = DeterministicBlake2EmbeddingProvider()
-    repository, retriever = factory(embedding_provider=provider)
-    for record in records:
+    repository, retriever = factory(embedding_provider=embedding_provider)
+    for record in await _embed_records(records, embedding_provider):
         repository.upsert_record(record)
     rankings: dict[str, tuple[str, ...]] = {}
     family_counts: dict[str, int] = {}
@@ -116,12 +163,12 @@ async def _architecture_citations(
     records: Sequence[ArtifactRecord],
     cases: Sequence[EvaluationCase],
     factory: EvaluationFactory,
+    embedding_provider: EmbeddingProvider,
     *,
     scenario_limit: int = 20,
 ) -> _ArchitectureCitationRun:
-    provider = DeterministicBlake2EmbeddingProvider()
-    repository, candidate = factory(embedding_provider=provider)
-    for record in records:
+    repository, candidate = factory(embedding_provider=embedding_provider)
+    for record in await _embed_records(records, embedding_provider):
         repository.upsert_record(record)
     retriever = cast(HybridRetriever, candidate)
     engine = SteeringEngine(repository=repository, retriever=retriever)
@@ -159,11 +206,21 @@ async def _architecture_citations(
 
 
 async def run_evaluation(
-    *, corpus: EvaluationCorpus, cases: Sequence[EvaluationCase], factory: EvaluationFactory
+    *,
+    corpus: EvaluationCorpus,
+    cases: Sequence[EvaluationCase],
+    factory: EvaluationFactory,
+    embedding_provider: EmbeddingProvider,
 ) -> dict[str, Any]:
-    baseline = await _retrieve(corpus.records, cases, factory)
-    counterfactual = await _retrieve(_counterfactual_records(corpus), cases, factory)
-    architecture = await _architecture_citations(corpus.records, cases, factory)
+    embedded_records = await _embed_records(corpus.records, embedding_provider)
+    baseline = await _retrieve(embedded_records, cases, factory, embedding_provider)
+    counterfactual = await _retrieve(
+        _counterfactual_records(EvaluationCorpus(records=embedded_records)),
+        cases,
+        factory,
+        embedding_provider,
+    )
+    architecture = await _architecture_citations(embedded_records, cases, factory, embedding_provider)
     retrieval = score_rankings(cases, baseline.rankings, corpus)
     recency = {
         case.id: asdict(
@@ -213,13 +270,26 @@ def main(argv: Sequence[str] | None = None) -> int:
         categories_path=args.categories,
         strategy_families_path=args.families,
     ).load()
-    report = asyncio.run(
-        run_evaluation(
-            corpus=corpus,
-            cases=load_evaluation_cases(args.prompts),
-            factory=_load_factory(args.factory),
-        )
-    )
+
+    async def execute() -> dict[str, Any]:
+        from steering.runtime import create_runtime
+
+        runtime = create_runtime()
+        try:
+            return await run_evaluation(
+                corpus=corpus,
+                cases=load_evaluation_cases(args.prompts),
+                factory=_load_factory(args.factory),
+                embedding_provider=runtime.embedding,
+            )
+        finally:
+            await runtime.aclose()
+
+    report = asyncio.run(execute())
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, indent=2), encoding="utf-8")
     return 0
+
+
+if __name__ == "__main__":  # pragma: no cover - exercised through the packaged command path
+    raise SystemExit(main())

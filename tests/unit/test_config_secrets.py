@@ -52,6 +52,19 @@ def test_role_specific_secrets_stay_separate_for_one_provider() -> None:
     assert secrets.get_for_role("embedding", "shared-provider") == "embedding-environment-key"
 
 
+def test_simple_provider_key_is_available_to_both_roles_only_for_selected_provider() -> None:
+    secrets = KeyringSecretStore(
+        MemorySecretBackend(),
+        environ={
+            "STEERING_PROVIDER": "gemini",
+            "STEERING_API_KEY": "simple-key",
+        },
+    )
+    assert secrets.get_for_role("generation", "gemini") == "simple-key"
+    assert secrets.get_for_role("embedding", "gemini") == "simple-key"
+    assert secrets.get_for_role("generation", "openai") is None
+
+
 def test_secret_canary_never_reaches_config_database_or_backup(tmp_path: Path) -> None:
     canary = "STEERING_SECRET_CANARY_7e36f089"
     backend = MemorySecretBackend()

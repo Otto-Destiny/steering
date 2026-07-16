@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import tempfile
 from collections.abc import Mapping
 from pathlib import Path
@@ -11,8 +12,31 @@ from platformdirs import user_config_path
 
 from steering.config.models import AppConfig
 from steering.domain.credentials import reject_high_confidence_credentials
+from steering.providers.presets import provider_preset
 
 FORBIDDEN_SECRET_KEYS = frozenset({"api_key", "apikey", "secret", "password", "token", "authorization"})
+_ENV_FILE_LIMIT = 64 * 1024
+_RECOGNIZED_ENV = frozenset(
+    {
+        "STEERING_PROVIDER",
+        "STEERING_API_KEY",
+        "STEERING_MODEL",
+        "STEERING_DATABASE_PATH",
+        "STEERING_HOST",
+        "STEERING_PORT",
+        "STEERING_LOG_LEVEL",
+        "STEERING_GENERATION_PROVIDER",
+        "STEERING_GENERATION_BASE_URL",
+        "STEERING_GENERATION_MODEL",
+        "STEERING_GENERATION_API_KEY",
+        "STEERING_EMBEDDING_PROVIDER",
+        "STEERING_EMBEDDING_BASE_URL",
+        "STEERING_EMBEDDING_MODEL",
+        "STEERING_EMBEDDING_DIMENSION",
+        "STEERING_EMBEDDING_API_KEY",
+    }
+)
+_PROVIDER_SECRET_ENV = re.compile(r"^STEERING_[A-Z0-9_]+_API_KEY$")
 
 
 def default_config_path() -> Path:
@@ -59,6 +83,20 @@ def _set_provider_override(
         providers[provider_id] = provider
 
 
+def _apply_simple_provider(data: dict[str, Any], environ: Mapping[str, str]) -> None:
+    selected = environ.get("STEERING_PROVIDER")
+    if selected is None:
+        if "STEERING_MODEL" in environ:
+            raise ValueError("STEERING_MODEL requires STEERING_PROVIDER")
+        return
+    preset = provider_preset(selected)
+    provider = preset.configuration(generation_model=environ.get("STEERING_MODEL"))
+    providers = data.setdefault("providers", {})
+    providers[preset.provider_id] = provider.model_dump(mode="json")
+    data["generation_provider"] = preset.provider_id
+    data["embedding_provider"] = preset.provider_id
+
+
 def apply_environment_overrides(
     config: AppConfig,
     environ: Mapping[str, str] | None = None,
@@ -70,24 +108,73 @@ def apply_environment_overrides(
         ("STEERING_HOST", "host", str),
         ("STEERING_PORT", "port", int),
         ("STEERING_LOG_LEVEL", "log_level", str),
-        ("STEERING_GENERATION_CONTEXT_WINDOW_TOKENS", "generation_context_window_tokens", int),
-        (
-            "STEERING_GENERATION_RESERVED_OUTPUT_TOKENS",
-            "generation_reserved_output_tokens",
-            int,
-        ),
     )
     for env_name, field_name, converter in scalar_overrides:
         if env_name in env:
             data[field_name] = converter(env[env_name])
+    _apply_simple_provider(data, env)
     _set_provider_override(data, env, "generation")
     _set_provider_override(data, env, "embedding")
     return AppConfig.model_validate(data)
 
 
+def _recognized_environment_name(name: str) -> bool:
+    return name in _RECOGNIZED_ENV or _PROVIDER_SECRET_ENV.fullmatch(name) is not None
+
+
+def load_local_environment(path: Path) -> dict[str, str]:
+    """Read a small, non-interpolating `.env.local` without exposing values."""
+
+    if not path.is_file():
+        return {}
+    if path.stat().st_size > _ENV_FILE_LIMIT:
+        raise ValueError(".env.local exceeds the 64 KiB safety limit")
+    loaded: dict[str, str] = {}
+    for line_number, raw_line in enumerate(path.read_text(encoding="utf-8-sig").splitlines(), start=1):
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[7:].lstrip()
+        if "=" not in line:
+            raise ValueError(f"invalid .env.local assignment on line {line_number}")
+        name, value = line.split("=", 1)
+        name = name.strip()
+        if not _recognized_environment_name(name):
+            continue
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+            value = value[1:-1]
+        loaded[name] = value
+    return loaded
+
+
 class ConfigStore:
-    def __init__(self, path: str | Path | None = None) -> None:
+    def __init__(
+        self,
+        path: str | Path | None = None,
+        *,
+        env_file: str | Path | None = None,
+    ) -> None:
         self.path = Path(path) if path is not None else default_config_path()
+        self.env_file = (
+            Path(env_file) if env_file is not None else Path.cwd() / ".env.local" if path is None else None
+        )
+
+    def environment(self, environ: Mapping[str, str] | None = None) -> dict[str, str]:
+        if environ is not None:
+            return dict(environ)
+        resolved = load_local_environment(self.env_file) if self.env_file is not None else {}
+        process_provider = os.environ.get("STEERING_PROVIDER")
+        local_provider = resolved.get("STEERING_PROVIDER")
+        if process_provider and local_provider and process_provider.lower() != local_provider.lower():
+            if "STEERING_API_KEY" not in os.environ:
+                resolved.pop("STEERING_API_KEY", None)
+            if "STEERING_MODEL" not in os.environ:
+                resolved.pop("STEERING_MODEL", None)
+        # The real process environment deliberately has the final say.
+        resolved.update(os.environ)
+        return resolved
 
     def load(
         self,
@@ -99,7 +186,7 @@ class ConfigStore:
             config = AppConfig.model_validate_json(self.path.read_text(encoding="utf-8"))
         else:
             config = AppConfig()
-        return apply_environment_overrides(config, environ) if apply_env else config
+        return apply_environment_overrides(config, self.environment(environ)) if apply_env else config
 
     def save(self, config: AppConfig) -> Path:
         payload = config.model_dump(mode="json")

@@ -5,8 +5,22 @@ from types import TracebackType
 
 import ladybug as lb
 
-from steering.database.migrations import apply_migrations
+from steering.database.backup import create_backup, verify_backup
+from steering.database.migrations import apply_migrations, current_revision
 from steering.database.repository import LadybugArtifactRepository
+
+
+def _prepare_revision_two_backup(connection: lb.Connection, database_path: Path) -> None:
+    result = connection.execute("CALL SHOW_TABLES() RETURN name")
+    if isinstance(result, list):
+        raise RuntimeError("table query unexpectedly returned multiple result sets")
+    tables = {str(row.get("name") if isinstance(row, dict) else row[0]) for row in result.get_all()}
+    if "SchemaMigrations" not in tables or current_revision(connection) != 1:
+        return
+    backup_path = Path(f"{database_path}.pre-v2-backup")
+    if not backup_path.exists():
+        create_backup(connection, backup_path)
+    verify_backup(backup_path)
 
 
 class DatabaseRuntime:
@@ -20,6 +34,7 @@ class DatabaseRuntime:
         try:
             connection = lb.Connection(self.database)
             self.connection = connection
+            _prepare_revision_two_backup(self.connection, self.path)
             apply_migrations(self.connection)
             self.repository = LadybugArtifactRepository(self.connection, self.path)
         except BaseException:

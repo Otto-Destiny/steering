@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from steering.config import AppConfig, ConfigStore, apply_environment_overrides
+from steering.config import AppConfig, ConfigStore, apply_environment_overrides, load_local_environment
 from steering.domain.models import ProviderConfig
 
 
@@ -68,3 +68,47 @@ def test_provider_base_url_rejects_userinfo_without_echoing_it() -> None:
     rendered = str(raised.value)
     assert "provider base URL must not contain user information" in rendered
     assert "URL_SECRET_CANARY" not in rendered
+
+
+def test_simple_gemini_environment_applies_reviewed_preset() -> None:
+    resolved = apply_environment_overrides(
+        AppConfig(),
+        {
+            "STEERING_PROVIDER": "gemini",
+            "STEERING_API_KEY": "not-serialized",
+        },
+    )
+    assert resolved.generation_provider == resolved.embedding_provider == "gemini"
+    provider = resolved.providers["gemini"]
+    assert provider.generation_model == "gemini-3.5-flash"
+    assert provider.embedding_model == "gemini-embedding-2"
+    assert provider.embedding_dimension == 768
+    assert "not-serialized" not in resolved.model_dump_json()
+
+
+def test_local_environment_is_allowlisted_and_process_environment_wins(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    local = tmp_path / ".env.local"
+    local.write_text(
+        "# local settings\n"
+        "STEERING_PROVIDER=gemini\n"
+        "STEERING_API_KEY='local-secret'\n"
+        "UNRELATED_SECRET=ignored\n",
+        encoding="utf-8",
+    )
+    assert load_local_environment(local) == {
+        "STEERING_PROVIDER": "gemini",
+        "STEERING_API_KEY": "local-secret",
+    }
+    monkeypatch.setattr(
+        "steering.config.store.os.environ",
+        {"STEERING_PROVIDER": "openai", "STEERING_API_KEY": "process-secret"},
+    )
+    store = ConfigStore(tmp_path / "config.json", env_file=local)
+    environment = store.environment()
+    assert environment["STEERING_PROVIDER"] == "openai"
+    assert environment["STEERING_API_KEY"] == "process-secret"
+    resolved = store.load()
+    assert resolved.generation_provider == resolved.embedding_provider == "openai"
+    assert resolved.providers["openai"].embedding_dimension == 768

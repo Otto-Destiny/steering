@@ -188,6 +188,23 @@ class Chunk(StrictModel):
     text: str
     locator: str
     embedding: list[float] = Field(default_factory=list)
+    embedding_provider: str | None = None
+    embedding_model: str | None = None
+    embedding_revision: str | None = None
+    embedding_dimension: int | None = Field(default=None, ge=1)
+    embedding_task_mode: str | None = None
+    embedding_normalized: bool | None = None
+    source_content_hash: str | None = None
+
+    @model_validator(mode="after")
+    def embedding_dimension_matches_vector(self) -> Chunk:
+        if (
+            self.embedding
+            and self.embedding_dimension is not None
+            and len(self.embedding) != self.embedding_dimension
+        ):
+            raise ValueError("embedding dimension does not match the stored vector")
+        return self
 
 
 class Claim(StrictModel):
@@ -428,7 +445,7 @@ class ProviderConfig(StrictModel):
     base_url: HttpUrl
     generation_model: str | None = None
     embedding_model: str | None = None
-    embedding_dimension: int = Field(default=256, ge=8, le=65536)
+    embedding_dimension: int = Field(default=768, ge=8, le=65536)
     api_key_fingerprint: str | None = None
 
     @field_validator("base_url", mode="before")

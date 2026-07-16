@@ -47,8 +47,8 @@ async def test_cli_provider_connection_uses_role_specific_provider_and_closes_cl
         embedding_model="embedding-model",
         embedding_dimension=32,
     )
-    await cli._test_provider_connection("generation", generation, "secret")
-    await cli._test_provider_connection("embedding", embedding, "secret")
+    await cli._test_provider_connection("compatible", "generation", generation, "secret")
+    await cli._test_provider_connection("compatible", "embedding", embedding, "secret")
     assert events == [
         "client",
         "generation",

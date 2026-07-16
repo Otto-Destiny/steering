@@ -3,12 +3,14 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from tests.support.providers import FakeGenerationProvider, HashEmbeddingProvider
 
 from steering.database import DatabaseRuntime
 from steering.domain.models import (
     Artifact,
     ArtifactRecord,
     ArtifactType,
+    Chunk,
     Claim,
     EvidenceCategory,
     EvidenceSpan,
@@ -20,7 +22,6 @@ from steering.domain.models import (
     TrustLane,
 )
 from steering.intelligence.service import SteeringEngine, decompose_architecture
-from steering.providers.fake import FakeGenerationProvider, HashEmbeddingProvider
 from steering.retrieval.hybrid import HybridRetriever
 
 
@@ -34,6 +35,15 @@ def _record(
     limitations: list[str] | None = None,
     requirements: list[str] | None = None,
 ) -> ArtifactRecord:
+    chunk_text = "\n".join(
+        [
+            title,
+            summary,
+            *capabilities,
+            *(limitations or []),
+            *(requirements or []),
+        ]
+    )
     return ArtifactRecord(
         artifact=Artifact(
             id=identifier,
@@ -51,7 +61,17 @@ def _record(
             requirements=requirements or [],
             use_cases=["agent architecture"],
             content_hash=identifier,
-        )
+        ),
+        chunks=[
+            Chunk(
+                id=f"chunk-{identifier}",
+                artifact_id=identifier,
+                snapshot_id=f"snapshot-{identifier}",
+                ordinal=0,
+                text=chunk_text,
+                locator="fixture summary",
+            )
+        ],
     )
 
 
@@ -95,7 +115,7 @@ def _seed(database: DatabaseRuntime) -> None:
 def _engine(database: DatabaseRuntime, generation: FakeGenerationProvider | None = None) -> SteeringEngine:
     retriever = HybridRetriever(
         repository=database.repository,
-        embedding_provider=HashEmbeddingProvider(dimension=64),
+        embedding_provider=HashEmbeddingProvider(dimension=768),
     )
     return SteeringEngine(
         repository=database.repository,

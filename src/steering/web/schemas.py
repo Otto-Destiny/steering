@@ -50,7 +50,7 @@ class ProviderInput(WebInput):
     base_url: str = Field(min_length=1, max_length=2_000)
     generation_model: str | None = Field(default=None, max_length=500)
     embedding_model: str | None = Field(default=None, max_length=500)
-    embedding_dimension: int = Field(default=256, ge=8, le=65_536)
+    embedding_dimension: int = Field(default=768, ge=8, le=65_536)
     generation_api_key: SecretStr | None = None
     embedding_api_key: SecretStr | None = None
 

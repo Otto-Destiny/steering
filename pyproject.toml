@@ -38,6 +38,7 @@ dependencies = [
 
 [project.optional-dependencies]
 browser = ["playwright>=1.52,<2"]
+local-embeddings = ["fastembed>=0.7,<1"]
 
 [dependency-groups]
 dev = [
@@ -90,11 +91,12 @@ packages = ["steering"]
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = ["ladybug", "keyring.*", "pypdf.*", "mcp.*", "playwright.*"]
+module = ["ladybug", "keyring.*", "pypdf.*", "mcp.*", "playwright.*", "fastembed.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 addopts = "-ra --strict-config --strict-markers"
+pythonpath = ["."]
 testpaths = ["tests"]
 markers = [
   "integration: tests using a disposable embedded database",

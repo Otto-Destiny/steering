@@ -1,8 +1,7 @@
 import math
 
 import pytest
-
-from steering.evaluation.embedding import DeterministicBlake2EmbeddingProvider
+from tests.support.providers import DeterministicBlake2EmbeddingProvider
 
 
 @pytest.mark.asyncio

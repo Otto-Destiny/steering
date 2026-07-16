@@ -1,6 +1,14 @@
 """Generation and embedding providers."""
 
-from steering.providers.fake import FakeGenerationProvider, HashEmbeddingProvider
+from steering.providers.fastembed_local import (
+    FastEmbedEmbeddingProvider,
+    LocalEmbeddingUnavailable,
+)
+from steering.providers.gemini import (
+    GeminiClient,
+    GeminiEmbeddingProvider,
+    GeminiGenerationProvider,
+)
 from steering.providers.openai_compatible import (
     OpenAICompatibleClient,
     OpenAICompatibleEmbeddingProvider,
@@ -9,18 +17,25 @@ from steering.providers.openai_compatible import (
 )
 from steering.providers.registry import Registry
 from steering.providers.unconfigured import (
+    EmbeddingProviderNotConfigured,
     GenerationProviderNotConfigured,
+    UnconfiguredEmbeddingProvider,
     UnconfiguredGenerationProvider,
 )
 
 __all__ = [
-    "FakeGenerationProvider",
+    "EmbeddingProviderNotConfigured",
+    "FastEmbedEmbeddingProvider",
+    "GeminiClient",
+    "GeminiEmbeddingProvider",
+    "GeminiGenerationProvider",
     "GenerationProviderNotConfigured",
-    "HashEmbeddingProvider",
+    "LocalEmbeddingUnavailable",
     "OpenAICompatibleClient",
     "OpenAICompatibleEmbeddingProvider",
     "OpenAICompatibleGenerationProvider",
     "ProviderConnectionError",
     "Registry",
+    "UnconfiguredEmbeddingProvider",
     "UnconfiguredGenerationProvider",
 ]

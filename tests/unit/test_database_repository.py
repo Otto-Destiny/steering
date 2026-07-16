@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from steering.database import (
     SCHEMA_REVISION,
@@ -159,6 +159,32 @@ def test_aggregate_round_trip_url_dedup_and_immutable_evidence(tmp_path: Path) -
         changed_span.evidence_spans[0].quote = "Different"
         with pytest.raises(ImmutableRecordError, match="span_one"):
             repository.upsert_record(changed_span)
+
+
+@pytest.mark.integration
+def test_metadata_update_skips_unchanged_member_writes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    with DatabaseRuntime(tmp_path / "unchanged-members.lbug") as runtime:
+        repository = runtime.repository
+        original = repository.upsert_record(make_record())
+        saved_member_ids: list[str] = []
+        save_model = repository._save_model
+
+        def record_save(model: BaseModel) -> None:
+            saved_member_ids.append(str(model.model_dump()["id"]))
+            save_model(model)
+
+        monkeypatch.setattr(repository, "_save_model", record_save)
+        metadata_update = original.model_copy(deep=True)
+        metadata_update.artifact.summary = "Updated artifact metadata only."
+        repository.upsert_record(metadata_update)
+        assert saved_member_ids == []
+
+        changed_member = metadata_update.model_copy(deep=True)
+        changed_member.claims[0].confidence = 0.8
+        repository.upsert_record(changed_member)
+        assert saved_member_ids == ["claim_one"]
 
 
 @pytest.mark.integration

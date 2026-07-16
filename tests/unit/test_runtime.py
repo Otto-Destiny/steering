@@ -3,15 +3,17 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from tests.support.providers import DeterministicBlake2EmbeddingProvider
 
 from steering.config import AppConfig, ConfigStore, KeyringSecretStore, MemorySecretBackend
 from steering.database import DatabaseRuntime
 from steering.domain.models import ProviderConfig
-from steering.evaluation.embedding import DeterministicBlake2EmbeddingProvider
 from steering.providers import (
-    HashEmbeddingProvider,
+    GeminiEmbeddingProvider,
+    GeminiGenerationProvider,
     OpenAICompatibleEmbeddingProvider,
     OpenAICompatibleGenerationProvider,
+    UnconfiguredEmbeddingProvider,
     UnconfiguredGenerationProvider,
 )
 from steering.runtime import (
@@ -34,7 +36,7 @@ async def test_runtime_owns_one_database_and_starts_without_api_keys(tmp_path: P
 
     assert report["status"] == "setup_required"
     assert report["generation_key_fingerprint"] is None
-    assert report["embedding_provider"] == "local_hash_fallback"
+    assert report["embedding_provider"] == "unconfigured"
     assert await runtime.reindex() == 0
 
     await runtime.close()
@@ -172,7 +174,7 @@ async def test_runtime_legacy_secret_fallbacks_and_missing_provider_client(tmp_p
         secret_store=LegacySecretStore(),  # type: ignore[arg-type]
     )
     assert isinstance(runtime.generation, UnconfiguredGenerationProvider)
-    assert isinstance(runtime.embedding, HashEmbeddingProvider)
+    assert isinstance(runtime.embedding, UnconfiguredEmbeddingProvider)
     assert runtime._role_secret("generation", "provider") == "secret-for-provider"
     runtime.config.providers["provider"] = ProviderConfig(
         base_url="https://provider.test/v1", generation_model="model"
@@ -218,8 +220,28 @@ def test_create_runtime_uses_default_collaborators(tmp_path: Path, monkeypatch: 
     store.save(AppConfig(database_path=str(tmp_path / "default.lbug")))
     secrets = KeyringSecretStore(backend=MemorySecretBackend(), environ={})
     monkeypatch.setattr("steering.runtime.ConfigStore", lambda: store)
-    monkeypatch.setattr("steering.runtime.KeyringSecretStore", lambda: secrets)
+    monkeypatch.setattr("steering.runtime.KeyringSecretStore", lambda **_kwargs: secrets)
     runtime = create_runtime()
     assert runtime.config_store is store
     assert runtime.secret_store is secrets
     runtime.database.close()
+
+
+@pytest.mark.asyncio
+async def test_runtime_wires_simple_env_file_to_real_gemini_providers(tmp_path: Path) -> None:
+    env_file = tmp_path / ".env.local"
+    env_file.write_text(
+        "STEERING_PROVIDER=gemini\nSTEERING_API_KEY=test-only-key\n",
+        encoding="utf-8",
+    )
+    store = ConfigStore(tmp_path / "config.json", env_file=env_file)
+    config = AppConfig(database_path=str(tmp_path / "gemini.lbug"))
+    store.save(config)
+    runtime = create_runtime(config_store=store)
+    assert isinstance(runtime.generation, GeminiGenerationProvider)
+    assert isinstance(runtime.embedding, GeminiEmbeddingProvider)
+    assert runtime.embedding.dimension == 768
+    assert runtime.embedding.document_task_mode == "retrieval_document"
+    assert runtime.embedding.query_task_mode == "retrieval_query"
+    assert runtime.doctor()["status"] == "ready"
+    await runtime.aclose()

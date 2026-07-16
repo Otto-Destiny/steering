@@ -25,12 +25,17 @@ from steering.ingestion.security import SafeFetcher
 from steering.ingestion.service import IngestionService
 from steering.intelligence.service import SteeringEngine
 from steering.providers import (
-    HashEmbeddingProvider,
+    FastEmbedEmbeddingProvider,
+    GeminiClient,
+    GeminiEmbeddingProvider,
+    GeminiGenerationProvider,
     OpenAICompatibleClient,
     OpenAICompatibleEmbeddingProvider,
     OpenAICompatibleGenerationProvider,
+    UnconfiguredEmbeddingProvider,
     UnconfiguredGenerationProvider,
 )
+from steering.providers.fastembed_local import LOCAL_PROVIDER_ID
 from steering.retrieval.hybrid import HybridRetriever
 
 _EVALUATION_RUNTIMES: list[DatabaseRuntime] = []
@@ -51,7 +56,7 @@ class SteeringRuntime:
         self.secret_store = secret_store
         self.database = DatabaseRuntime(config.database_file)
         self.repository = self.database.repository
-        self._provider_clients: list[OpenAICompatibleClient] = []
+        self._provider_clients: list[OpenAICompatibleClient | GeminiClient] = []
         self._http_client = httpx.AsyncClient(
             timeout=httpx.Timeout(30.0),
             headers={"User-Agent": f"STEERING/{__version__}"},
@@ -68,8 +73,10 @@ class SteeringRuntime:
                 generation=self.generation,
                 embedding=self.embedding,
                 cache=default_cache(cache_root / "extraction"),
-                context_window_tokens=config.generation_context_window_tokens,
-                reserved_output_tokens=config.generation_reserved_output_tokens,
+            )
+            self.retriever = HybridRetriever(
+                repository=self.repository,
+                embedding_provider=self.embedding,
             )
             image_provider = (
                 cast(ImageUnderstandingProvider, self.generation)
@@ -82,10 +89,7 @@ class SteeringRuntime:
                 repository=self.repository,
                 media_fetcher=self.fetcher,
                 image_provider=image_provider,
-            )
-            self.retriever = HybridRetriever(
-                repository=self.repository,
-                embedding_provider=self.embedding,
+                on_record_changed=self.retriever.mark_dirty,
             )
             configured_generation = self.generation if config.generation_provider is not None else None
             self.engine = SteeringEngine(
@@ -119,6 +123,20 @@ class SteeringRuntime:
         self._provider_clients.append(client)
         return client
 
+    def _gemini_client(self, role: str, provider_id: str) -> GeminiClient:
+        provider = self.config.providers.get(provider_id)
+        if provider is None:
+            raise ValueError(f"{role} provider '{provider_id}' has no configuration")
+        secret = self._role_secret(role, provider_id)
+        if not secret:
+            raise ValueError(f"{role} provider '{provider_id}' needs an API key")
+        client = GeminiClient(
+            base_url=str(provider.base_url),
+            api_key=SecretStr(secret),
+        )
+        self._provider_clients.append(client)
+        return client
+
     def _generation_provider(self) -> GenerationProvider:
         provider_id = self.config.generation_provider
         if provider_id is None:
@@ -126,6 +144,11 @@ class SteeringRuntime:
         provider = self.config.providers.get(provider_id)
         if provider is None or not provider.generation_model:
             raise ValueError(f"generation provider '{provider_id}' needs a generation model")
+        if provider_id == "gemini":
+            return GeminiGenerationProvider(
+                client=self._gemini_client("generation", provider_id),
+                model_id=provider.generation_model,
+            )
         return OpenAICompatibleGenerationProvider(
             client=self._provider_client("generation", provider_id),
             model_id=provider.generation_model,
@@ -134,33 +157,41 @@ class SteeringRuntime:
     def _embedding_provider(self) -> EmbeddingProvider:
         provider_id = self.config.embedding_provider
         if provider_id is None:
-            return HashEmbeddingProvider()
+            return UnconfiguredEmbeddingProvider()
+        if provider_id == LOCAL_PROVIDER_ID:
+            return FastEmbedEmbeddingProvider()
         provider = self.config.providers.get(provider_id)
         if provider is None or not provider.embedding_model:
             raise ValueError(f"embedding provider '{provider_id}' needs an embedding model")
+        if provider_id == "gemini":
+            return GeminiEmbeddingProvider(
+                client=self._gemini_client("embedding", provider_id),
+                model_id=provider.embedding_model,
+                dimension=provider.embedding_dimension,
+            )
         return OpenAICompatibleEmbeddingProvider(
             client=self._provider_client("embedding", provider_id),
             model_id=provider.embedding_model,
             dimension=provider.embedding_dimension,
+            provider_id=provider_id,
         )
 
     async def reindex(self) -> int:
-        self.retriever.mark_dirty()
-        await self.retriever.refresh()
-        return len(self.repository.list_records())
+        count, _backup = await self.retriever.reembed_all()
+        return count
 
     def doctor(self) -> Mapping[str, Any]:
         generation_id = self.config.generation_provider
         embedding_id = self.config.embedding_provider
         return {
-            "status": "ready" if generation_id else "setup_required",
+            "status": "ready" if generation_id and embedding_id else "setup_required",
             "version": __version__,
             "schema_revision": SCHEMA_REVISION,
             "database_path": str(self.config.database_file),
             "artifact_count": len(self.repository.list_records()),
             "unresolved_issue_count": len(self.repository.list_issues(unresolved_only=True)),
             "generation_provider": generation_id,
-            "embedding_provider": embedding_id or "local_hash_fallback",
+            "embedding_provider": embedding_id or "unconfigured",
             "generation_key_fingerprint": self._masked_fingerprint("generation", generation_id),
             "embedding_key_fingerprint": self._masked_fingerprint("embedding", embedding_id),
             "browser_extra_available": _browser_extra_available(),
@@ -213,8 +244,9 @@ def create_runtime(
     config: AppConfig | None = None,
 ) -> SteeringRuntime:
     store = config_store or ConfigStore()
-    resolved_config = config or store.load()
-    resolved_secrets = secret_store or KeyringSecretStore()
+    environment = store.environment()
+    resolved_config = config or store.load(environ=environment)
+    resolved_secrets = secret_store or KeyringSecretStore(environ=environment)
     return SteeringRuntime(
         config=resolved_config,
         config_store=store,

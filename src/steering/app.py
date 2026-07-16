@@ -15,6 +15,9 @@ from steering.domain.models import ProviderConfig
 from steering.domain.protocols import ImageUnderstandingProvider
 from steering.mcp import create_mcp_server
 from steering.providers import (
+    GeminiClient,
+    GeminiEmbeddingProvider,
+    GeminiGenerationProvider,
     OpenAICompatibleClient,
     OpenAICompatibleEmbeddingProvider,
     OpenAICompatibleGenerationProvider,
@@ -29,7 +32,30 @@ async def _test_provider(
     config: ProviderConfig,
     api_key: str | None,
 ) -> None:
-    del provider_id
+    if provider_id == "gemini":
+        if not api_key:
+            raise ValueError("Gemini requires an API key")
+        gemini = GeminiClient(
+            base_url=str(config.base_url),
+            api_key=SecretStr(api_key),
+        )
+        try:
+            if role == "generation" and config.generation_model:
+                await GeminiGenerationProvider(
+                    client=gemini,
+                    model_id=config.generation_model,
+                ).test_connection()
+            elif role == "embedding" and config.embedding_model:
+                await GeminiEmbeddingProvider(
+                    client=gemini,
+                    model_id=config.embedding_model,
+                    dimension=config.embedding_dimension,
+                ).test_connection()
+            else:
+                raise ValueError(f"provider needs a configured {role} model")
+        finally:
+            await gemini.close()
+        return
     client = OpenAICompatibleClient(
         base_url=str(config.base_url),
         api_key=SecretStr(api_key) if api_key else None,
@@ -45,6 +71,7 @@ async def _test_provider(
                 client=client,
                 model_id=config.embedding_model,
                 dimension=config.embedding_dimension,
+                provider_id=provider_id,
             ).test_connection()
         else:
             raise ValueError(f"provider needs a configured {role} model")

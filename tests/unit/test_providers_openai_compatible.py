@@ -78,7 +78,7 @@ async def test_client_success_unexpected_shape_and_injected_lifecycle() -> None:
 async def test_client_errors_are_redacted(item: ResponseItem) -> None:
     transport = QueueTransport([item])
     async with httpx.AsyncClient(base_url="https://provider.test/v1/", transport=transport) as raw_client:
-        client = OpenAICompatibleClient(base_url="https://ignored.test", client=raw_client)
+        client = OpenAICompatibleClient(base_url="https://ignored.test", client=raw_client, max_attempts=1)
         with pytest.raises(ProviderConnectionError) as captured:
             await client.get_models()
     assert "canary-secret" not in str(captured.value)
@@ -114,23 +114,19 @@ async def test_generation_structured_success_and_content_blocks() -> None:
     assert sent["response_format"]["type"] == "json_schema"
 
 
-async def test_generation_falls_back_when_json_schema_mode_is_rejected() -> None:
-    transport = QueueTransport(
-        [response({"error": "unsupported"}, 400), response(generation_payload('{"value": 9}'))]
-    )
+async def test_generation_does_not_silently_degrade_when_schema_mode_is_rejected() -> None:
+    transport = QueueTransport([response({"error": "unsupported"}, 400)])
     async with httpx.AsyncClient(base_url="https://provider.test/v1/", transport=transport) as raw_client:
         provider = OpenAICompatibleGenerationProvider(
             client=OpenAICompatibleClient(base_url="https://ignored.test", client=raw_client),
             model_id="generation-model",
         )
-        answer = await provider.generate_structured(
-            system_prompt="system", user_prompt="user", response_model=Answer
-        )
-    assert answer.value == 9
-    first, second = map(request_json, transport.requests)
-    assert "response_format" in first
-    assert "response_format" not in second
-    assert "matching this schema" in second["messages"][0]["content"]
+        with pytest.raises(ProviderConnectionError):
+            await provider.generate_structured(
+                system_prompt="system", user_prompt="user", response_model=Answer
+            )
+    assert len(transport.requests) == 1
+    assert "response_format" in request_json(transport.requests[0])
 
 
 @pytest.mark.parametrize(
@@ -153,7 +149,7 @@ async def test_generation_rejects_invalid_response_shapes(payload: dict[str, obj
 async def test_generation_connection_and_image_extraction() -> None:
     transport = QueueTransport(
         [
-            response({"data": [{"id": "generation-model"}]}),
+            response(generation_payload('{"ok":true}')),
             response(generation_payload("technical diagram")),
             response(generation_payload([{"text": "first"}, {"text": "second"}])),
         ]
@@ -206,10 +202,15 @@ async def test_embedding_orders_rows_converts_values_and_checks_dimensions() -> 
             model_id="embedding-model",
             dimension=2,
         )
-        assert await provider.embed(["a", "b"]) == [[1.0, 2.0], [3.0, 4.0]]
+        assert await provider.embed(["a", "b"]) == [
+            pytest.approx([0.4472135955, 0.894427191]),
+            pytest.approx([0.6, 0.8]),
+        ]
         assert request_json(transport.requests[0]) == {
             "model": "embedding-model",
             "input": ["a", "b"],
+            "dimensions": 2,
+            "encoding_format": "float",
         }
         await provider.test_connection()
 
@@ -221,7 +222,7 @@ async def test_embedding_orders_rows_converts_values_and_checks_dimensions() -> 
         ({"data": "bad"}, "invalid shape"),
         ({"data": [{"index": "bad", "embedding": [1, 2]}]}, "invalid shape"),
         ({"data": [{"index": 0, "embedding": [1]}]}, "dimension"),
-        ({"data": []}, "dimension"),
+        ({"data": []}, "count"),
     ],
 )
 async def test_embedding_rejects_malformed_count_and_dimensions(
@@ -247,9 +248,9 @@ async def test_embedding_connection_rejects_empty_override(monkeypatch: pytest.M
             dimension=2,
         )
 
-        async def empty(_texts: list[str]) -> list[list[float]]:
-            return []
+        async def empty(_text: str) -> list[float]:
+            raise ProviderConnectionError("embedding provider returned no vectors")
 
-        monkeypatch.setattr(provider, "embed", empty)
+        monkeypatch.setattr(provider, "embed_query", empty)
         with pytest.raises(ProviderConnectionError, match="no vectors"):
             await provider.test_connection()

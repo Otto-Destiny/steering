@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from urllib.parse import urlsplit
 
 from steering.domain.credentials import sanitized_persistence_source
@@ -47,12 +47,20 @@ class IngestionService:
         repository: ArtifactRepository,
         media_fetcher: SafeFetcher | None = None,
         image_provider: ImageUnderstandingProvider | None = None,
+        on_record_changed: Callable[[], None] | None = None,
     ) -> None:
         self.registry = registry
         self.extraction = extraction
         self.repository = repository
         self.media_fetcher = media_fetcher
         self.image_provider = image_provider
+        self.on_record_changed = on_record_changed
+
+    def _store_record(self, record: ArtifactRecord) -> ArtifactRecord:
+        stored = self.repository.upsert_record(record)
+        if self.on_record_changed is not None:
+            self.on_record_changed()
+        return stored
 
     async def add(self, source: str) -> ArtifactRecord:
         job = IngestionJob(source=sanitized_persistence_source(source), status=JobStatus.RUNNING)
@@ -113,7 +121,7 @@ class IngestionService:
             primary_artifact_id = (
                 existing_primary.artifact.id
                 if existing_primary is not None
-                else self.repository.upsert_record(primary).artifact.id
+                else self._store_record(primary).artifact.id
             )
             record.relations.append(
                 Relation(
@@ -131,7 +139,7 @@ class IngestionService:
                     ),
                 )
             )
-        stored = self.repository.upsert_record(record)
+        stored = self._store_record(record)
         job.status = JobStatus.NEEDS_REVIEW if stored.issues else JobStatus.COMPLETED
         job.artifact_id = stored.artifact.id
         self.repository.save_job(job)

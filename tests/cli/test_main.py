@@ -146,7 +146,8 @@ def test_configure_provider_tests_before_saving_and_never_prints_secret(
     secret = "secret-canary-value"
     tested: list[str] = []
 
-    async def test_connection(role: str, provider: Any, supplied_secret: str) -> None:
+    async def test_connection(provider_id: str, role: str, provider: Any, supplied_secret: str) -> None:
+        assert provider_id == "provider-1"
         assert not store.path.exists()
         assert secrets.get_for_role(role, "provider-1") is None
         assert str(provider.base_url) == "https://api.example.com/v1"
@@ -234,6 +235,37 @@ def test_parser_has_no_secret_argument() -> None:
         )
 
 
+def test_simple_configure_applies_reviewed_preset_and_tests_both_roles(
+    monkeypatch: pytest.MonkeyPatch,
+    stores: tuple[ConfigStore, KeyringSecretStore],
+) -> None:
+    store, secrets = stores
+    calls: list[tuple[str, str]] = []
+
+    async def test_connection(provider_id: str, role: str, provider: Any, supplied_secret: str) -> None:
+        assert supplied_secret == "simple-secret"
+        assert provider.embedding_dimension == 768
+        calls.append((provider_id, role))
+
+    monkeypatch.setattr(cli, "_test_provider_connection", test_connection)
+    code, output, error = _invoke(
+        ["configure", "--provider", "gemini"],
+        store=store,
+        secrets=secrets,
+        read_secret=lambda _prompt: "simple-secret",
+    )
+    assert code == 0
+    assert error == ""
+    assert "simple-secret" not in output
+    assert calls == [("gemini", "generation"), ("gemini", "embedding")]
+    config = store.load(apply_env=False)
+    assert config.generation_provider == config.embedding_provider == "gemini"
+    assert config.providers["gemini"].generation_model == "gemini-3.5-flash"
+    assert config.providers["gemini"].embedding_model == "gemini-embedding-2"
+    assert secrets.get_for_role("generation", "gemini") == "simple-secret"
+    assert secrets.get_for_role("embedding", "gemini") == "simple-secret"
+
+
 def test_configure_provider_supports_local_endpoint_without_authentication(
     monkeypatch: pytest.MonkeyPatch,
     stores: tuple[ConfigStore, KeyringSecretStore],
@@ -241,8 +273,8 @@ def test_configure_provider_supports_local_endpoint_without_authentication(
     store, secrets = stores
     tested: list[str] = []
 
-    async def test_connection(role: str, provider: Any, supplied_secret: str) -> None:
-        del role, provider
+    async def test_connection(provider_id: str, role: str, provider: Any, supplied_secret: str) -> None:
+        del provider_id, role, provider
         tested.append(supplied_secret)
 
     monkeypatch.setattr(cli, "_test_provider_connection", test_connection)
@@ -276,8 +308,8 @@ def test_configure_shared_provider_preserves_both_role_models(
 ) -> None:
     store, secrets = stores
 
-    async def test_connection(role: str, provider: Any, supplied_secret: str) -> None:
-        del role, provider, supplied_secret
+    async def test_connection(provider_id: str, role: str, provider: Any, supplied_secret: str) -> None:
+        del provider_id, role, provider, supplied_secret
 
     monkeypatch.setattr(cli, "_test_provider_connection", test_connection)
     common = [

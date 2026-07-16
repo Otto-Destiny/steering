@@ -9,7 +9,12 @@ from typing import Any, cast
 
 import ladybug as lb
 
-from steering.database.migrations import SCHEMA_REVISION, apply_migrations, current_revision
+from steering.database.migrations import (
+    SCHEMA_REVISION,
+    apply_migrations,
+    current_revision,
+    rebuild_native_projections,
+)
 from steering.domain.credentials import reject_high_confidence_credentials
 
 BACKUP_FORMAT = 1
@@ -67,7 +72,7 @@ def _sha256_bytes(value: bytes) -> str:
 
 
 def create_backup(connection: lb.Connection, destination: str | Path) -> Path:
-    """Create a consistent logical backup containing only revision-1 database records."""
+    """Create a consistent logical backup of source-of-truth records."""
 
     target = Path(destination).expanduser().resolve(strict=False)
     if target.exists():
@@ -104,10 +109,29 @@ def create_backup(connection: lb.Connection, destination: str | Path) -> Path:
         (target / MANIFEST_NAME).write_text(
             json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
         )
+        verify_backup(target)
     except BaseException:
         shutil.rmtree(target, ignore_errors=True)
         raise
     return target
+
+
+def verify_backup(backup: str | Path) -> dict[str, Any]:
+    source = Path(backup).expanduser().resolve(strict=True)
+    manifest = json.loads((source / MANIFEST_NAME).read_text(encoding="utf-8"))
+    if manifest.get("backup_format") != BACKUP_FORMAT:
+        raise ValueError("unsupported backup format")
+    revision = int(manifest.get("schema_revision", -1))
+    if revision < 1 or revision > SCHEMA_REVISION:
+        raise ValueError("backup schema revision is unsupported")
+    serialized = (source / RECORDS_NAME).read_bytes()
+    if _sha256_bytes(serialized) != manifest.get("records_sha256"):
+        raise ValueError("backup records checksum does not match manifest")
+    records = json.loads(serialized)
+    if not isinstance(records, dict) or any(table not in records for table in BACKUP_TABLES):
+        raise ValueError("backup record set is incomplete")
+    reject_high_confidence_credentials(serialized.decode("utf-8"))
+    return cast(dict[str, Any], manifest)
 
 
 def restore_backup(backup: str | Path, database_path: str | Path) -> Path:
@@ -117,15 +141,8 @@ def restore_backup(backup: str | Path, database_path: str | Path) -> Path:
     target = Path(database_path).expanduser().resolve(strict=False)
     if target.exists():
         raise FileExistsError(f"restore target already exists: {target}")
-    manifest = json.loads((source / MANIFEST_NAME).read_text(encoding="utf-8"))
-    if manifest.get("backup_format") != BACKUP_FORMAT:
-        raise ValueError("unsupported backup format")
-    if int(manifest.get("schema_revision", -1)) > SCHEMA_REVISION:
-        raise ValueError("backup schema is newer than this application supports")
+    verify_backup(source)
     serialized = (source / RECORDS_NAME).read_bytes()
-    if _sha256_bytes(serialized) != manifest.get("records_sha256"):
-        raise ValueError("backup records checksum does not match manifest")
-    reject_high_confidence_credentials(serialized.decode("utf-8"))
     records = json.loads(serialized)
     target.parent.mkdir(parents=True, exist_ok=True)
     database = lb.Database(str(target))
@@ -144,6 +161,7 @@ def restore_backup(backup: str | Path, database_path: str | Path) -> Path:
                     query += f" SET {assignments}"
                 for row in records.get(table, []):
                     connection.execute(query, row)
+            rebuild_native_projections(connection)
             connection.execute("COMMIT")
         except BaseException:
             connection.execute("ROLLBACK")

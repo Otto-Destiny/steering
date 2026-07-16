@@ -102,11 +102,22 @@ class ScriptedGeneration:
 
 
 class FixtureEmbedding:
+    provider_id = "test"
     model_id = "fixture-embedding"
+    model_revision = "fixture-v1"
     dimension = 2
+    document_task_mode = "test-document"
+    query_task_mode = "test-query"
+    normalized = False
+
+    async def embed_documents(self, texts: Sequence[str]) -> list[list[float]]:
+        return [[float(len(text)), 1.0] for text in texts]
+
+    async def embed_query(self, text: str) -> list[float]:
+        return [float(len(text)), 1.0]
 
     async def embed(self, texts: Sequence[str]) -> list[list[float]]:
-        return [[float(len(text)), 1.0] for text in texts]
+        return await self.embed_documents(texts)
 
     async def test_connection(self) -> None:
         return None

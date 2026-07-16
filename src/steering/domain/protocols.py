@@ -44,9 +44,21 @@ class GenerationProvider(Protocol):
 
 
 class EmbeddingProvider(Protocol):
+    provider_id: str
     model_id: str
+    model_revision: str | None
     dimension: int
+    document_task_mode: str
+    query_task_mode: str
+    normalized: bool
 
+    async def embed_documents(self, texts: Sequence[str]) -> list[list[float]]: ...
+
+    async def embed_query(self, text: str) -> list[float]: ...
+
+    # Compatibility boundary for callers that have not yet distinguished
+    # indexed documents from retrieval queries. New retrieval code should use
+    # the explicit methods above.
     async def embed(self, texts: Sequence[str]) -> list[list[float]]: ...
 
     async def test_connection(self) -> None: ...

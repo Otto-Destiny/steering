@@ -28,6 +28,7 @@ class CaseScore:
     retrieved_candidate_ids: tuple[str, ...]
     relevant_hits: tuple[str, ...]
     recall_at_k: float
+    reciprocal_rank: float
     canonical_recall_at_k: float
     relevant_hit_families: tuple[str, ...]
     minimum_hits_satisfied: bool
@@ -39,6 +40,7 @@ class RetrievalScore:
     cases: tuple[CaseScore, ...]
     macro_recall_at_k: float
     micro_recall_at_k: float
+    mean_reciprocal_rank: float
     macro_canonical_recall_at_k: float
     minimum_hits_pass_rate: float
     family_diversity_pass_rate: float
@@ -135,6 +137,10 @@ def score_rankings(
         }
         canonical_recall = len(relevant_canonical & retrieved_canonical) / len(relevant_canonical)
         recall = len(hits) / len(relevant)
+        reciprocal_rank = next(
+            (1.0 / rank for rank, candidate_id in enumerate(retrieved, start=1) if candidate_id in relevant),
+            0.0,
+        )
         total_hits += len(hits)
         total_relevant += len(relevant)
         canonical_scores.append(canonical_recall)
@@ -144,6 +150,7 @@ def score_rankings(
                 retrieved_candidate_ids=retrieved,
                 relevant_hits=hits,
                 recall_at_k=recall,
+                reciprocal_rank=reciprocal_rank,
                 canonical_recall_at_k=canonical_recall,
                 relevant_hit_families=families,
                 minimum_hits_satisfied=len(hits) >= case.minimum_relevant_hits,
@@ -155,6 +162,7 @@ def score_rankings(
         cases=tuple(scored),
         macro_recall_at_k=sum(item.recall_at_k for item in scored) / denominator,
         micro_recall_at_k=total_hits / (total_relevant or 1),
+        mean_reciprocal_rank=sum(item.reciprocal_rank for item in scored) / denominator,
         macro_canonical_recall_at_k=sum(canonical_scores) / denominator,
         minimum_hits_pass_rate=sum(item.minimum_hits_satisfied for item in scored) / denominator,
         family_diversity_pass_rate=(sum(item.family_diversity_satisfied for item in scored) / denominator),

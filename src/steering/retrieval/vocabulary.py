@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 ENGINEERING_CONCEPTS: dict[str, set[str]] = {
     "agent_memory": {
         "memory",
@@ -15,7 +17,17 @@ ENGINEERING_CONCEPTS: dict[str, set[str]] = {
         "rolling summaries",
         "forgets why",
     },
-    "memory_governance": {"approval", "provenance", "audit", "rollback", "diff", "isolation"},
+    "memory_governance": {
+        "approval",
+        "approve",
+        "durable changes",
+        "shared state",
+        "provenance",
+        "audit",
+        "rollback",
+        "diff",
+        "isolation",
+    },
     "retrieval": {"rag", "retrieval", "index", "vector", "search", "embedding"},
     "visual_retrieval": {"visual", "screenshot", "layout", "diagram", "table", "pixel", "scanned"},
     "document_ai": {"ocr", "document", "pdf", "page", "scan", "parsing"},
@@ -35,7 +47,16 @@ ENGINEERING_CONCEPTS: dict[str, set[str]] = {
     "reasoning_exploration": {"exploration", "grpo", "rollout", "zero reward", "reasoning path"},
     "reasoning_efficiency": {"verbosity", "loop", "repetitive", "overthinking", "shorter reasoning"},
     "test_time_compute": {"test-time", "parallel compute", "self consistency", "voting", "deliberation"},
-    "pretraining_efficiency": {"pretraining", "4-bit", "low precision", "training budget", "data selection"},
+    "pretraining_efficiency": {
+        "pretraining",
+        "4-bit",
+        "low precision",
+        "numerical precision",
+        "training budget",
+        "data selection",
+        "data sampling",
+        "optimizer-aware",
+    },
     "fine_tuning": {
         "fine-tuning",
         "finetuning",
@@ -109,7 +130,10 @@ CONCEPT_STRATEGY_FAMILIES: dict[str, set[str]] = {
     "reasoning_exploration": {"reasoning_exploration"},
     "reasoning_efficiency": {"reasoning_efficiency"},
     "test_time_compute": {"latent_test_time_compute", "test_time_compute"},
-    "pretraining_efficiency": {"pretraining_efficiency"},
+    "pretraining_efficiency": {
+        "optimizer_aware_data_selection",
+        "numerical_precision_training",
+    },
     "fine_tuning": {"activation_routing", "skill_recombination"},
     "agent_training": {"agent_training"},
     "agent_skills": {
@@ -127,11 +151,24 @@ CONCEPT_STRATEGY_FAMILIES: dict[str, set[str]] = {
         "visual_sparse_retrieval",
         "graph_guided_retrieval",
         "memory_lifecycle",
+        "versioned_memory",
         "behavioral_state_memory",
         "kv_cache_reuse",
         "harness_engineering",
     },
 }
+
+NEGATION_TERMS = frozenset({"avoid", "exclude", "instead", "not", "without"})
+
+
+def _requested_phrase(text: str, phrase: str) -> bool:
+    """Ignore a concept mention when every occurrence is locally negated."""
+
+    for match in re.finditer(re.escape(phrase), text):
+        prefix_words = re.findall(r"[a-z0-9]+", text[max(0, match.start() - 64) : match.start()])
+        if not NEGATION_TERMS.intersection(prefix_words[-8:]):
+            return True
+    return False
 
 
 def expand_query(query: str) -> tuple[str, set[str]]:
@@ -139,7 +176,7 @@ def expand_query(query: str) -> tuple[str, set[str]]:
     matched: set[str] = set()
     expansions: list[str] = []
     for concept, phrases in ENGINEERING_CONCEPTS.items():
-        if any(phrase in lowered for phrase in phrases):
+        if any(_requested_phrase(lowered, phrase) for phrase in phrases):
             matched.add(concept)
             expansions.extend(sorted(phrases))
             expansions.append(concept.replace("_", " "))

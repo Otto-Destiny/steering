@@ -1,16 +1,25 @@
 from __future__ import annotations
 
 from collections.abc import Iterator, Mapping, Sequence
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from datetime import UTC, datetime
 from pathlib import Path
 from threading import RLock
+from time import time_ns
 from typing import Any, TypeVar, cast
 
 import ladybug as lb
 from pydantic import BaseModel
 
 from steering.database.backup import create_backup
+from steering.database.native import (
+    EMBEDDING_DIMENSION,
+    FTS_STATE_NAME,
+    INDEX_IDENTIFIER,
+    VECTOR_STATE_NAME,
+    NativeCandidate,
+    artifact_search_terms,
+)
 from steering.domain.credentials import reject_high_confidence_credentials
 from steering.domain.models import (
     Artifact,
@@ -30,6 +39,7 @@ from steering.domain.models import (
     ReviewIssue,
     ReviewRun,
     ReviewStatus,
+    SearchQuery,
     Snapshot,
     new_id,
     utc_now,
@@ -43,6 +53,10 @@ class ImmutableRecordError(ValueError):
 
 
 class CanonicalMappingError(ValueError):
+    pass
+
+
+class SearchIndexError(RuntimeError):
     pass
 
 
@@ -86,6 +100,21 @@ def _record_id(model: BaseModel) -> str:
     if not isinstance(record_id, str):
         raise ValueError("persisted models must have a string id")
     return record_id
+
+
+def _aggregate_members(
+    record: ArtifactRecord,
+) -> tuple[tuple[str, Sequence[BaseModel]], ...]:
+    return (
+        ("snapshot", record.snapshots),
+        ("chunk", record.chunks),
+        ("claim", record.claims),
+        ("evidence_span", record.evidence_spans),
+        ("relation", record.relations),
+        ("issue", record.issues),
+        ("entity", record.entities),
+        ("concept", record.concepts),
+    )
 
 
 class LadybugArtifactRepository:
@@ -189,10 +218,22 @@ class LadybugArtifactRepository:
                 },
             )
         elif isinstance(model, Chunk):
+            embedding = model.embedding or None
+            if embedding is not None and len(embedding) != EMBEDDING_DIMENSION:
+                raise ValueError(
+                    f"chunk {model.id} embedding has {len(embedding)} dimensions; "
+                    f"expected {EMBEDDING_DIMENSION}"
+                )
             self._connection.execute(
                 """MERGE (n:Chunks {id: $id})
                 SET n.artifact_id = $artifact_id, n.snapshot_id = $snapshot_id,
-                    n.ordinal = $ordinal, n.text = $text, n.locator = $locator, n.payload = $payload""",
+                    n.ordinal = $ordinal, n.text = $text, n.locator = $locator,
+                    n.embedding = $embedding, n.embedding_provider = $embedding_provider,
+                    n.embedding_model = $embedding_model, n.embedding_revision = $embedding_revision,
+                    n.embedding_dimension = $embedding_dimension,
+                    n.embedding_task_mode = $embedding_task_mode,
+                    n.embedding_normalized = $embedding_normalized,
+                    n.source_content_hash = $source_content_hash, n.payload = $payload""",
                 {
                     "id": model.id,
                     "artifact_id": model.artifact_id,
@@ -200,28 +241,45 @@ class LadybugArtifactRepository:
                     "ordinal": model.ordinal,
                     "text": model.text,
                     "locator": model.locator,
+                    "embedding": embedding,
+                    "embedding_provider": getattr(model, "embedding_provider", None),
+                    "embedding_model": getattr(model, "embedding_model", None),
+                    "embedding_revision": getattr(model, "embedding_revision", None),
+                    "embedding_dimension": (EMBEDDING_DIMENSION if embedding is not None else None),
+                    "embedding_task_mode": getattr(model, "embedding_task_mode", None),
+                    "embedding_normalized": getattr(model, "embedding_normalized", None),
+                    "source_content_hash": getattr(model, "source_content_hash", None),
                     "payload": payload,
                 },
             )
         elif isinstance(model, Claim):
             self._connection.execute(
                 """MERGE (n:Claims {id: $id})
-                SET n.artifact_id = $artifact_id, n.category = $category, n.payload = $payload""",
+                SET n.artifact_id = $artifact_id, n.category = $category,
+                    n.text = $text, n.confidence = $confidence, n.payload = $payload""",
                 {
                     "id": model.id,
                     "artifact_id": model.artifact_id,
                     "category": model.category.value,
+                    "text": model.text,
+                    "confidence": model.confidence,
                     "payload": payload,
                 },
             )
         elif isinstance(model, EvidenceSpan):
             self._connection.execute(
                 """MERGE (n:EvidenceSpans {id: $id})
-                SET n.snapshot_id = $snapshot_id, n.claim_id = $claim_id, n.payload = $payload""",
+                SET n.snapshot_id = $snapshot_id, n.claim_id = $claim_id,
+                    n.quote = $quote, n.start_offset = $start_offset,
+                    n.end_offset = $end_offset, n.locator = $locator, n.payload = $payload""",
                 {
                     "id": model.id,
                     "snapshot_id": model.snapshot_id,
                     "claim_id": model.claim_id,
+                    "quote": model.quote,
+                    "start_offset": model.start,
+                    "end_offset": model.end,
+                    "locator": model.locator,
                     "payload": payload,
                 },
             )
@@ -229,13 +287,17 @@ class LadybugArtifactRepository:
             self._connection.execute(
                 """MERGE (n:Relations {id: $id})
                 SET n.subject_id = $subject_id, n.predicate = $predicate,
-                    n.object_id = $object_id, n.approved = $approved, n.payload = $payload""",
+                    n.object_id = $object_id, n.approved = $approved,
+                    n.evidence_span_ids = $evidence_span_ids, n.rationale = $rationale,
+                    n.payload = $payload""",
                 {
                     "id": model.id,
                     "subject_id": model.subject_id,
                     "predicate": model.predicate.value,
                     "object_id": model.object_id,
                     "approved": model.approved,
+                    "evidence_span_ids": model.evidence_span_ids,
+                    "rationale": model.rationale,
                     "payload": payload,
                 },
             )
@@ -243,13 +305,23 @@ class LadybugArtifactRepository:
             self._connection.execute(
                 """MERGE (n:ReviewIssues {id: $id})
                 SET n.artifact_id = $artifact_id, n.status = $status, n.created_at = $created_at,
-                    n.resolved_at = $resolved_at, n.payload = $payload""",
+                    n.resolved_at = $resolved_at, n.social_statement = $social_statement,
+                    n.source_statement = $source_statement, n.explanation = $explanation,
+                    n.social_source_url = $social_source_url,
+                    n.primary_source_url = $primary_source_url,
+                    n.evidence_span_ids = $evidence_span_ids, n.payload = $payload""",
                 {
                     "id": model.id,
                     "artifact_id": model.artifact_id,
                     "status": model.status.value,
                     "created_at": _iso(model.created_at),
                     "resolved_at": _iso(model.resolved_at),
+                    "social_statement": model.social_statement,
+                    "source_statement": model.source_statement,
+                    "explanation": model.explanation,
+                    "social_source_url": model.social_source_url,
+                    "primary_source_url": model.primary_source_url,
+                    "evidence_span_ids": model.evidence_span_ids,
                     "payload": payload,
                 },
             )
@@ -257,19 +329,27 @@ class LadybugArtifactRepository:
             self._connection.execute(
                 """MERGE (n:Entities {id: $id})
                 SET n.name = $name, n.entity_type = $entity_type,
-                    n.canonical_entity_id = $canonical_entity_id, n.payload = $payload""",
+                    n.canonical_entity_id = $canonical_entity_id,
+                    n.aliases = $aliases, n.payload = $payload""",
                 {
                     "id": model.id,
                     "name": model.name,
                     "entity_type": model.entity_type,
                     "canonical_entity_id": model.canonical_entity_id,
+                    "aliases": model.aliases,
                     "payload": payload,
                 },
             )
         elif isinstance(model, Concept):
             self._connection.execute(
-                "MERGE (n:Concepts {id: $id}) SET n.name = $name, n.payload = $payload",
-                {"id": model.id, "name": model.name, "payload": payload},
+                """MERGE (n:Concepts {id: $id})
+                SET n.name = $name, n.description = $description, n.payload = $payload""",
+                {
+                    "id": model.id,
+                    "name": model.name,
+                    "description": model.description,
+                    "payload": payload,
+                },
             )
         else:
             raise TypeError(f"unsupported aggregate member: {type(model).__name__}")
@@ -280,12 +360,52 @@ class LadybugArtifactRepository:
             MERGE (a:Artifacts {id: $id})
             SET a.canonical_url = $canonical_url,
                 a.content_hash = $content_hash,
+                a.source_kind = $source_kind,
+                a.artifact_type = $artifact_type,
+                a.title = $title,
+                a.short_name = $short_name,
+                a.summary = $summary,
+                a.strategy_family = $strategy_family,
+                a.review_status = $review_status,
+                a.trust_lane = $trust_lane,
+                a.evidence_quality = $evidence_quality,
+                a.maturity = $maturity,
+                a.license = $license,
+                a.aliases = $aliases,
+                a.capabilities = $capabilities,
+                a.limitations = $limitations,
+                a.requirements = $requirements,
+                a.use_cases = $use_cases,
+                a.published_at = $published_at,
+                a.source_updated_at = $source_updated_at,
+                a.last_verified_at = $last_verified_at,
+                a.deprecated_at = $deprecated_at,
                 a.payload = $payload
             """,
             {
                 "id": artifact.id,
                 "canonical_url": artifact.canonical_url,
                 "content_hash": artifact.content_hash,
+                "source_kind": artifact.source_kind.value,
+                "artifact_type": artifact.artifact_type.value,
+                "title": artifact.title,
+                "short_name": artifact.short_name,
+                "summary": artifact.summary,
+                "strategy_family": artifact.strategy_family,
+                "review_status": artifact.review_status.value,
+                "trust_lane": artifact.trust_lane.value,
+                "evidence_quality": artifact.evidence_quality,
+                "maturity": artifact.maturity,
+                "license": artifact.license,
+                "aliases": artifact.aliases,
+                "capabilities": artifact.capabilities,
+                "limitations": artifact.limitations,
+                "requirements": artifact.requirements,
+                "use_cases": artifact.use_cases,
+                "published_at": _iso(artifact.published_at),
+                "source_updated_at": _iso(artifact.source_updated_at),
+                "last_verified_at": _iso(artifact.last_verified_at),
+                "deprecated_at": _iso(artifact.deprecated_at),
                 "payload": _payload(artifact),
             },
         )
@@ -297,6 +417,160 @@ class LadybugArtifactRepository:
                 """,
                 {"canonical_url": artifact.canonical_url, "artifact_id": artifact.id},
             )
+
+    def _replace_native_links(self, record: ArtifactRecord) -> None:
+        artifact_id = record.artifact.id
+        memberships: tuple[tuple[str, str, Sequence[BaseModel]], ...] = (
+            ("ArtifactHasSnapshot", "Snapshots", record.snapshots),
+            ("ArtifactHasChunk", "Chunks", record.chunks),
+            ("ArtifactHasClaim", "Claims", record.claims),
+            ("ArtifactHasEntity", "Entities", record.entities),
+            ("ArtifactHasConcept", "Concepts", record.concepts),
+            ("ArtifactHasIssue", "ReviewIssues", record.issues),
+        )
+        for relation_table, node_table, members in memberships:
+            self._connection.execute(
+                f"MATCH (a:Artifacts {{id: $artifact_id}})-[r:{relation_table}]->() DELETE r",
+                {"artifact_id": artifact_id},
+            )
+            for member in members:
+                self._connection.execute(
+                    f"""MATCH (a:Artifacts {{id: $artifact_id}}),
+                    (n:{node_table} {{id: $member_id}})
+                    MERGE (a)-[:{relation_table}]->(n)""",
+                    {"artifact_id": artifact_id, "member_id": _record_id(member)},
+                )
+
+        self._connection.execute(
+            """MATCH (t:SearchTerms)-[r:TermReferencesArtifact]->
+            (a:Artifacts {id: $artifact_id}) DELETE r""",
+            {"artifact_id": artifact_id},
+        )
+        terms = artifact_search_terms(
+            record.artifact.model_dump(mode="json"),
+            entity_names=tuple(entity.name for entity in record.entities),
+            concept_names=tuple(concept.name for concept in record.concepts),
+        )
+        for term, weight in terms.items():
+            self._connection.execute(
+                """MERGE (t:SearchTerms {term: $term}) SET t.kind = 'artifact_term'
+                WITH t MATCH (a:Artifacts {id: $artifact_id})
+                MERGE (t)-[r:TermReferencesArtifact]->(a)
+                SET r.weight = $weight, r.kind = 'artifact_term'""",
+                {"term": term, "artifact_id": artifact_id, "weight": weight},
+            )
+
+        for claim in record.claims:
+            self._connection.execute(
+                "MATCH (c:Claims {id: $id})-[r:ClaimHasEvidence]->() DELETE r",
+                {"id": claim.id},
+            )
+            for span_id in claim.evidence_span_ids:
+                self._connection.execute(
+                    """MATCH (c:Claims {id: $claim_id}), (s:EvidenceSpans {id: $span_id})
+                    MERGE (c)-[:ClaimHasEvidence]->(s)""",
+                    {"claim_id": claim.id, "span_id": span_id},
+                )
+        for snapshot in record.snapshots:
+            self._connection.execute(
+                "MATCH (s:Snapshots {id: $id})-[r:SnapshotHasEvidence]->() DELETE r",
+                {"id": snapshot.id},
+            )
+        for span in record.evidence_spans:
+            self._connection.execute(
+                """MATCH (s:Snapshots {id: $snapshot_id}), (e:EvidenceSpans {id: $span_id})
+                MERGE (s)-[:SnapshotHasEvidence]->(e)""",
+                {"snapshot_id": span.snapshot_id, "span_id": span.id},
+            )
+
+        new_node_ids = [
+            artifact_id,
+            *(entity.id for entity in record.entities),
+            *(concept.id for concept in record.concepts),
+        ]
+        relation_payloads = {relation.id: relation for relation in record.relations}
+        rows = self._rows(
+            """MATCH (r:Relations)
+            WHERE r.subject_id IN $node_ids OR r.object_id IN $node_ids
+            RETURN r.payload AS payload""",
+            {"node_ids": new_node_ids},
+        )
+        for row in rows:
+            relation = Relation.model_validate_json(row["payload"])
+            relation_payloads[relation.id] = relation
+        for relation in relation_payloads.values():
+            self._sync_native_knowledge_edge(relation)
+
+    def _native_node_table(self, node_id: str) -> str | None:
+        for table in ("Artifacts", "Entities", "Concepts"):
+            if self._rows(f"MATCH (n:{table} {{id: $id}}) RETURN n.id AS id", {"id": node_id}):
+                return table
+        return None
+
+    def _artifact_owners(self, node_id: str, node_table: str) -> list[str]:
+        if node_table == "Artifacts":
+            return [node_id]
+        relation_table = "ArtifactHasEntity" if node_table == "Entities" else "ArtifactHasConcept"
+        rows = self._rows(
+            f"""MATCH (a:Artifacts)-[:{relation_table}]->(n:{node_table} {{id: $id}})
+            RETURN DISTINCT a.id AS artifact_id ORDER BY artifact_id""",
+            {"id": node_id},
+        )
+        return [str(row["artifact_id"]) for row in rows]
+
+    def _sync_native_knowledge_edge(self, relation: Relation) -> None:
+        self._connection.execute(
+            "MATCH ()-[r:KnowledgeEdges]->() WHERE r.id = $id DELETE r",
+            {"id": relation.id},
+        )
+        self._connection.execute(
+            """MATCH ()-[r:ArtifactKnowledgeLinks]->()
+            WHERE r.relation_id = $id DELETE r""",
+            {"id": relation.id},
+        )
+        if not relation.approved:
+            return
+        subject_table = self._native_node_table(relation.subject_id)
+        object_table = self._native_node_table(relation.object_id)
+        if subject_table is None or object_table is None:
+            return
+        self._connection.execute(
+            f"""MATCH (s:{subject_table} {{id: $subject_id}}),
+            (o:{object_table} {{id: $object_id}})
+            MERGE (s)-[r:KnowledgeEdges {{id: $id}}]->(o)
+            SET r.predicate = $predicate, r.evidence_span_ids = $evidence_span_ids,
+                r.rationale = $rationale, r.payload = $payload""",
+            {
+                "subject_id": relation.subject_id,
+                "object_id": relation.object_id,
+                "id": relation.id,
+                "predicate": relation.predicate.value,
+                "evidence_span_ids": relation.evidence_span_ids,
+                "rationale": relation.rationale,
+                "payload": _payload(relation),
+            },
+        )
+        subject_owners = self._artifact_owners(relation.subject_id, subject_table)
+        object_owners = self._artifact_owners(relation.object_id, object_table)
+        for subject_owner in subject_owners:
+            for object_owner in object_owners:
+                if subject_owner == object_owner:
+                    continue
+                self._connection.execute(
+                    """MATCH (s:Artifacts {id: $subject_owner}),
+                    (o:Artifacts {id: $object_owner})
+                    MERGE (s)-[r:ArtifactKnowledgeLinks {relation_id: $relation_id}]->(o)
+                    SET r.predicate = $predicate, r.subject_node_id = $subject_id,
+                        r.object_node_id = $object_id""",
+                    {
+                        "subject_owner": subject_owner,
+                        "object_owner": object_owner,
+                        "relation_id": relation.id,
+                        "predicate": relation.predicate.value,
+                        "subject_id": relation.subject_id,
+                        "object_id": relation.object_id,
+                    },
+                )
 
     @staticmethod
     def _merge_items(
@@ -353,7 +627,13 @@ class LadybugArtifactRepository:
                 if same_url is not None and same_url.artifact.id != record.artifact.id:
                     canonical = self._rebind_record(record, same_url.artifact.id)
             existing = self.get_record(canonical.artifact.id)
+            existing_member_payloads: dict[tuple[str, str], str] = {}
             if existing is not None:
+                existing_member_payloads = {
+                    (member_type, _record_id(member)): _payload(member)
+                    for member_type, members in _aggregate_members(existing)
+                    for member in members
+                }
                 canonical = canonical.model_copy(
                     update={
                         "snapshots": self._merge_items(
@@ -375,24 +655,17 @@ class LadybugArtifactRepository:
             canonical = ArtifactRecord.model_validate(canonical.model_dump(mode="python"))
             with self._transaction():
                 self._save_artifact(canonical.artifact)
-                member_groups: tuple[tuple[str, Sequence[BaseModel]], ...] = (
-                    ("snapshot", canonical.snapshots),
-                    ("chunk", canonical.chunks),
-                    ("claim", canonical.claims),
-                    ("evidence_span", canonical.evidence_spans),
-                    ("relation", canonical.relations),
-                    ("issue", canonical.issues),
-                    ("entity", canonical.entities),
-                    ("concept", canonical.concepts),
-                )
-                for member_type, members in member_groups:
+                for member_type, members in _aggregate_members(canonical):
                     for member in members:
-                        self._save_model(member)
+                        member_key = (member_type, _record_id(member))
+                        if existing_member_payloads.get(member_key) != _payload(member):
+                            self._save_model(member)
                         self._save_member_link(
                             canonical.artifact.id,
                             member_type,
                             _record_id(member),
                         )
+                self._replace_native_links(canonical)
             return canonical
 
     def get_record(self, artifact_id: str) -> ArtifactRecord | None:
@@ -432,6 +705,360 @@ class LadybugArtifactRepository:
             rows = self._rows("MATCH (a:Artifacts) RETURN a.id AS id ORDER BY a.id")
             records = [self.get_record(str(row["id"])) for row in rows]
             return [record for record in records if record is not None]
+
+    def load_records(self, artifact_ids: Sequence[str]) -> list[ArtifactRecord]:
+        with self._lock:
+            records = [self.get_record(artifact_id) for artifact_id in dict.fromkeys(artifact_ids)]
+            return [record for record in records if record is not None]
+
+    def _load_search_extension(self, extension: str) -> None:
+        try:
+            self._connection.execute(f"LOAD {extension}")
+            return
+        except RuntimeError:
+            pass
+        try:
+            self._connection.execute(f"INSTALL {extension}")
+            self._connection.execute(f"LOAD {extension}")
+        except RuntimeError as exc:
+            raise SearchIndexError(
+                f"Ladybug {extension.lower()} extension is unavailable; "
+                "restore network access, then run 'steering reindex'"
+            ) from exc
+
+    def _active_index_name(self, state_name: str) -> str | None:
+        rows = self._rows(
+            """MATCH (s:SearchIndexState {name: $name})
+            RETURN s.active_index_name AS active_index_name, s.status AS status""",
+            {"name": state_name},
+        )
+        if not rows or rows[0]["status"] != "ready":
+            return None
+        name = str(rows[0]["active_index_name"] or "")
+        if not INDEX_IDENTIFIER.fullmatch(name):
+            raise SearchIndexError("stored Ladybug index identifier is invalid")
+        return name
+
+    def _embedding_identity(self) -> tuple[dict[str, Any], int]:
+        rows = self._rows(
+            """MATCH (c:Chunks)
+            WHERE c.embedding IS NOT NULL
+            RETURN c.embedding_provider AS provider, c.embedding_model AS model,
+                c.embedding_revision AS revision, c.embedding_dimension AS dimension,
+                c.embedding_task_mode AS task_mode, c.embedding_normalized AS normalized,
+                c.source_content_hash AS source_content_hash"""
+        )
+        if not rows:
+            return {}, 0
+        required = ("provider", "model", "dimension", "task_mode", "normalized", "source_content_hash")
+        if any(any(row[key] is None or row[key] == "" for key in required) for row in rows):
+            raise SearchIndexError("embedded chunks need complete model and source-hash provenance")
+        identities = {
+            (
+                str(row["provider"]),
+                str(row["model"]),
+                None if row["revision"] is None else str(row["revision"]),
+                int(row["dimension"]),
+                str(row["task_mode"]),
+                bool(row["normalized"]),
+            )
+            for row in rows
+        }
+        if len(identities) != 1:
+            raise SearchIndexError("chunks contain incompatible embedding model provenance")
+        provider, model, revision, dimension, task_mode, normalized = identities.pop()
+        if dimension != EMBEDDING_DIMENSION:
+            raise SearchIndexError(f"native index requires {EMBEDDING_DIMENSION}-dimensional embeddings")
+        return {
+            "embedding_provider": provider,
+            "embedding_model": model,
+            "embedding_revision": revision,
+            "embedding_dimension": dimension,
+            "embedding_task_mode": task_mode,
+            "embedding_normalized": normalized,
+        }, len(rows)
+
+    def rebuild_search_indexes(self) -> None:
+        """Build replacements first, then atomically switch the active index metadata."""
+
+        with self._lock:
+            self._ensure_open()
+            self._load_search_extension("FTS")
+            self._load_search_extension("VECTOR")
+            identity, vector_count = self._embedding_identity()
+            chunk_count = int(self._rows("MATCH (c:Chunks) RETURN count(c) AS count")[0]["count"])
+            if vector_count != chunk_count:
+                raise SearchIndexError(
+                    f"{chunk_count - vector_count} stored chunks need embeddings; "
+                    "run 'steering reindex' before searching"
+                )
+            suffix = str(time_ns())
+            new_fts = f"chunks_text_fts_{suffix}"
+            new_vector = f"chunks_embedding_hnsw_{suffix}"
+            old_fts = self._active_index_name(FTS_STATE_NAME)
+            old_vector = self._active_index_name(VECTOR_STATE_NAME)
+            try:
+                self._connection.execute(
+                    f"""CALL CREATE_FTS_INDEX('Chunks', '{new_fts}', ['text'],
+                    stemmer := 'porter', stopwords := 'SearchStopwords')"""
+                )
+                self._connection.execute(
+                    f"""CALL CREATE_VECTOR_INDEX('Chunks', '{new_vector}', 'embedding',
+                    metric := 'cosine')"""
+                )
+            except RuntimeError as exc:
+                for index_type, name in (("fts", new_fts), ("vector", new_vector)):
+                    with suppress(RuntimeError):
+                        self._drop_search_index(index_type, name)
+                raise SearchIndexError("Ladybug failed to build replacement search indexes") from exc
+            built_at = datetime.now(UTC).isoformat()
+            with self._transaction():
+                self._connection.execute(
+                    """MERGE (s:SearchIndexState {name: $name})
+                    SET s.index_type = 'FTS', s.active_index_name = $index_name,
+                        s.status = 'ready', s.built_at = $built_at, s.row_count = $row_count""",
+                    {
+                        "name": FTS_STATE_NAME,
+                        "index_name": new_fts,
+                        "built_at": built_at,
+                        "row_count": chunk_count,
+                    },
+                )
+                self._connection.execute(
+                    """MERGE (s:SearchIndexState {name: $name})
+                    SET s.index_type = 'HNSW', s.active_index_name = $index_name,
+                        s.status = 'ready', s.built_at = $built_at, s.row_count = $row_count,
+                        s.embedding_provider = $embedding_provider,
+                        s.embedding_model = $embedding_model,
+                        s.embedding_revision = $embedding_revision,
+                        s.embedding_dimension = $embedding_dimension,
+                        s.embedding_task_mode = $embedding_task_mode,
+                        s.embedding_normalized = $embedding_normalized""",
+                    {
+                        "name": VECTOR_STATE_NAME,
+                        "index_name": new_vector,
+                        "built_at": built_at,
+                        "row_count": vector_count,
+                        **{
+                            "embedding_provider": identity.get("embedding_provider"),
+                            "embedding_model": identity.get("embedding_model"),
+                            "embedding_revision": identity.get("embedding_revision"),
+                            "embedding_dimension": identity.get("embedding_dimension"),
+                            "embedding_task_mode": identity.get("embedding_task_mode"),
+                            "embedding_normalized": identity.get("embedding_normalized"),
+                        },
+                    },
+                )
+            if old_fts and old_fts != new_fts:
+                self._drop_search_index("fts", old_fts)
+            if old_vector and old_vector != new_vector:
+                self._drop_search_index("vector", old_vector)
+
+    def _drop_search_index(self, index_type: str, name: str) -> None:
+        if not INDEX_IDENTIFIER.fullmatch(name):
+            raise SearchIndexError("refusing to use an invalid Ladybug index identifier")
+        procedure = "DROP_FTS_INDEX" if index_type == "fts" else "DROP_VECTOR_INDEX"
+        self._connection.execute(f"CALL {procedure}('Chunks', '{name}')")
+
+    def search_index_status(self) -> list[dict[str, Any]]:
+        with self._lock:
+            return self._rows(
+                """MATCH (s:SearchIndexState)
+                RETURN s.name AS name, s.index_type AS index_type,
+                    s.active_index_name AS active_index_name, s.status AS status,
+                    s.built_at AS built_at, s.row_count AS row_count,
+                    s.embedding_provider AS embedding_provider,
+                    s.embedding_model AS embedding_model,
+                    s.embedding_revision AS embedding_revision,
+                    s.embedding_dimension AS embedding_dimension,
+                    s.embedding_task_mode AS embedding_task_mode,
+                    s.embedding_normalized AS embedding_normalized
+                ORDER BY s.name"""
+            )
+
+    def backup_before_reembedding(self) -> str:
+        destination = self.database_path.with_name(
+            f"{self.database_path.name}.pre-reembed-{time_ns()}.backup"
+        )
+        return self.backup(str(destination))
+
+    def replace_chunk_embeddings(self, chunks: Sequence[Chunk]) -> int:
+        """Atomically replace the complete existing chunk-vector set."""
+
+        chunk_ids = [chunk.id for chunk in chunks]
+        if len(chunk_ids) != len(set(chunk_ids)):
+            raise ValueError("re-embedding batch contains duplicate chunk IDs")
+        with self._transaction():
+            rows = self._rows(
+                "MATCH (c:Chunks) WHERE c.id IN $ids RETURN c.id AS id",
+                {"ids": chunk_ids},
+            )
+            existing = {str(row["id"]) for row in rows}
+            if existing != set(chunk_ids):
+                raise ValueError("re-embedding batch does not match stored chunks")
+            for chunk in chunks:
+                self._save_model(chunk)
+        return len(chunks)
+
+    def assert_embedding_compatible(
+        self,
+        *,
+        provider: str,
+        model: str,
+        revision: str | None,
+        dimension: int,
+        task_mode: str,
+        normalized: bool,
+    ) -> None:
+        """Refuse semantic search across vectors from a different model contract."""
+
+        with self._lock:
+            rows = self._rows(
+                """MATCH (s:SearchIndexState {name: $name})
+                WHERE s.status = 'ready' AND s.row_count > 0
+                RETURN s.embedding_provider AS provider, s.embedding_model AS model,
+                    s.embedding_revision AS revision, s.embedding_dimension AS dimension,
+                    s.embedding_task_mode AS task_mode,
+                    s.embedding_normalized AS normalized""",
+                {"name": VECTOR_STATE_NAME},
+            )
+            if not rows:
+                return
+            row = rows[0]
+            stored = (
+                str(row["provider"]),
+                str(row["model"]),
+                None if row["revision"] is None else str(row["revision"]),
+                int(row["dimension"]),
+                str(row["task_mode"]),
+                bool(row["normalized"]),
+            )
+            requested = (provider, model, revision, dimension, task_mode, normalized)
+            if stored != requested:
+                raise SearchIndexError(
+                    "the active embedding provider is incompatible with stored vectors; "
+                    "run a verified complete re-embedding before searching"
+                )
+
+    @staticmethod
+    def _search_filter(query: SearchQuery, alias: str = "a") -> tuple[str, str, dict[str, Any]]:
+        concept_match = ""
+        clauses = [f"{alias}.review_status <> $rejected"]
+        parameters: dict[str, Any] = {"rejected": ReviewStatus.REJECTED.value}
+        if query.artifact_types:
+            clauses.append(f"{alias}.artifact_type IN $artifact_types")
+            parameters["artifact_types"] = [item.value for item in query.artifact_types]
+        if query.minimum_evidence is not None:
+            clauses.append(f"{alias}.evidence_quality >= $minimum_evidence")
+            parameters["minimum_evidence"] = query.minimum_evidence
+        if query.published_after is not None:
+            clauses.append(f"{alias}.published_at IS NOT NULL")
+            clauses.append(f"{alias}.published_at >= $published_after")
+            parameters["published_after"] = query.published_after.isoformat()
+        if query.concepts:
+            concept_match = f"MATCH ({alias})-[:ArtifactHasConcept]->(filter_concept:Concepts)"
+            clauses.append("lower(filter_concept.name) IN $filter_concepts")
+            parameters["filter_concepts"] = [item.lower() for item in query.concepts]
+        return concept_match, " AND ".join(clauses), parameters
+
+    def exact_candidates(
+        self, terms: Sequence[str], query: SearchQuery, *, limit: int = 50
+    ) -> list[NativeCandidate]:
+        if not terms:
+            return []
+        concept_match, filters, parameters = self._search_filter(query)
+        parameters.update({"terms": list(dict.fromkeys(terms)), "limit": limit})
+        rows = self._rows(
+            f"""MATCH (t:SearchTerms)-[r:TermReferencesArtifact]->(a:Artifacts)
+            {concept_match}
+            WHERE t.term IN $terms AND {filters}
+            RETURN a.id AS artifact_id, max(r.weight) AS score
+            ORDER BY score DESC, artifact_id LIMIT $limit""",
+            parameters,
+        )
+        return [NativeCandidate(str(row["artifact_id"]), None, float(row["score"])) for row in rows]
+
+    def bm25_candidates(self, text: str, query: SearchQuery, *, limit: int = 50) -> list[NativeCandidate]:
+        index_name = self._active_index_name(FTS_STATE_NAME)
+        if index_name is None:
+            raise SearchIndexError("Ladybug full-text index is not ready")
+        concept_match, filters, parameters = self._search_filter(query)
+        parameters.update({"text": text, "top": limit * 2, "limit": limit})
+        rows = self._rows(
+            f"""CALL QUERY_FTS_INDEX('Chunks', '{index_name}', $text, top := $top)
+            WITH node, score
+            MATCH (a:Artifacts) {concept_match}
+            WHERE a.id = node.artifact_id AND {filters}
+            RETURN a.id AS artifact_id, node.id AS chunk_id, score
+            ORDER BY score DESC, artifact_id LIMIT $limit""",
+            parameters,
+        )
+        return [
+            NativeCandidate(str(row["artifact_id"]), str(row["chunk_id"]), float(row["score"]))
+            for row in rows
+        ]
+
+    def vector_candidates(
+        self, vector: Sequence[float], query: SearchQuery, *, limit: int = 50
+    ) -> list[NativeCandidate]:
+        if len(vector) != EMBEDDING_DIMENSION:
+            raise ValueError(f"query embedding must have {EMBEDDING_DIMENSION} dimensions")
+        index_name = self._active_index_name(VECTOR_STATE_NAME)
+        if index_name is None:
+            raise SearchIndexError("Ladybug vector index is not ready")
+        concept_match, filters, parameters = self._search_filter(query)
+        parameters.update({"vector": list(vector), "top": limit * 2, "limit": limit})
+        rows = self._rows(
+            f"""CALL QUERY_VECTOR_INDEX(
+                'Chunks', '{index_name}', $vector, $top, efs := 200)
+            WITH node, distance
+            MATCH (a:Artifacts) {concept_match}
+            WHERE a.id = node.artifact_id AND {filters}
+            RETURN a.id AS artifact_id, node.id AS chunk_id, distance
+            ORDER BY distance, artifact_id LIMIT $limit""",
+            parameters,
+        )
+        candidates: list[NativeCandidate] = []
+        for row in rows:
+            similarity = max(0.0, 1.0 - float(row["distance"]))
+            if similarity > 0.0:
+                candidates.append(NativeCandidate(str(row["artifact_id"]), str(row["chunk_id"]), similarity))
+        return candidates
+
+    def graph_candidates(
+        self, seed_ids: Sequence[str], query: SearchQuery, *, limit: int = 50
+    ) -> list[NativeCandidate]:
+        if not seed_ids:
+            return []
+        concept_match, filters, parameters = self._search_filter(query)
+        parameters.update({"seed_ids": list(dict.fromkeys(seed_ids)), "limit": limit})
+        outgoing = self._rows(
+            f"""MATCH (seed:Artifacts)-[r:ArtifactKnowledgeLinks]->(a:Artifacts)
+            {concept_match}
+            WHERE seed.id IN $seed_ids AND NOT (a.id IN $seed_ids) AND {filters}
+            RETURN a.id AS artifact_id, count(r) AS paths
+            ORDER BY paths DESC, artifact_id LIMIT $limit""",
+            parameters,
+        )
+        incoming = self._rows(
+            f"""MATCH (a:Artifacts)-[r:ArtifactKnowledgeLinks]->(seed:Artifacts)
+            {concept_match}
+            WHERE seed.id IN $seed_ids AND NOT (a.id IN $seed_ids) AND {filters}
+            RETURN a.id AS artifact_id, count(r) AS paths
+            ORDER BY paths DESC, artifact_id LIMIT $limit""",
+            parameters,
+        )
+        scores: dict[str, float] = {}
+        for direction_weight, rows in ((1.0, outgoing), (0.85, incoming)):
+            for row in rows:
+                artifact_id = str(row["artifact_id"])
+                scores[artifact_id] = scores.get(artifact_id, 0.0) + direction_weight * float(row["paths"])
+        return [
+            NativeCandidate(artifact_id, None, score)
+            for artifact_id, score in sorted(
+                scores.items(), key=lambda item: (item[1], item[0]), reverse=True
+            )[:limit]
+        ]
 
     def save_job(self, job: IngestionJob) -> None:
         with self._transaction():

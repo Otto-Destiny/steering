@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from tests.support.providers import DeterministicBlake2EmbeddingProvider
+
+from steering.database.native import NativeCandidate, normalize_search_term
 from steering.domain.models import (
     Artifact,
     ArtifactRecord,
@@ -13,8 +16,7 @@ from steering.domain.models import (
     SearchQuery,
     SourceKind,
 )
-from steering.evaluation.embedding import DeterministicBlake2EmbeddingProvider
-from steering.retrieval.hybrid import HybridRetriever
+from steering.retrieval.hybrid import HybridRetriever, _CandidateRow, retrieval_tokens
 
 
 class MemoryRepository:
@@ -28,6 +30,54 @@ class MemoryRepository:
 
     def list_records(self) -> list[ArtifactRecord]:
         return self.records
+
+    def rebuild_search_indexes(self) -> None:
+        return None
+
+    def exact_candidates(
+        self, terms: list[str], _query: SearchQuery, *, limit: int = 50
+    ) -> list[NativeCandidate]:
+        term_set = set(terms)
+        candidates = []
+        for item in self.records:
+            values = {
+                normalize_search_term(item.artifact.title),
+                normalize_search_term(item.artifact.canonical_url or ""),
+            }
+            if values & term_set:
+                candidates.append(NativeCandidate(item.artifact.id, None, 3.0))
+        return candidates[:limit]
+
+    def bm25_candidates(self, text: str, _query: SearchQuery, *, limit: int = 50) -> list[NativeCandidate]:
+        query_tokens = set(retrieval_tokens(text))
+        candidates = [
+            NativeCandidate(
+                item.artifact.id,
+                None,
+                float(len(query_tokens & set(retrieval_tokens(item.artifact.summary)))),
+            )
+            for item in self.records
+        ]
+        return [item for item in candidates if item.score > 0][:limit]
+
+    def vector_candidates(
+        self, _vector: list[float], _query: SearchQuery, *, limit: int = 50
+    ) -> list[NativeCandidate]:
+        return []
+
+    def graph_candidates(
+        self, seed_ids: list[str], _query: SearchQuery, *, limit: int = 50
+    ) -> list[NativeCandidate]:
+        linked: set[str] = set()
+        for item in self.records:
+            for relation in item.relations:
+                if relation.approved and relation.subject_id in seed_ids:
+                    linked.add(relation.object_id)
+        return [NativeCandidate(identifier, None, 1.0) for identifier in sorted(linked)[:limit]]
+
+    def load_records(self, artifact_ids: list[str]) -> list[ArtifactRecord]:
+        requested = set(artifact_ids)
+        return [item for item in self.records if item.artifact.id in requested]
 
     def project_history(self, _project_id: str) -> dict[str, list[object]]:
         return self.history
@@ -79,7 +129,6 @@ async def test_bm25_document_frequency_counts_documents_not_occurrences() -> Non
         embedding_provider=DeterministicBlake2EmbeddingProvider(),
     )
     await retriever.refresh()
-    assert retriever._document_frequency["quasar"] == 1
     hits = await retriever.search(SearchQuery(query="quasar", limit=2))
     assert hits[0].artifact.id == "rare"
     assert hits[0].scores.bm25 > 0
@@ -174,7 +223,7 @@ async def test_approved_relation_expands_only_one_hop() -> None:
     graph_scores = {hit.artifact.id: hit.scores.graph for hit in hits}
 
     assert graph_scores["second"] > 0.0
-    assert graph_scores["third"] == 0.0
+    assert "third" not in graph_scores
 
 
 async def test_mmr_uses_embedding_similarity_after_relevance() -> None:
@@ -184,9 +233,11 @@ async def test_mmr_uses_embedding_similarity_after_relevance() -> None:
         embedding_provider=DeterministicBlake2EmbeddingProvider(),
     )
     await retriever.refresh()
-    retriever._rows["a"].embedding = [1.0, 0.0]
-    retriever._rows["b"].embedding = [1.0, 0.0]
-    retriever._rows["c"].embedding = [0.0, 1.0]
+    retriever._rows = {
+        "a": _CandidateRow(records[0], [1.0, 0.0]),
+        "b": _CandidateRow(records[1], [1.0, 0.0]),
+        "c": _CandidateRow(records[2], [0.0, 1.0]),
+    }
     scores = {
         "a": ScoreBreakdown(rrf=1.0),
         "b": ScoreBreakdown(rrf=0.99),
@@ -196,6 +247,36 @@ async def test_mmr_uses_embedding_similarity_after_relevance() -> None:
     selected = retriever._mmr(["a", "b", "c"], scores, limit=2, breadth=True)
 
     assert selected == ["a", "c"]
+
+
+async def test_breadth_covers_multiple_strategies_per_requested_engineering_area() -> None:
+    records = [
+        record("memory-a", "memory option", "memory_lifecycle"),
+        record("memory-b", "memory option", "trainable_memory"),
+        record("visual-a", "visual option", "visual_page_retrieval"),
+        record("visual-b", "visual option", "visual_sparse_retrieval"),
+        record("generic-a", "generic option", "other-a"),
+        record("generic-b", "generic option", "other-b"),
+    ]
+    retriever = HybridRetriever(
+        repository=MemoryRepository(records),  # type: ignore[arg-type]
+        embedding_provider=DeterministicBlake2EmbeddingProvider(),
+    )
+    retriever._rows = {
+        item.artifact.id: _CandidateRow(item, [float(index + 1), 1.0]) for index, item in enumerate(records)
+    }
+    ordered = ["generic-a", "generic-b", "memory-a", "visual-a", "memory-b", "visual-b"]
+    scores = {identifier: ScoreBreakdown(rrf=1.0 - index * 0.1) for index, identifier in enumerate(ordered)}
+
+    selected = retriever._mmr(
+        ordered,
+        scores,
+        limit=4,
+        breadth=True,
+        concepts={"agent_memory", "visual_retrieval"},
+    )
+
+    assert set(selected) == {"memory-a", "memory-b", "visual-a", "visual-b"}
 
 
 async def test_failed_project_outcome_only_penalizes_matching_constraints() -> None:

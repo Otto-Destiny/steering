@@ -208,6 +208,11 @@ class FakeRetriever:
         self.refreshes += 1
         self.dirty = False
 
+    async def reembed_all(self) -> tuple[int, str]:
+        self.refreshes += 1
+        self.dirty = False
+        return 3, "C:/backups/steering-pre-reembed"
+
 
 class FakeEngine:
     def __init__(self, repository: FakeRepository) -> None:
@@ -498,7 +503,11 @@ def test_json_api_covers_knowledge_design_review_and_project_history(
     )
     assert backup.json() == {"backup": "C:/backups/steering-backup"}
     reindex = client.post("/api/maintenance/reindex", json={})
-    assert reindex.json() == {"reindexed": True}
+    assert reindex.json() == {
+        "reindexed": True,
+        "reembedded_chunks": 3,
+        "verified_backup": "C:/backups/steering-pre-reembed",
+    }
 
 
 def test_web_project_workflow_creates_records_history_and_design_selection(
