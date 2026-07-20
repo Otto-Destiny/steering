@@ -203,7 +203,7 @@ class XResolver:
         parts = urlsplit(canonical)
         if (parts.hostname or "").lower() in {"twitter.com", "www.twitter.com"}:
             canonical = canonical.replace(f"//{parts.netloc}", "//x.com", 1)
-        endpoint = "https://publish.twitter.com/oembed"
+        endpoint = "https://publish.x.com/oembed"
         data, _, _ = await self.fetcher.get(
             endpoint,
             params={"url": canonical, "omit_script": "1", "dnt": "1"},
@@ -224,6 +224,7 @@ class XResolver:
             author=str(payload.get("author_name") or "") or None,
             mime_type="text/html",
             extraction_method="x_public_oembed",
+            partial=True,
             outbound_urls=[url for url in dict.fromkeys(links) if "status/" not in url],
             metadata={"provider_url": payload.get("provider_url")},
         )
@@ -245,15 +246,14 @@ class GitHubResolver:
             return await WebResolver(self.fetcher).resolve(canonical)
         owner, repo = parts[0], parts[1].removesuffix(".git")
         endpoint = f"https://api.github.com/repos/{quote(owner, safe='')}/{quote(repo, safe='')}/readme"
-        data, headers, _ = await self.fetcher.get(
+        data, _, _ = await self.fetcher.get(
             endpoint,
             headers={
                 "Accept": "application/vnd.github.raw+json",
                 "User-Agent": "steering/0.1",
             },
         )
-        content_type = headers.get("content-type", "")
-        if "json" in content_type:
+        if data.lstrip().startswith(b"{"):
             try:
                 payload = json.loads(data)
                 encoded = str(payload.get("content", "")).replace("\n", "")
@@ -271,6 +271,52 @@ class GitHubResolver:
             extraction_method="github_readme_api",
             outbound_urls=extract_links(text),
             metadata={"owner": owner, "repository": repo},
+        )
+
+
+class HuggingFaceResolver:
+    name = "huggingface_readme"
+
+    def __init__(self, fetcher: SafeFetcher) -> None:
+        self.fetcher = fetcher
+
+    def can_resolve(self, source: str) -> bool:
+        return (urlsplit(source).hostname or "").lower() in {
+            "huggingface.co",
+            "www.huggingface.co",
+        }
+
+    async def resolve(self, source: str) -> ResolvedSource:
+        canonical = canonical_http_url(source)
+        parts = [part for part in urlsplit(canonical).path.split("/") if part]
+        prefix = ""
+        if parts and parts[0] in {"datasets", "spaces"}:
+            prefix = f"{parts.pop(0)}/"
+        if len(parts) < 2:
+            return await WebResolver(self.fetcher).resolve(canonical)
+        owner, repository = parts[0], parts[1]
+        project_url = f"https://huggingface.co/{prefix}{owner}/{repository}"
+        readme_url = f"{project_url}/raw/main/README.md"
+        try:
+            data, _, _ = await self.fetcher.get(readme_url)
+        except SourceUnavailableError:
+            return await WebResolver(self.fetcher).resolve(canonical)
+        text = data.decode("utf-8", errors="replace")
+        if len(text.strip()) < 40:
+            return await WebResolver(self.fetcher).resolve(canonical)
+        return ResolvedSource(
+            canonical_url=project_url,
+            source_kind=SourceKind.DOCUMENTATION,
+            title=f"{owner}/{repository}",
+            text=text,
+            mime_type="text/markdown",
+            extraction_method="huggingface_readme",
+            outbound_urls=extract_links(text),
+            metadata={
+                "owner": owner,
+                "repository": repository,
+                "project_type": prefix.rstrip("/") or "model",
+            },
         )
 
 
@@ -358,6 +404,7 @@ class LinkedInResolver:
     async def resolve(self, source: str) -> ResolvedSource:
         data, _, final_url = await self.fetcher.get(canonical_http_url(source))
         html = data.decode("utf-8", errors="replace")
+        title, text, links, metadata = _clean_html(html)
         lowered = html.lower()
         if any(
             marker in lowered
@@ -368,10 +415,14 @@ class LinkedInResolver:
                 "join linkedin",
             )
         ):
-            raise SourceUnavailableError(
-                "LinkedIn requires authorized capture; public extraction stopped at the login boundary"
-            )
-        title, text, links, metadata = _clean_html(html)
+            soup = BeautifulSoup(html, "html.parser")
+            description = _meta(soup, "og:description", "twitter:description", "description")
+            if not description or len(description.strip()) < 40:
+                raise SourceUnavailableError(
+                    "LinkedIn requires authorized capture; public extraction stopped at the login boundary"
+                )
+            text = description.strip()
+            links = list(dict.fromkeys([*links, *extract_links(text)]))
         if len(text) < 40:
             raise SourceUnavailableError(
                 "LinkedIn public metadata is unavailable; authorized capture is required"
@@ -384,7 +435,9 @@ class LinkedInResolver:
             author=metadata.get("author"),
             published_at=_parse_date(metadata.get("published_time")),
             mime_type="text/html",
-            extraction_method="linkedin_public_page",
+            extraction_method=(
+                "linkedin_public_metadata" if "authwall" in lowered else "linkedin_public_page"
+            ),
             partial=True,
             outbound_urls=links,
             metadata=metadata,
@@ -467,6 +520,7 @@ def default_registry(fetcher: SafeFetcher) -> ResolverRegistry:
             XResolver(fetcher),
             LinkedInResolver(fetcher),
             GitHubResolver(fetcher),
+            HuggingFaceResolver(fetcher),
             PaperResolver(fetcher),
             WebResolver(fetcher),
             TextResolver(),

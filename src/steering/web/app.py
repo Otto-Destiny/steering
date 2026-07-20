@@ -17,9 +17,13 @@ from starlette.templating import Jinja2Templates
 from steering import SCHEMA_VERSION, __version__
 from steering.domain.models import Project, SearchQuery
 from steering.domain.protocols import ArtifactRepository, ImageUnderstandingProvider
+from steering.extraction.service import EvidenceValidationError
+from steering.ingestion.browser import BrowserCaptureUnavailable, BrowserDependencyUnavailable
+from steering.ingestion.security import SourceUnavailableError
 from steering.ingestion.service import IngestionService
 from steering.ingestion.uploads import MAX_UPLOAD_BYTES, UnsupportedUploadError, resolve_upload
 from steering.intelligence.service import SteeringEngine
+from steering.providers.openai_compatible import ProviderConnectionError, ProviderTimeoutError
 from steering.web.capture import AuthorizedBrowserCapture, ResolvedSourceIngestion
 from steering.web.providers import ProviderSettingsService
 from steering.web.schemas import (
@@ -242,6 +246,17 @@ class WebController:
             return await self.resolved_ingestion.add_resolved(resolved)
         except PermissionError:
             raise HTTPException(403, "Browser capture was not authorized.") from None
+        except BrowserDependencyUnavailable:
+            raise HTTPException(
+                503,
+                "Managed browser capture is unavailable. Install the browser extra and Chromium, "
+                "then restart STEERING.",
+            ) from None
+        except BrowserCaptureUnavailable:
+            raise HTTPException(
+                502,
+                "Managed browser capture ended before the page could be read. Try again.",
+            ) from None
         except Exception:
             raise HTTPException(502, "Authorized browser capture failed.") from None
 
@@ -254,6 +269,18 @@ class WebController:
             await self.browser_capture.open_login(data.url, authorized=True)
         except PermissionError:
             raise HTTPException(403, "Opening the managed browser was not authorized.") from None
+        except BrowserDependencyUnavailable:
+            raise HTTPException(
+                503,
+                "Managed browser capture is unavailable. Install the browser extra and Chromium, "
+                "then restart STEERING.",
+            ) from None
+        except BrowserCaptureUnavailable:
+            raise HTTPException(
+                502,
+                "The managed browser closed before the login session was saved. Try again and keep "
+                "the window open until sign-in is complete.",
+            ) from None
         except Exception:
             raise HTTPException(502, "Managed browser login failed.") from None
 
@@ -811,6 +838,23 @@ def create_web_app(
         message = str(exc.detail) if isinstance(exc.detail, str) else "Request failed."
         if request.url.path.startswith("/api/"):
             return JSONResponse({"error": message}, status_code=exc.status_code)
+        if controller.is_htmx(request) and request.url.path == "/add":
+            return templates.TemplateResponse(
+                request=request,
+                name="partials/ingestion_error.html",
+                context=controller.context(
+                    request,
+                    message=message,
+                    retry_url="/add",
+                    retry_label="Retry ingestion",
+                ),
+            )
+        if controller.is_htmx(request) and request.url.path == "/browser/login":
+            return templates.TemplateResponse(
+                request=request,
+                name="partials/browser_error.html",
+                context=controller.context(request, message=message),
+            )
         return templates.TemplateResponse(
             request=request,
             name="error.html",
@@ -846,12 +890,117 @@ def create_web_app(
             status_code=500,
         )
 
+    async def provider_error(request: Request, exc: Exception) -> Response:
+        timed_out = isinstance(exc, ProviderTimeoutError)
+        ingestion_request = request.url.path == "/add" or request.url.path.startswith("/api/ingestion")
+        if ingestion_request:
+            message = (
+                "Ingestion failed because the generation provider timed out. Retry."
+                if timed_out
+                else "Ingestion failed because the generation provider was unavailable. Retry."
+            )
+            retry_url = "/add"
+            retry_label = "Retry ingestion"
+        else:
+            message = (
+                "The provider request timed out. Retry."
+                if timed_out
+                else "The provider request could not be completed. Retry."
+            )
+            retry_url = request.url.path
+            retry_label = "Retry"
+        status_code = 503 if timed_out else 502
+        if request.url.path.startswith("/api/"):
+            return JSONResponse({"error": message}, status_code=status_code)
+        if controller.is_htmx(request):
+            return templates.TemplateResponse(
+                request=request,
+                name="partials/ingestion_error.html",
+                context=controller.context(
+                    request,
+                    message=message,
+                    retry_url=retry_url,
+                    retry_label=retry_label,
+                ),
+            )
+        return templates.TemplateResponse(
+            request=request,
+            name="error.html",
+            context=controller.context(
+                request,
+                message=message,
+                status_code=status_code,
+                retry_url=retry_url,
+                retry_label=retry_label,
+            ),
+            status_code=status_code,
+        )
+
+    async def source_unavailable_error(request: Request, exc: Exception) -> Response:
+        del exc
+        message = "Ingestion failed because the source could not be reached. Retry."
+        if request.url.path.startswith("/api/"):
+            return JSONResponse({"error": message}, status_code=502)
+        if controller.is_htmx(request):
+            return templates.TemplateResponse(
+                request=request,
+                name="partials/ingestion_error.html",
+                context=controller.context(
+                    request,
+                    message=message,
+                    retry_url="/add",
+                    retry_label="Retry ingestion",
+                ),
+            )
+        return templates.TemplateResponse(
+            request=request,
+            name="error.html",
+            context=controller.context(
+                request,
+                message=message,
+                status_code=502,
+                retry_url="/add",
+                retry_label="Retry ingestion",
+            ),
+            status_code=502,
+        )
+
+    async def evidence_error(request: Request, exc: Exception) -> Response:
+        del exc
+        message = (
+            "Ingestion failed because the extracted claims could not be verified against the "
+            "source text. Nothing was stored."
+        )
+        if request.url.path.startswith("/api/"):
+            return JSONResponse({"error": message}, status_code=422)
+        if controller.is_htmx(request):
+            return templates.TemplateResponse(
+                request=request,
+                name="partials/ingestion_error.html",
+                context=controller.context(
+                    request,
+                    message=message,
+                    retry_url="/add",
+                    retry_label="Retry ingestion",
+                ),
+            )
+        return templates.TemplateResponse(
+            request=request,
+            name="error.html",
+            context=controller.context(request, message=message, status_code=422),
+            status_code=422,
+        )
+
     app = Starlette(
         debug=False,
         routes=routes,
         exception_handlers={
             HTTPException: http_error,
             ValidationError: validation_error,
+            ProviderTimeoutError: provider_error,
+            ProviderConnectionError: provider_error,
+            SourceUnavailableError: source_unavailable_error,
+            EvidenceValidationError: evidence_error,
             Exception: unexpected_error,
         },
     )

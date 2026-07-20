@@ -1,5 +1,5 @@
 {% extends "base.html" %}
 {% block title %}Request error · STEERING{% endblock %}
 {% block content %}
-  <section class="error-panel" role="alert"><p class="eyebrow">Error {{ status_code }}</p><h1>That request could not be completed.</h1><p>{{ message }}</p><a class="button" href="/">Return to dashboard</a></section>
+  <section class="error-panel" role="alert"><p class="eyebrow">Error {{ status_code }}</p><h1>That request could not be completed.</h1><p>{{ message }}</p><a class="button" href="{{ retry_url|default('/') }}">{{ retry_label|default('Return to dashboard') }}</a></section>
 {% endblock %}

@@ -26,6 +26,13 @@ NOW = datetime(2026, 1, 1, tzinfo=UTC)
 cli = importlib.import_module("steering.cli.main")
 
 
+def test_cli_loads_the_real_server_entrypoint() -> None:
+    server_module = cli._runtime_module()
+
+    assert server_module.__name__ == "steering.app"
+    assert callable(server_module.run_server)
+
+
 def _record(source: str = "https://example.com/paper") -> ArtifactRecord:
     return ArtifactRecord(
         artifact=Artifact(

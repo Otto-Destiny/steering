@@ -174,6 +174,21 @@ async def test_non_verbatim_evidence_is_rejected() -> None:
 
 
 @pytest.mark.asyncio
+async def test_equivalent_pdf_whitespace_and_typography_map_back_to_exact_source() -> None:
+    source_text = "The method\nuses “bounded” test\u2011time compute."
+    generated_quote = 'The method uses "bounded" test-time compute.'
+    source = resolved_source(url="https://example.org/paper.pdf", text=source_text)
+    generation = ScriptedGeneration([extraction_payload(quote=generated_quote)])
+    service = ExtractionService(generation=generation, embedding=FixtureEmbedding())
+
+    record = await service.extract(source)
+
+    span = record.evidence_spans[0]
+    assert span.quote == source_text
+    assert record.snapshots[0].text[span.start : span.end] == span.quote
+
+
+@pytest.mark.asyncio
 async def test_chunk_fallback_remaps_supporting_source_indices_before_reconciliation() -> None:
     social_quote = "SOCIAL_MARKER"
     paper_quote = "PAPER_MARKER"

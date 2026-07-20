@@ -101,7 +101,7 @@ class IngestionService:
         follow_primary: bool,
     ) -> ArtifactRecord:
         existing = self.repository.get_by_url(resolved.canonical_url)
-        if existing is not None:
+        if existing is not None and not self._upgrades_public_social_capture(existing, resolved):
             job.status = JobStatus.COMPLETED
             job.artifact_id = existing.artifact.id
             self.repository.save_job(job)
@@ -144,6 +144,17 @@ class IngestionService:
         job.artifact_id = stored.artifact.id
         self.repository.save_job(job)
         return stored
+
+    @staticmethod
+    def _upgrades_public_social_capture(
+        existing: ArtifactRecord,
+        incoming: ResolvedSource,
+    ) -> bool:
+        return (
+            incoming.source_kind is SourceKind.X
+            and incoming.extraction_method == "authorized_visible_browser"
+            and existing.artifact.metadata.get("resolver") != "authorized_visible_browser"
+        )
 
     @staticmethod
     def _primary_source_record(

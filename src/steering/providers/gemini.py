@@ -11,7 +11,7 @@ from typing import Any, TypeVar
 import httpx
 from pydantic import BaseModel, SecretStr
 
-from steering.providers.openai_compatible import ProviderConnectionError
+from steering.providers.openai_compatible import ProviderConnectionError, ProviderTimeoutError
 
 TModel = TypeVar("TModel", bound=BaseModel)
 _MODEL_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
@@ -46,7 +46,7 @@ class GeminiClient:
         *,
         base_url: str,
         api_key: SecretStr,
-        timeout_seconds: float = 60.0,
+        timeout_seconds: float = 90.0,
         max_attempts: int = 3,
         client: httpx.AsyncClient | None = None,
     ) -> None:
@@ -59,7 +59,12 @@ class GeminiClient:
         self._owns_client = client is None
         self._client = client or httpx.AsyncClient(
             base_url=base_url.rstrip("/") + "/",
-            timeout=httpx.Timeout(timeout_seconds),
+            timeout=httpx.Timeout(
+                timeout_seconds,
+                connect=min(timeout_seconds, 10.0),
+                write=min(timeout_seconds, 30.0),
+                pool=min(timeout_seconds, 10.0),
+            ),
             follow_redirects=False,
             trust_env=False,
         )
@@ -83,6 +88,17 @@ class GeminiClient:
                     continue
                 response.raise_for_status()
                 result = response.json()
+            except httpx.TransportError as exc:
+                if attempt + 1 < self._max_attempts:
+                    await asyncio.sleep(0.25 * (2**attempt))
+                    continue
+                if isinstance(exc, httpx.TimeoutException):
+                    raise ProviderTimeoutError(
+                        f"Gemini request timed out after {self._max_attempts} attempts"
+                    ) from None
+                raise ProviderConnectionError(
+                    f"Gemini connection failed after {self._max_attempts} attempts"
+                ) from None
             except (httpx.HTTPError, json.JSONDecodeError, ValueError) as exc:
                 raise ProviderConnectionError(
                     f"Gemini request failed ({type(exc).__name__}); verify model and credential"

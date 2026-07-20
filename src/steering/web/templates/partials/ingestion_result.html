@@ -1,2 +1,4 @@
-<div class="notice success" role="status"><strong>Capture complete.</strong> {{ records|length }} record{% if records|length != 1 %}s{% endif %} ready.</div>
-<div class="card-list">{% for record in records %}<article class="card"><h3><a href="/artifacts/{{ record.artifact.id }}">{{ record.artifact.title }}</a></h3><p>{{ record.artifact.summary }}</p></article>{% endfor %}</div>
+<div class="notice success" role="status">
+  <span><strong>Capture succeeded.</strong> {{ records|length }} source{% if records|length != 1 %}s were{% else %} was{% endif %} added.</span>
+  {% if records|length == 1 %}<a href="/artifacts/{{ records[0].artifact.id }}">Review artifact</a>{% endif %}
+</div>

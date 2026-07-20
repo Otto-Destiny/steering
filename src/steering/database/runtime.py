@@ -37,6 +37,7 @@ class DatabaseRuntime:
             _prepare_revision_two_backup(self.connection, self.path)
             apply_migrations(self.connection)
             self.repository = LadybugArtifactRepository(self.connection, self.path)
+            self.repository.load_active_search_extensions()
         except BaseException:
             if connection is not None:
                 connection.close()

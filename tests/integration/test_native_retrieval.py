@@ -98,6 +98,30 @@ async def test_real_ladybug_fts_hnsw_and_exact_candidates_without_record_scan(
 
 
 @pytest.mark.integration
+async def test_reopened_ladybug_loads_persisted_index_extensions_before_insert(
+    tmp_path: Path,
+) -> None:
+    provider = DeterministicBlake2EmbeddingProvider(dimension=768)
+    database_path = tmp_path / "reopened-native-search.lbug"
+
+    with DatabaseRuntime(database_path) as runtime:
+        runtime.repository.upsert_record(
+            await _record(provider, "first", "agent memory retrieval", family="memory")
+        )
+        retriever = HybridRetriever(repository=runtime.repository, embedding_provider=provider)
+        await retriever.search(SearchQuery(query="agent memory", limit=1))
+
+    with DatabaseRuntime(database_path) as reopened:
+        reopened.repository.upsert_record(
+            await _record(provider, "second", "context compression", family="memory")
+        )
+        retriever = HybridRetriever(repository=reopened.repository, embedding_provider=provider)
+        hits = await retriever.search(SearchQuery(query="context compression", limit=2))
+
+    assert hits[0].artifact.id == "second"
+
+
+@pytest.mark.integration
 async def test_real_ladybug_graph_expansion_is_approved_and_one_hop(tmp_path: Path) -> None:
     provider = DeterministicBlake2EmbeddingProvider(dimension=768)
     first_to_second = Relation(

@@ -360,6 +360,64 @@ async def test_add_resolved_social_capture_follows_one_primary_without_duplicate
     ]
 
 
+@pytest.mark.asyncio
+async def test_signed_in_x_capture_upgrades_an_existing_public_root_capture_once() -> None:
+    captured_url = "https://x.com/researcher/status/9"
+    quote = "The self-reply links the complete implementation and evaluation."
+    repository = MemoryRepository()
+    artifact_id = stable_id("art", captured_url)
+    repository.records[artifact_id] = ArtifactRecord(
+        artifact=Artifact(
+            id=artifact_id,
+            canonical_url=captured_url,
+            source_kind=SourceKind.X,
+            artifact_type=ArtifactType.SOCIAL_POST,
+            title="Public root post",
+            summary="Only the root post was captured.",
+            content_hash="0" * 64,
+            metadata={"resolver": "x_oembed"},
+        )
+    )
+    captured = ResolvedSource(
+        canonical_url=captured_url,
+        source_kind=SourceKind.X,
+        title="Signed-in thread",
+        text=f"Root post.\n\n---\n\n{quote}",
+        extraction_method="authorized_visible_browser",
+        metadata={"bundled_self_replies": 1},
+    )
+    generation = CountingGeneration(
+        KnowledgeExtraction(
+            artifact_type=ArtifactType.SOCIAL_POST,
+            title="Complete signed-in thread",
+            summary="The root post and its self-reply were captured together.",
+            claims=[
+                ExtractedClaim(
+                    text="The thread links the implementation and evaluation.",
+                    category=EvidenceCategory.SOCIAL_CLAIM,
+                    confidence=0.7,
+                    exact_quote=quote,
+                    source_index=0,
+                )
+            ],
+        ),
+        expected_urls=[captured_url],
+    )
+    service = IngestionService(
+        registry=ResolverRegistry([]),
+        extraction=ExtractionService(generation=generation, embedding=FixtureEmbedding()),
+        repository=repository,
+    )
+
+    upgraded = await service.add_resolved(captured)
+    duplicate = await service.add_resolved(captured)
+
+    assert generation.calls == 1
+    assert upgraded == duplicate
+    assert upgraded.artifact.metadata["resolver"] == "authorized_visible_browser"
+    assert upgraded.snapshots[0].text == captured.text
+
+
 @pytest.mark.parametrize(
     ("url", "priority"),
     [

@@ -11,6 +11,7 @@ from pypdf import PdfWriter
 from steering.domain.models import SourceKind
 from steering.ingestion.resolvers import (
     GitHubResolver,
+    HuggingFaceResolver,
     LinkedInResolver,
     PaperResolver,
     ResolverRegistry,
@@ -46,7 +47,7 @@ def blank_pdf_fixture() -> bytes:
 @pytest.mark.asyncio
 async def test_x_oembed_and_plain_text_resolution_are_deterministic() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
-        assert request.url.host == "publish.twitter.com"
+        assert request.url.host == "publish.x.com"
         assert request.url.params["url"] == "https://x.com/researcher/status/123"
         payload = {
             "author_name": "Researcher",
@@ -88,9 +89,21 @@ async def test_linkedin_public_boundary_accepts_content_but_stops_at_authwall() 
     <html><head><title>LinkedIn</title></head><body>
     <form class="authwall-join-form">Sign in to LinkedIn to continue</form></body></html>
     """
+    metadata_html = """
+    <html><head><meta property="og:title" content="A public engineering post">
+    <meta property="og:description" content="A bounded agent-memory method with implementation
+    details at https://github.com/example/memory."></head>
+    <body><form class="authwall-join-form">Sign in to LinkedIn</form></body></html>
+    """
 
     def handler(request: httpx.Request) -> httpx.Response:
-        body = authwall_html if request.url.path.endswith("/gated") else public_html
+        body = (
+            authwall_html
+            if request.url.path.endswith("/gated")
+            else metadata_html
+            if request.url.path.endswith("/metadata")
+            else public_html
+        )
         return httpx.Response(200, text=body, headers={"content-type": "text/html"})
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
@@ -100,6 +113,9 @@ async def test_linkedin_public_boundary_accepts_content_but_stops_at_authwall() 
     resolved = await resolver.resolve("https://www.linkedin.com/posts/public")
     assert resolved.source_kind is SourceKind.LINKEDIN
     assert resolved.partial is True
+    metadata = await resolver.resolve("https://www.linkedin.com/posts/metadata")
+    assert metadata.extraction_method == "linkedin_public_metadata"
+    assert metadata.outbound_urls == ["https://github.com/example/memory"]
     with pytest.raises(SourceUnavailableError, match="login boundary"):
         await resolver.resolve("https://www.linkedin.com/posts/gated")
     await client.aclose()
@@ -150,9 +166,29 @@ async def test_github_readme_and_platform_neutral_paper_resolution() -> None:
 
 
 @pytest.mark.asyncio
+async def test_huggingface_uses_repository_readme_instead_of_noisy_page_html() -> None:
+    readme = "# ThinkingCap\n\nA research model with reproducible evaluation details."
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/example/ThinkingCap/raw/main/README.md"
+        return httpx.Response(200, text=readme, headers={"content-type": "text/plain"})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    resolver = HuggingFaceResolver(
+        SafeFetcher(client=client, guard=AllowPublicFixtureGuard())  # type: ignore[arg-type]
+    )
+    resolved = await resolver.resolve("https://huggingface.co/example/ThinkingCap")
+
+    assert resolved.canonical_url == "https://huggingface.co/example/ThinkingCap"
+    assert resolved.text == readme
+    assert resolved.extraction_method == "huggingface_readme"
+    await client.aclose()
+
+
+@pytest.mark.asyncio
 async def test_x_github_and_pdf_error_paths_are_safe() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
-        if request.url.host == "publish.twitter.com":
+        if request.url.host == "publish.x.com":
             return httpx.Response(200, json={"author_name": "Missing HTML"})
         if request.url.host == "api.github.com" and request.url.path.endswith("/invalid/readme"):
             return httpx.Response(
@@ -192,6 +228,29 @@ async def test_x_github_and_pdf_error_paths_are_safe() -> None:
     assert homepage.source_kind is SourceKind.WEBPAGE
     with pytest.raises(SourceUnavailableError, match="PDF extraction failed"):
         await PaperResolver(fetcher).resolve("https://example.org/broken.pdf")
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_github_accepts_raw_readme_with_vendor_json_content_type() -> None:
+    readme = b"# Taste Skill\n\nA portable engineering workflow."
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            content=readme,
+            headers={"content-type": "application/vnd.github.raw+json; charset=utf-8"},
+        )
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    resolver = GitHubResolver(
+        SafeFetcher(client=client, guard=AllowPublicFixtureGuard())  # type: ignore[arg-type]
+    )
+
+    resolved = await resolver.resolve("https://github.com/Leonxlnx/taste-skill")
+
+    assert resolved.text == readme.decode()
+    assert resolved.canonical_url == "https://github.com/Leonxlnx/taste-skill"
     await client.aclose()
 
 

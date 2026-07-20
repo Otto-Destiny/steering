@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import unicodedata
 from collections.abc import Sequence
 from itertools import pairwise
 from pathlib import Path
@@ -38,6 +39,20 @@ from steering.extraction.prompts import (
 from steering.extraction.schemas import KnowledgeExtraction
 
 HEADING = re.compile(r"(?m)^(?:#{1,6}\s+.+|[A-Z][A-Z0-9 ]{4,})$")
+_QUOTE_TRANSLATION = str.maketrans(
+    {
+        "\u2018": "'",
+        "\u2019": "'",
+        "\u201c": '"',
+        "\u201d": '"',
+        "\u2010": "-",
+        "\u2011": "-",
+        "\u2012": "-",
+        "\u2013": "-",
+        "\u2014": "-",
+        "\u2212": "-",
+    }
+)
 
 
 class EvidenceValidationError(ValueError):
@@ -334,7 +349,7 @@ class ExtractionService:
                     id=span_id,
                     snapshot_id=snapshot.id,
                     claim_id=claim_id,
-                    quote=claim_data.exact_quote,
+                    quote=snapshot.text[start:end],
                     start=start,
                     end=end,
                     locator=claim_data.locator,
@@ -385,7 +400,7 @@ class ExtractionService:
                         id=span_id,
                         snapshot_id=snapshot.id,
                         claim_id=relation_claim_id,
-                        quote=relation_data.exact_quote,
+                        quote=snapshot.text[start:end],
                         start=start,
                         end=end,
                         locator="relationship evidence",
@@ -449,7 +464,7 @@ class ExtractionService:
                         id=span_id,
                         snapshot_id=snapshot.id,
                         claim_id=claim_id,
-                        quote=quote,
+                        quote=snapshot.text[start:end],
                         start=start,
                         end=end,
                         locator=f"conflict {role} evidence",
@@ -491,7 +506,14 @@ class ExtractionService:
         snapshot = snapshots[source_index]
         start = snapshot.text.find(quote)
         if start < 0:
-            raise EvidenceValidationError("generated evidence quote does not occur exactly in its source")
+            normalized_source, starts, ends = self._normalized_text_map(snapshot.text)
+            normalized_quote, _, _ = self._normalized_text_map(quote)
+            normalized_quote = normalized_quote.strip()
+            normalized_start = normalized_source.find(normalized_quote)
+            if not normalized_quote or normalized_start < 0:
+                raise EvidenceValidationError("generated evidence quote does not occur exactly in its source")
+            normalized_end = normalized_start + len(normalized_quote) - 1
+            return snapshot, starts[normalized_start], ends[normalized_end]
         return snapshot, start, start + len(quote)
 
     def _locate_issue_quote(
@@ -501,10 +523,35 @@ class ExtractionService:
         quote: str,
     ) -> tuple[Snapshot, int, int]:
         for snapshot in (item for item in snapshots if item.source_url == source_url):
-            start = snapshot.text.find(quote)
-            if start >= 0:
-                return snapshot, start, start + len(quote)
+            try:
+                return self._locate_quote(snapshots, snapshots.index(snapshot), quote)
+            except EvidenceValidationError:
+                continue
         raise EvidenceValidationError("generated issue evidence quote does not occur in its source")
+
+    @staticmethod
+    def _normalized_text_map(text: str) -> tuple[str, list[int], list[int]]:
+        """Normalize harmless extraction formatting while retaining exact source offsets."""
+
+        normalized: list[str] = []
+        starts: list[int] = []
+        ends: list[int] = []
+        for index, original in enumerate(text):
+            if original == "\u00ad":
+                continue
+            for character in unicodedata.normalize("NFKC", original).translate(_QUOTE_TRANSLATION):
+                if character.isspace():
+                    if normalized and normalized[-1] == " ":
+                        ends[-1] = index + 1
+                    else:
+                        normalized.append(" ")
+                        starts.append(index)
+                        ends.append(index + 1)
+                    continue
+                normalized.append(character)
+                starts.append(index)
+                ends.append(index + 1)
+        return "".join(normalized), starts, ends
 
     @staticmethod
     def _source_evidence_category(
@@ -537,7 +584,7 @@ class ExtractionService:
                     id=span_id,
                     snapshot_id=snapshot.id,
                     claim_id=claim_id,
-                    quote=row.exact_quote,
+                    quote=snapshot.text[start:end],
                     start=start,
                     end=end,
                     locator="reported result",

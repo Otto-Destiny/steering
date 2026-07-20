@@ -28,6 +28,10 @@ from steering.domain.models import (
     Snapshot,
     SourceKind,
 )
+from steering.extraction.service import EvidenceValidationError
+from steering.ingestion.browser import BrowserDependencyUnavailable
+from steering.ingestion.security import SourceUnavailableError
+from steering.providers.openai_compatible import ProviderTimeoutError
 from steering.web import ProviderView, create_web_app
 
 
@@ -289,11 +293,20 @@ class FakeEngine:
 
 
 class FakeIngestion:
-    def __init__(self, repository: FakeRepository, *, fail: bool = False) -> None:
+    def __init__(
+        self,
+        repository: FakeRepository,
+        *,
+        fail: bool = False,
+        error: Exception | None = None,
+    ) -> None:
         self.repository = repository
         self.fail = fail
+        self.error = error
 
     async def add(self, source: str) -> ArtifactRecord:
+        if self.error is not None:
+            raise self.error
         if self.fail:
             raise RuntimeError("PRIVATE-PROVIDER-KEY")
         record = make_record("art_added")
@@ -442,7 +455,7 @@ def test_ui_pages_and_progressive_search_design_and_ingestion(
         headers={"HX-Request": "true"},
     )
     assert added.status_code == 200
-    assert "Capture complete" in added.text
+    assert "Capture succeeded" in added.text
 
 
 def test_json_api_covers_knowledge_design_review_and_project_history(
@@ -727,6 +740,72 @@ def test_unexpected_errors_are_safe_and_validation_never_echoes_secret() -> None
         assert invalid_secret not in invalid.text
 
 
+def test_provider_timeout_returns_clean_retryable_ingestion_failure() -> None:
+    repository = FakeRepository()
+    app = create_web_app(
+        engine=FakeEngine(repository),  # type: ignore[arg-type]
+        ingestion=FakeIngestion(
+            repository,
+            error=ProviderTimeoutError("timeout included PRIVATE-PROVIDER-KEY"),
+        ),  # type: ignore[arg-type]
+        repository=repository,  # type: ignore[arg-type]
+        provider_settings=FakeProviders(),
+    )
+    expected = "Ingestion failed because the generation provider timed out. Retry."
+    with TestClient(app, base_url="http://localhost", raise_server_exceptions=False) as client:
+        fragment = client.post(
+            "/add",
+            data={"mode": "url", "source": "https://example.com"},
+            headers={"HX-Request": "true"},
+        )
+        assert fragment.status_code == 200
+        assert "Capture failed" in fragment.text
+        assert expected in fragment.text
+        assert "Retry ingestion" in fragment.text
+
+        page = client.post(
+            "/add",
+            data={"mode": "url", "source": "https://example.com"},
+        )
+        assert page.status_code == 503
+        assert expected in page.text
+        assert 'href="/add"' in page.text
+
+        api = client.post("/api/ingestion", json={"source": "https://example.com"})
+        assert api.status_code == 503
+        assert api.json() == {"error": expected}
+
+        assert "PRIVATE-PROVIDER-KEY" not in fragment.text + page.text + api.text
+
+
+def test_source_unavailable_returns_clean_retryable_ingestion_failure() -> None:
+    repository = FakeRepository()
+    app = create_web_app(
+        engine=FakeEngine(repository),  # type: ignore[arg-type]
+        ingestion=FakeIngestion(
+            repository,
+            error=SourceUnavailableError("source included PRIVATE-SOURCE-DETAIL"),
+        ),  # type: ignore[arg-type]
+        repository=repository,  # type: ignore[arg-type]
+        provider_settings=FakeProviders(),
+    )
+    expected = "Ingestion failed because the source could not be reached. Retry."
+    with TestClient(app, base_url="http://localhost", raise_server_exceptions=False) as client:
+        fragment = client.post(
+            "/add",
+            data={"mode": "url", "source": "https://example.com"},
+            headers={"HX-Request": "true"},
+        )
+        assert fragment.status_code == 200
+        assert expected in fragment.text
+        assert "Retry ingestion" in fragment.text
+
+        api = client.post("/api/ingestion", json={"source": "https://example.com"})
+        assert api.status_code == 502
+        assert api.json() == {"error": expected}
+        assert "PRIVATE-SOURCE-DETAIL" not in fragment.text + api.text
+
+
 def test_non_htmx_forms_missing_records_and_issue_resolution(
     web_stack: tuple[TestClient, FakeRepository, FakeIngestion, FakeProviders],
 ) -> None:
@@ -797,7 +876,7 @@ def test_add_form_batch_upload_browser_and_validation_paths() -> None:
             headers={"HX-Request": "true"},
         )
         assert batch.status_code == 200
-        assert batch.text.count("Compact Agent Memory") == 3
+        assert "3 sources were added" in batch.text
         invalid_batch = client.post(
             "/add",
             data={"mode": "batch"},
@@ -902,6 +981,55 @@ def test_disabled_and_failed_capture_services_return_safe_errors() -> None:
             )
             assert response.status_code == expected
             assert "private browser detail" not in response.text
+
+    class MissingBrowser:
+        async def capture(self, url: str, *, authorized: bool = False) -> ResolvedSource:
+            raise BrowserDependencyUnavailable(url)
+
+        async def open_login(self, url: str, *, authorized: bool = False) -> None:
+            raise BrowserDependencyUnavailable(url)
+
+    missing_app = create_web_app(
+        engine=FakeEngine(repository),  # type: ignore[arg-type]
+        ingestion=FakeIngestion(repository),  # type: ignore[arg-type]
+        repository=repository,  # type: ignore[arg-type]
+        provider_settings=FakeProviders(),
+        resolved_ingestion=FakeResolvedIngestion(repository),
+        browser_capture=MissingBrowser(),
+    )
+    with TestClient(missing_app, base_url="http://localhost") as client:
+        response = client.post(
+            "/browser/login",
+            data={"login_url": "https://x.com/login", "authorize_login": "on"},
+            headers={"HX-Request": "true"},
+        )
+        assert response.status_code == 200
+        assert "Managed browser did not open" in response.text
+        assert "Install the browser extra and Chromium" in response.text
+
+
+def test_evidence_mismatch_returns_visible_ingestion_failure_instead_of_500() -> None:
+    repository = FakeRepository()
+
+    class EvidenceFailingIngestion(FakeIngestion):
+        async def add(self, source: str) -> ArtifactRecord:
+            raise EvidenceValidationError(source)
+
+    app = create_web_app(
+        engine=FakeEngine(repository),  # type: ignore[arg-type]
+        ingestion=EvidenceFailingIngestion(repository),  # type: ignore[arg-type]
+        repository=repository,  # type: ignore[arg-type]
+        provider_settings=FakeProviders(),
+    )
+    with TestClient(app, base_url="http://localhost") as client:
+        response = client.post(
+            "/add",
+            data={"mode": "url", "source": "https://example.com/source"},
+            headers={"HX-Request": "true"},
+        )
+        assert response.status_code == 200
+        assert "Capture failed" in response.text
+        assert "could not be verified" in response.text
 
 
 def test_provider_html_and_api_failure_paths(

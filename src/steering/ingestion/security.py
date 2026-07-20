@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import ipaddress
 import socket
 from urllib.parse import urljoin, urlsplit
@@ -42,8 +43,14 @@ class NetworkGuard:
 
         if self.allow_private_hosts:
             return
-        normalized = address.split("%", 1)[0]
-        ip = ipaddress.ip_address(normalized)
+        normalized = address.strip()
+        if normalized.startswith("[") and normalized.endswith("]"):
+            normalized = normalized[1:-1]
+        normalized = normalized.split("%", 1)[0]
+        try:
+            ip = ipaddress.ip_address(normalized)
+        except ValueError:
+            raise UnsafeSourceError("source peer returned an invalid IP address") from None
         if not ip.is_global:
             raise UnsafeSourceError("private, loopback, link-local, or reserved sources are not allowed")
 
@@ -62,12 +69,16 @@ class SafeFetcher:
         guard: NetworkGuard | None = None,
         max_bytes: int = 20 * 1024 * 1024,
         max_redirects: int = 4,
+        max_attempts: int = 3,
         require_connected_peer: bool | None = None,
     ) -> None:
+        if max_attempts < 1:
+            raise ValueError("max_attempts must be positive")
         self.client = client
         self.guard = guard or NetworkGuard()
         self.max_bytes = max_bytes
         self.max_redirects = max_redirects
+        self.max_attempts = max_attempts
         self.require_connected_peer = (
             not isinstance(getattr(client, "_transport", None), httpx.MockTransport)
             if require_connected_peer is None
@@ -84,37 +95,47 @@ class SafeFetcher:
         current = url
         for _ in range(self.max_redirects + 1):
             await self.guard.validate_url(current)
-            try:
-                async with self.client.stream(
-                    "GET",
-                    current,
-                    headers=headers,
-                    params=params,
-                    follow_redirects=False,
-                ) as response:
-                    network_stream = response.extensions.get("network_stream")
-                    get_extra_info = getattr(network_stream, "get_extra_info", None)
-                    peer = get_extra_info("server_addr") if callable(get_extra_info) else None
-                    if isinstance(peer, (tuple, list)) and peer:
-                        self.guard.validate_connected_address(str(peer[0]))
-                    elif isinstance(peer, str):
-                        self.guard.validate_connected_address(peer)
-                    elif self.require_connected_peer:
-                        raise SourceUnavailableError("source connection peer could not be verified")
-                    if response.status_code in {301, 302, 303, 307, 308}:
-                        location = response.headers.get("location")
-                        if not location:
-                            raise SourceUnavailableError("source redirect did not include a location")
-                        current = urljoin(current, location)
-                        params = None
+            redirected = False
+            for attempt in range(self.max_attempts):
+                try:
+                    async with self.client.stream(
+                        "GET",
+                        current,
+                        headers=headers,
+                        params=params,
+                        follow_redirects=False,
+                    ) as response:
+                        network_stream = response.extensions.get("network_stream")
+                        get_extra_info = getattr(network_stream, "get_extra_info", None)
+                        peer = get_extra_info("server_addr") if callable(get_extra_info) else None
+                        if isinstance(peer, (tuple, list)) and peer:
+                            self.guard.validate_connected_address(str(peer[0]))
+                        elif isinstance(peer, str):
+                            self.guard.validate_connected_address(peer)
+                        elif self.require_connected_peer:
+                            raise SourceUnavailableError("source connection peer could not be verified")
+                        if response.status_code in {301, 302, 303, 307, 308}:
+                            location = response.headers.get("location")
+                            if not location:
+                                raise SourceUnavailableError("source redirect did not include a location")
+                            current = urljoin(current, location)
+                            params = None
+                            redirected = True
+                            break
+                        response.raise_for_status()
+                        data = bytearray()
+                        async for part in response.aiter_bytes():
+                            data.extend(part)
+                            if len(data) > self.max_bytes:
+                                raise SourceUnavailableError("source exceeded the configured download limit")
+                        return bytes(data), response.headers, str(response.url)
+                except httpx.TransportError as exc:
+                    if attempt + 1 < self.max_attempts:
+                        await asyncio.sleep(0.25 * (2**attempt))
                         continue
-                    response.raise_for_status()
-                    data = bytearray()
-                    async for part in response.aiter_bytes():
-                        data.extend(part)
-                        if len(data) > self.max_bytes:
-                            raise SourceUnavailableError("source exceeded the configured download limit")
-                    return bytes(data), response.headers, str(response.url)
-            except httpx.HTTPError as exc:
-                raise SourceUnavailableError(f"source request failed ({type(exc).__name__})") from None
+                    raise SourceUnavailableError(f"source request failed ({type(exc).__name__})") from None
+                except httpx.HTTPError as exc:
+                    raise SourceUnavailableError(f"source request failed ({type(exc).__name__})") from None
+            if redirected:
+                continue
         raise SourceUnavailableError("source exceeded the redirect limit")

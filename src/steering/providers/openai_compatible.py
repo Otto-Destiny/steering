@@ -22,6 +22,10 @@ class ProviderConnectionError(RuntimeError):
     """Safe provider error that never contains credentials or response bodies."""
 
 
+class ProviderTimeoutError(ProviderConnectionError):
+    """Safe error raised after a provider timeout exhausts bounded retries."""
+
+
 def _authorization_headers(api_key: SecretStr | None) -> dict[str, str]:
     if api_key is None or not api_key.get_secret_value():
         return {}
@@ -34,7 +38,7 @@ class OpenAICompatibleClient:
         *,
         base_url: str,
         api_key: SecretStr | None = None,
-        timeout_seconds: float = 60.0,
+        timeout_seconds: float = 90.0,
         max_attempts: int = 3,
         client: httpx.AsyncClient | None = None,
     ) -> None:
@@ -46,7 +50,12 @@ class OpenAICompatibleClient:
         self._client = client or httpx.AsyncClient(
             base_url=normalized,
             headers=_authorization_headers(api_key),
-            timeout=httpx.Timeout(timeout_seconds),
+            timeout=httpx.Timeout(
+                timeout_seconds,
+                connect=min(timeout_seconds, 10.0),
+                write=min(timeout_seconds, 30.0),
+                pool=min(timeout_seconds, 10.0),
+            ),
             follow_redirects=False,
             trust_env=False,
         )
@@ -69,6 +78,17 @@ class OpenAICompatibleClient:
                     continue
                 response.raise_for_status()
                 payload = response.json()
+            except httpx.TransportError as exc:
+                if attempt + 1 < self._max_attempts:
+                    await asyncio.sleep(0.25 * (2**attempt))
+                    continue
+                if isinstance(exc, httpx.TimeoutException):
+                    raise ProviderTimeoutError(
+                        f"provider request timed out after {self._max_attempts} attempts"
+                    ) from None
+                raise ProviderConnectionError(
+                    f"provider connection failed after {self._max_attempts} attempts"
+                ) from None
             except (httpx.HTTPError, json.JSONDecodeError, ValueError) as exc:
                 raise ProviderConnectionError(
                     f"provider request failed ({type(exc).__name__}); verify endpoint, model, and credential"

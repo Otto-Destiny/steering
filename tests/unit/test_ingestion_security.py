@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from unittest.mock import AsyncMock
+
 import httpx
 import pytest
 
@@ -46,6 +48,16 @@ async def test_network_guard_reports_dns_failure_and_can_explicitly_allow_privat
     assert await private_guard.validate_url("http://internal.example/resource") == (
         "http://internal.example/resource"
     )
+
+
+def test_network_guard_accepts_bracketed_public_ipv6_from_browser_peer() -> None:
+    guard = NetworkGuard()
+
+    guard.validate_connected_address("[2606:4700:4700::1111]")
+    with pytest.raises(UnsafeSourceError, match="private"):
+        guard.validate_connected_address("[::1]")
+    with pytest.raises(UnsafeSourceError, match="invalid IP"):
+        guard.validate_connected_address("[not-an-ip]")
 
 
 class RecordingGuard:
@@ -120,6 +132,57 @@ async def test_safe_fetcher_reports_missing_redirect_and_http_errors_without_res
     with pytest.raises(SourceUnavailableError, match="HTTPStatusError") as http_error:
         await fetcher.get("https://example.org/unavailable")
     assert "sensitive upstream body" not in str(http_error.value)
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_safe_fetcher_retries_transient_transport_failures(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sleep = AsyncMock()
+    monkeypatch.setattr("steering.ingestion.security.asyncio.sleep", sleep)
+    attempts = 0
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        if attempts < 3:
+            raise httpx.ConnectError("temporary connection failure")
+        return httpx.Response(200, content=b"source")
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    fetcher = SafeFetcher(client=client, guard=RecordingGuard())  # type: ignore[arg-type]
+    data, _, _ = await fetcher.get("https://example.org/source")
+
+    assert data == b"source"
+    assert attempts == 3
+    assert sleep.await_count == 2
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_safe_fetcher_bounds_exhausted_transport_retries(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("steering.ingestion.security.asyncio.sleep", AsyncMock())
+    attempts = 0
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        raise httpx.ConnectError("private failure detail")
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    fetcher = SafeFetcher(
+        client=client,
+        guard=RecordingGuard(),  # type: ignore[arg-type]
+        max_attempts=2,
+    )
+    with pytest.raises(SourceUnavailableError, match="ConnectError") as captured:
+        await fetcher.get("https://example.org/source")
+
+    assert attempts == 2
+    assert "private failure detail" not in str(captured.value)
     await client.aclose()
 
 

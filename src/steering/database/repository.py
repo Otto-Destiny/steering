@@ -141,7 +141,8 @@ class LadybugArtifactRepository:
             try:
                 yield
             except BaseException:
-                self._connection.execute("ROLLBACK")
+                with suppress(RuntimeError):
+                    self._connection.execute("ROLLBACK")
                 raise
             else:
                 self._connection.execute("COMMIT")
@@ -725,6 +726,21 @@ class LadybugArtifactRepository:
                 f"Ladybug {extension.lower()} extension is unavailable; "
                 "restore network access, then run 'steering reindex'"
             ) from exc
+
+    def load_active_search_extensions(self) -> None:
+        """Load extensions required by indexes persisted from an earlier process."""
+
+        with self._lock:
+            rows = self._rows(
+                """MATCH (s:SearchIndexState)
+                WHERE s.status = 'ready' AND s.active_index_name IS NOT NULL
+                RETURN s.index_type AS index_type"""
+            )
+            active_types = {str(row["index_type"]).upper() for row in rows}
+            if "FTS" in active_types:
+                self._load_search_extension("FTS")
+            if "HNSW" in active_types:
+                self._load_search_extension("VECTOR")
 
     def _active_index_name(self, state_name: str) -> str | None:
         rows = self._rows(

@@ -242,7 +242,7 @@ async def _local_embeddings(args: argparse.Namespace, context: _CliContext) -> N
 
 
 def _runtime_module() -> Any:
-    return importlib.import_module("steering.runtime")
+    return importlib.import_module("steering.app")
 
 
 def _daemon_base_url(context: _CliContext) -> str:

@@ -14,6 +14,7 @@ from steering.providers.openai_compatible import (
     OpenAICompatibleEmbeddingProvider,
     OpenAICompatibleGenerationProvider,
     ProviderConnectionError,
+    ProviderTimeoutError,
 )
 from steering.providers.registry import Registry
 from steering.providers.unconfigured import (
@@ -35,6 +36,7 @@ __all__ = [
     "OpenAICompatibleEmbeddingProvider",
     "OpenAICompatibleGenerationProvider",
     "ProviderConnectionError",
+    "ProviderTimeoutError",
     "Registry",
     "UnconfiguredEmbeddingProvider",
     "UnconfiguredGenerationProvider",

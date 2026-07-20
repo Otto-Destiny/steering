@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -11,21 +12,27 @@ from steering.providers.gemini import (
     GeminiEmbeddingProvider,
     GeminiGenerationProvider,
 )
-from steering.providers.openai_compatible import ProviderConnectionError
+from steering.providers.openai_compatible import ProviderConnectionError, ProviderTimeoutError
 
 
 class Answer(BaseModel):
     value: int
 
 
+ResponseItem = httpx.Response | Exception
+
+
 class QueueTransport(httpx.AsyncBaseTransport):
-    def __init__(self, responses: list[httpx.Response]) -> None:
+    def __init__(self, responses: list[ResponseItem]) -> None:
         self.responses = responses
         self.requests: list[httpx.Request] = []
 
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
         self.requests.append(request)
-        return self.responses.pop(0)
+        item = self.responses.pop(0)
+        if isinstance(item, Exception):
+            raise item
+        return item
 
 
 def response(payload: object, status: int = 200) -> httpx.Response:
@@ -103,3 +110,39 @@ async def test_gemini_errors_are_redacted_and_invalid_models_are_rejected() -> N
     assert "secret-canary" not in str(captured.value)
     with pytest.raises(ValueError, match="unsupported characters"):
         GeminiGenerationProvider(client=client, model_id="../unsafe")
+
+
+async def test_gemini_retries_timeout_then_succeeds(monkeypatch: pytest.MonkeyPatch) -> None:
+    sleep = AsyncMock()
+    monkeypatch.setattr("steering.providers.gemini.asyncio.sleep", sleep)
+    transport = QueueTransport(
+        [httpx.ReadTimeout("slow response contains secret-canary"), response({"ok": True})]
+    )
+    async with httpx.AsyncClient(base_url="https://provider.test/", transport=transport) as raw:
+        client = GeminiClient(
+            base_url="https://ignored.test",
+            api_key=SecretStr("secret-canary"),
+            client=raw,
+            max_attempts=2,
+        )
+        assert await client.request("models/model:generateContent", {}) == {"ok": True}
+
+    assert len(transport.requests) == 2
+    sleep.assert_awaited_once()
+
+
+async def test_gemini_exhausted_timeouts_are_safe(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("steering.providers.gemini.asyncio.sleep", AsyncMock())
+    transport = QueueTransport([httpx.ReadTimeout("secret-canary")] * 3)
+    async with httpx.AsyncClient(base_url="https://provider.test/", transport=transport) as raw:
+        client = GeminiClient(
+            base_url="https://ignored.test",
+            api_key=SecretStr("secret-canary"),
+            client=raw,
+            max_attempts=3,
+        )
+        with pytest.raises(ProviderTimeoutError) as captured:
+            await client.request("models/model:generateContent", {})
+
+    assert len(transport.requests) == 3
+    assert "secret-canary" not in str(captured.value)

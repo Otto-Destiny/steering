@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 from typing import Any
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -83,6 +84,20 @@ async def test_client_errors_are_redacted(item: ResponseItem) -> None:
             await client.get_models()
     assert "canary-secret" not in str(captured.value)
     assert "body included" not in str(captured.value)
+
+
+async def test_client_retries_transient_connection_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sleep = AsyncMock()
+    monkeypatch.setattr("steering.providers.openai_compatible.asyncio.sleep", sleep)
+    transport = QueueTransport([httpx.ConnectError("temporarily unavailable"), response({"data": []})])
+    async with httpx.AsyncClient(base_url="https://provider.test/v1/", transport=transport) as raw:
+        client = OpenAICompatibleClient(base_url="https://ignored.test", client=raw, max_attempts=2)
+        assert await client.get_models() == {"data": []}
+
+    assert len(transport.requests) == 2
+    sleep.assert_awaited_once()
 
 
 async def test_generation_structured_success_and_content_blocks() -> None:
