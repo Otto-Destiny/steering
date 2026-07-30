@@ -5,13 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light dark">
     <title>{% block title %}STEERING{% endblock %}</title>
+    <link rel="icon" href="/static/favicon.ico" sizes="16x16 32x32 48x48">
+    <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
     <link rel="stylesheet" href="/static/app.css">
     <script src="/static/htmx.min.js" defer></script>
   </head>
   <body class="{% block body_class %}{% endblock %}">
     <a class="skip-link" href="#main">Skip to content</a>
     <header class="site-header">
-      <a class="brand" href="/" aria-label="STEERING home">STEERING <span>0.1</span></a>
+      {# The wordmark names the product, so the symbol beside it is decorative and
+         is left out of the accessibility tree rather than announced twice. #}
+      <a class="brand" href="/" aria-label="STEERING home">
+        <img class="brand-mark" src="/static/steering-mark.png" alt="" width="128" height="128" decoding="async">
+        <span class="brand-name">STEERING <span class="brand-version">0.1</span></span>
+      </a>
       <nav aria-label="Primary navigation">
         <a href="/add" {% if current_path == '/add' %}aria-current="page"{% endif %}>Add</a>
         <a href="/search" {% if current_path == '/search' %}aria-current="page"{% endif %}>Search</a>

@@ -11,7 +11,7 @@ from starlette.applications import Starlette
 from starlette.datastructures import FormData, UploadFile
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
-from starlette.responses import JSONResponse, RedirectResponse, Response
+from starlette.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
@@ -239,6 +239,11 @@ class WebController:
             record_count=self.repository.count_artifacts(),
             jobs=self.repository.list_jobs(limit=8),
         )
+
+    async def favicon(self, request: Request) -> Response:
+        """Answer the path a browser probes before it has read any markup."""
+
+        return FileResponse(WEB_ROOT / "static" / "favicon.ico", media_type="image/x-icon")
 
     async def add_page(self, request: Request) -> Response:
         return self.template(
@@ -1211,6 +1216,7 @@ def create_web_app(
             controller.provider_delete_ui,
             methods=["POST"],
         ),
+        Route("/favicon.ico", controller.favicon, methods=["GET"]),
         Route("/api/health", controller.api_health, methods=["GET"]),
         Route("/api/search", controller.api_search, methods=["POST"]),
         Route("/api/records", controller.api_records, methods=["GET"]),

@@ -24,8 +24,11 @@ input:focus, textarea:focus, select:focus, button:focus, a:focus { outline: 3px 
 .skip-link { position: absolute; left: -9999px; }
 .skip-link:focus { left: 1rem; top: 1rem; z-index: 10; padding: .6rem; background: var(--surface); }
 .site-header { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .9rem max(1rem, calc((100vw - 1180px) / 2)); border-bottom: 1px solid var(--line); background: rgb(244 243 238 / 94%); backdrop-filter: blur(12px); }
-.brand { color: var(--text); font-weight: 850; letter-spacing: .08em; text-decoration: none; }
-.brand span { color: var(--muted); font-size: .7em; }
+.brand { display: inline-flex; align-items: center; gap: .55rem; color: var(--text); font-weight: 850; letter-spacing: .08em; text-decoration: none; }
+/* Targeted at the version rather than any span, so the wordmark beside the
+   symbol is not muted and shrunk along with it. */
+.brand-mark { flex: none; width: 1.7rem; height: 1.7rem; border-radius: .32rem; }
+.brand-version { color: var(--muted); font-size: .7em; }
 nav { display: flex; align-items: center; flex-wrap: wrap; gap: .3rem; }
 nav a { padding: .45rem .65rem; color: var(--muted); text-decoration: none; border-radius: .45rem; }
 nav a:hover, nav a[aria-current="page"] { color: var(--text); background: var(--surface); }

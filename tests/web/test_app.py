@@ -4,6 +4,7 @@ import asyncio
 import re
 import time
 from collections.abc import Mapping, Sequence
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -1864,3 +1865,46 @@ def test_a_batch_where_nothing_succeeds_still_says_what_failed() -> None:
     assert response.status_code == 200
     assert "1 skipped" in response.text
     assert "Capture succeeded" not in response.text
+
+
+def test_every_page_carries_the_product_icon_beside_its_name(
+    web_stack: tuple[TestClient, FakeRepository, FakeIngestion, FakeProviders],
+) -> None:
+    """The mark belongs to the shell, so it appears on every page or none."""
+
+    client, _, _, _ = web_stack
+    for path in ("/", "/add", "/search", "/issues", "/projects"):
+        page = client.get(path).text
+        assert '<link rel="icon" href="/static/favicon.ico"' in page, path
+        assert 'rel="apple-touch-icon"' in page, path
+        assert 'class="brand-mark" src="/static/steering-mark.png"' in page, path
+        # The wordmark already names the product, so the symbol is not announced twice.
+        assert 'alt=""' in page, path
+        assert "STEERING" in page, path
+
+
+def test_the_icon_assets_are_served_including_the_path_browsers_probe(
+    web_stack: tuple[TestClient, FakeRepository, FakeIngestion, FakeProviders],
+) -> None:
+    client, _, _, _ = web_stack
+    for path in (
+        "/favicon.ico",
+        "/static/favicon.ico",
+        "/static/apple-touch-icon.png",
+        "/static/steering-mark.png",
+    ):
+        response = client.get(path)
+        assert response.status_code == 200, path
+        assert response.content[:4] in {b"\x00\x00\x01\x00", b"\x89PNG"}, path
+
+
+def test_the_favicon_carries_the_sizes_a_browser_asks_for() -> None:
+    """A single 16 px image scaled up is what makes a tab icon look smeared."""
+
+    # Pillow only arrives with an optional extra, and the icons are committed, so
+    # a checkout without it should skip rather than fail.
+    imaging = pytest.importorskip("PIL.Image")
+
+    icon = imaging.open(Path(__file__).resolve().parents[2] / "src/steering/web/static/favicon.ico")
+
+    assert sorted(icon.info["sizes"]) == [(16, 16), (32, 32), (48, 48)]
