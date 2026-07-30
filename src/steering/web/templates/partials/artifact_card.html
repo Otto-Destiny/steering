@@ -1,0 +1,17 @@
+{# No <form> here: this card renders inside the directory's bulk-retire form, and
+   nesting forms is invalid HTML. The checkbox stays in the DOM at all times so
+   the form submits normally; CSS decides when it becomes visible. #}
+<article class="card" data-filter="{{ (artifact.title ~ ' ' ~ (artifact.strategy_family or '') ~ ' ' ~ (artifact.summary or ''))|lower }}">
+  {% if selectable %}
+    <label class="card-select">
+      <input type="checkbox" name="artifact_ids" value="{{ artifact.id }}">
+      <span class="sr-only">Select {{ artifact.title }}</span>
+    </label>
+  {% endif %}
+  <div class="meta">
+    <span class="lane">{{ artifact.trust_lane.value }}</span>
+    <span>{{ artifact.strategy_family }}</span>
+  </div>
+  <h3><a href="/artifacts/{{ artifact.id }}">{{ artifact.title }}</a></h3>
+  <p>{{ artifact.summary }}</p>
+</article>

@@ -9,14 +9,59 @@
       {% if record.artifact.canonical_url %}<a href="{{ record.artifact.canonical_url }}" rel="noreferrer">Open source</a>{% endif %}
     </header>
 
+    {% if linked_sources %}
+      <section>
+        <div class="section-heading"><h2>Linked sources</h2><span>{{ linked_sources|length }}</span></div>
+        <ul class="link-list">
+          {% for source in linked_sources %}
+            <li>
+              <a href="{{ source.url }}" rel="noreferrer">{{ source.url }}</a>
+              {# Both states are labelled. Marking only the negative one made a
+                 read source indistinguishable from a missing label. #}
+              <span class="hint">{{ 'read' if source.followed else 'not read' }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endif %}
+
     <div class="detail-grid">
       <section class="panel"><h2>Capabilities</h2><ul>{% for item in record.artifact.capabilities %}<li>{{ item }}</li>{% else %}<li>None captured.</li>{% endfor %}</ul></section>
       <section class="panel"><h2>Limitations</h2><ul>{% for item in record.artifact.limitations %}<li>{{ item }}</li>{% else %}<li>None captured; verify before adoption.</li>{% endfor %}</ul></section>
-      <section class="panel"><h2>Requirements</h2><ul>{% for item in record.artifact.requirements %}<li>{{ item }}</li>{% else %}<li>None captured.</li>{% endfor %}</ul></section>
+      <section class="panel">
+        <h2>Requirements</h2>
+        {# A licence gates adoption as hard as any dependency, and an unstated one
+           is not permissive by default, so the absence is reported rather than
+           left blank. #}
+        <p class="license-line">
+          <span class="hint">License</span>
+          {% if record.artifact.license %}
+            <strong>{{ record.artifact.license }}</strong>
+            {% if record.artifact.metadata.get('license_source') %}
+              <a href="{{ record.artifact.metadata['license_source'] }}" rel="noreferrer">as stated by the source</a>
+            {% endif %}
+          {% elif record.artifact.metadata.get('license_unidentified') %}
+            <strong>Non-standard</strong>
+            <span class="hint">a license file exists but is not a recognized one; read it before adopting</span>
+          {% else %}
+            <strong>Not stated</strong>
+            <span class="hint">treat as all rights reserved until checked</span>
+          {% endif %}
+        </p>
+        <ul>{% for item in record.artifact.requirements %}<li>{{ item }}</li>{% else %}<li>None captured.</li>{% endfor %}</ul>
+      </section>
     </div>
 
     <section><div class="section-heading"><h2>Source-backed claims</h2><span>{{ record.claims|length }}</span></div>
       <div class="card-list">{% for claim in record.claims %}<article class="card"><p>{{ claim.text }}</p><div class="meta"><span>{{ claim.category.value }}</span><span>confidence {{ '%.2f'|format(claim.confidence) }}</span></div></article>{% else %}<div class="empty">No claims extracted.</div>{% endfor %}</div>
+    </section>
+
+    <section class="panel">
+      <div class="section-heading"><h2>Retire this record</h2></div>
+      <p>Removes this artifact and every snapshot, claim, and quote stored for it. This cannot be undone.</p>
+      <form action="/artifacts/{{ record.artifact.id }}/retire" method="post">
+        <button class="button danger" type="submit">Retire “{{ record.artifact.title }}”</button>
+      </form>
     </section>
 
     {% if record.issues %}<section><div class="section-heading"><h2>Review issues</h2><a href="/issues">Resolve issues</a></div>{% for issue in record.issues %}{% include "partials/issue.html" %}{% endfor %}</section>{% endif %}

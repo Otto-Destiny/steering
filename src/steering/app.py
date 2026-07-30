@@ -14,6 +14,7 @@ from steering.config import ConfigStore, SecretStore
 from steering.domain.models import ProviderConfig
 from steering.domain.protocols import ImageUnderstandingProvider
 from steering.mcp import create_mcp_server
+from steering.observability import configure_logging
 from steering.providers import (
     GeminiClient,
     GeminiEmbeddingProvider,
@@ -107,7 +108,11 @@ def create_app(
         provider_settings=provider_settings,
         resolved_ingestion=active.ingestion,
         browser_capture=active.browser,
+        login_session=active.browser_login,
         image_provider=image_provider,
+        on_record_changed=active.retriever.mark_dirty,
+        x_api=active.x_api,
+        x_api_client_id=active.config.x_api_client_id,
     )
     mcp_server = create_mcp_server(active.engine)
     mcp_app = mcp_server.streamable_http_app()
@@ -147,6 +152,7 @@ async def run_server(*, config_store: ConfigStore | None = None) -> None:
 
     store = config_store or ConfigStore()
     runtime = create_runtime(config_store=store)
+    configure_logging(runtime.config.log_level)
     if not _is_loopback_host(runtime.config.host):
         await runtime.aclose()
         raise ValueError("STEERING 0.1 may bind only to a loopback host")

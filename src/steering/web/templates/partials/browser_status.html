@@ -1,1 +1,15 @@
-<div class="notice success" role="status"><strong>{{ message }}</strong></div>
+<div class="notice {% if status.succeeded %}success{% endif %}"
+     role="status"
+     {# `hx-target="this"` is required, not decorative. htmx inherits hx-target
+        from the enclosing form, so without it `outerHTML` replaces the result
+        container instead of this element. The container is then gone, the next
+        poll raises htmx:targetError, and the status freezes on a stale message.
+        `every` also stands alone: pairing it with another trigger drops the
+        repeat. An already-signed-in attempt never polls, because the response
+        itself is terminal. #}
+     {% if polling %}hx-get="/browser/login/status" hx-trigger="every 1s" hx-target="this" hx-swap="outerHTML"{% endif %}>
+  <span>
+    {% if polling %}<strong>Waiting for sign-in…</strong>{% endif %}
+    {{ status.message }}
+  </span>
+</div>

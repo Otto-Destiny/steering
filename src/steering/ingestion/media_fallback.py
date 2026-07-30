@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -10,6 +11,8 @@ from steering.ingestion.security import SafeFetcher
 SUPPORTED_IMAGE_MIME_TYPES = frozenset({"image/jpeg", "image/png", "image/webp", "image/gif"})
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
 MAX_VISION_TEXT_CHARS = 4_000
+
+LOGGER = logging.getLogger(__name__)
 
 _DECORATIVE_HINTS = ("avatar", "emoji", "headshot", "logo", "profile photo")
 
@@ -92,6 +95,7 @@ async def append_social_image_fallback(
         if not vision_text or vision_text == "NO_TECHNICAL_CONTENT":
             return _sanitized(source, "skip_no_technical_content")
         sanitized = _sanitized(source, "include_technical_image")
+        LOGGER.info("included technical content from one attached image on %s", source.canonical_url)
         return sanitized.model_copy(
             update={
                 "text": (
@@ -102,4 +106,9 @@ async def append_social_image_fallback(
             }
         )
     except Exception:
+        LOGGER.info(
+            "social image fallback failed for %s; continuing without it",
+            source.canonical_url,
+            exc_info=True,
+        )
         return _sanitized(source, "skip_image_failure")

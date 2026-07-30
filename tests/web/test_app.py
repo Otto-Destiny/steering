@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import asyncio
+import re
+import time
 from collections.abc import Mapping, Sequence
 from typing import Any
 
 import pytest
 from starlette.testclient import TestClient
 
+from steering.database.repository import CorruptRecordError
 from steering.domain.models import (
     ArchitectureReview,
     Artifact,
@@ -29,8 +33,10 @@ from steering.domain.models import (
     SourceKind,
 )
 from steering.extraction.service import EvidenceValidationError
-from steering.ingestion.browser import BrowserDependencyUnavailable
+from steering.ingestion.browser import BrowserDependencyUnavailable, LoginOutcome
+from steering.ingestion.login_session import BrowserLoginSession
 from steering.ingestion.security import SourceUnavailableError
+from steering.ingestion.service import BatchReport, ThreadPolicy
 from steering.providers.openai_compatible import ProviderTimeoutError
 from steering.web import ProviderView, create_web_app
 
@@ -130,6 +136,7 @@ class FakeRepository:
     def __init__(self) -> None:
         self.records = [make_record()]
         self.issues = [make_issue()]
+        self.unreadable: list[dict[str, str]] = []
         self.jobs = [
             IngestionJob(
                 id="job_one",
@@ -145,8 +152,33 @@ class FakeRepository:
     def list_records(self) -> list[ArtifactRecord]:
         return self.records
 
+    def list_artifacts(self, *, limit: int | None = None) -> list[Artifact]:
+        artifacts = sorted(
+            (record.artifact for record in self.records),
+            key=lambda artifact: artifact.captured_at,
+            reverse=True,
+        )
+        return artifacts if limit is None else artifacts[:limit]
+
+    def count_artifacts(self) -> int:
+        return len(self.records)
+
+    def find_artifact_by_url(self, canonical_url: str) -> Artifact | None:
+        return next(
+            (r.artifact for r in self.records if r.artifact.canonical_url == canonical_url),
+            None,
+        )
+
+    def delete_record(self, artifact_id: str) -> bool:
+        before = len(self.records)
+        self.records = [r for r in self.records if r.artifact.id != artifact_id]
+        return len(self.records) != before
+
     def get_record(self, artifact_id: str) -> ArtifactRecord | None:
         return next((record for record in self.records if record.artifact.id == artifact_id), None)
+
+    def unreadable_records(self) -> list[dict[str, str]]:
+        return list(self.unreadable)
 
     def list_jobs(self, limit: int = 100) -> list[IngestionJob]:
         return self.jobs[:limit]
@@ -222,9 +254,10 @@ class FakeEngine:
     def __init__(self, repository: FakeRepository) -> None:
         self.repository = repository
         self.retriever = FakeRetriever()
+        self.queries: list[Any] = []
 
     async def search(self, query: Any) -> list[SearchHit]:
-        del query
+        self.queries.append(query)
         return [
             SearchHit(
                 artifact=self.repository.records[0].artifact,
@@ -303,8 +336,11 @@ class FakeIngestion:
         self.repository = repository
         self.fail = fail
         self.error = error
+        self.thread_policies: list[ThreadPolicy] = []
+        self.two_pass_requested: list[bool] = []
 
-    async def add(self, source: str) -> ArtifactRecord:
+    async def add(self, source: str, *, threads: ThreadPolicy = ThreadPolicy.AUTO) -> ArtifactRecord:
+        self.thread_policies.append(threads)
         if self.error is not None:
             raise self.error
         if self.fail:
@@ -314,8 +350,29 @@ class FakeIngestion:
         self.repository.records.append(record)
         return record
 
-    async def add_batch(self, sources: Sequence[str]) -> list[ArtifactRecord]:
-        return [await self.add(source) for source in sources]
+    async def add_batch(
+        self,
+        sources: Sequence[str],
+        *,
+        threads: ThreadPolicy = ThreadPolicy.AUTO,
+    ) -> list[ArtifactRecord]:
+        return [await self.add(source, threads=threads) for source in sources]
+
+    async def add_batch_report(
+        self,
+        sources: Sequence[str],
+        *,
+        threads: ThreadPolicy = ThreadPolicy.AUTO,
+        two_pass: bool = False,
+    ) -> BatchReport:
+        self.two_pass_requested.append(two_pass)
+        report = BatchReport()
+        for source in sources:
+            try:
+                report.records.append(await self.add(source, threads=threads))
+            except Exception as exc:
+                report.failures.append((source, type(exc).__name__))
+        return report
 
 
 class FakeProviders:
@@ -378,8 +435,10 @@ class FakeResolvedIngestion:
 
 
 class FakeBrowserCapture:
-    def __init__(self) -> None:
+    def __init__(self, outcome: LoginOutcome = LoginOutcome.SIGNED_IN) -> None:
         self.login_urls: list[str] = []
+        self.forced: list[bool] = []
+        self.outcome = outcome
 
     async def capture(self, url: str, *, authorized: bool = False) -> ResolvedSource:
         assert authorized is True
@@ -391,9 +450,22 @@ class FakeBrowserCapture:
             extraction_method="authorized_visible_browser",
         )
 
-    async def open_login(self, url: str, *, authorized: bool = False) -> None:
+    async def open_login(self, url: str, *, authorized: bool = False, force: bool = False) -> LoginOutcome:
         assert authorized is True
         self.login_urls.append(url)
+        self.forced.append(force)
+        return self.outcome
+
+
+def settle_login(client: TestClient, path: str = "/api/browser/login/status") -> dict[str, str]:
+    """Poll the status endpoint the way the interface does, until it stops running."""
+
+    for _ in range(50):
+        payload = client.get(path).json()
+        if payload["state"] != "running":
+            return dict(payload)
+        time.sleep(0.02)
+    raise AssertionError("managed browser sign-in never left the running state")
 
 
 @pytest.fixture
@@ -523,6 +595,44 @@ def test_json_api_covers_knowledge_design_review_and_project_history(
     }
 
 
+def test_the_artifact_page_states_the_license_or_says_it_is_unstated(
+    web_stack: tuple[TestClient, FakeRepository, FakeIngestion, FakeProviders],
+) -> None:
+    """An unstated license is not permissive, so silence would mislead a reader."""
+
+    client, repository, _, _ = web_stack
+
+    unstated = client.get("/artifacts/art_memory").text
+    assert "License" in unstated
+    assert "Not stated" in unstated
+    assert "treat as all rights reserved" in unstated
+
+    record = repository.records[0]
+    record.artifact.license = "Apache-2.0"
+    record.artifact.metadata["license_source"] = "https://github.com/example/project"
+
+    stated = client.get("/artifacts/art_memory").text
+    assert "Apache-2.0" in stated
+    assert "https://github.com/example/project" in stated
+    assert "Not stated" not in stated
+
+
+def test_audit_reports_records_that_cannot_be_opened(
+    web_stack: tuple[TestClient, FakeRepository, FakeIngestion, FakeProviders],
+) -> None:
+    client, repository, _, _ = web_stack
+
+    clean = client.get("/api/maintenance/audit")
+    assert clean.status_code == 200
+    assert clean.json()["unreadable_count"] == 0
+
+    repository.unreadable = [{"artifact_id": "art_broken", "title": "Broken", "detail": "Invalid JSON: EOF"}]
+    damaged = client.get("/api/maintenance/audit").json()
+    assert damaged["unreadable_count"] == 1
+    assert damaged["unreadable"][0]["artifact_id"] == "art_broken"
+    assert damaged["unreadable"][0]["detail"] == "Invalid JSON: EOF"
+
+
 def test_web_project_workflow_creates_records_history_and_design_selection(
     web_stack: tuple[TestClient, FakeRepository, FakeIngestion, FakeProviders],
 ) -> None:
@@ -586,6 +696,7 @@ def test_explicit_upload_and_authorized_browser_capture() -> None:
         provider_settings=FakeProviders(),
         resolved_ingestion=resolved,
         browser_capture=browser,
+        login_session=BrowserLoginSession(browser),
     )
     with TestClient(app, base_url="http://localhost") as client:
         denied_upload = client.post(
@@ -619,23 +730,29 @@ def test_explicit_upload_and_authorized_browser_capture() -> None:
             json={"url": "https://www.linkedin.com/login", "authorized": False},
         )
         assert denied_login.status_code == 403
+
+        # Sign-in is human-paced, so the request starts it and returns at once
+        # rather than holding the connection open for the whole attempt.
         login = client.post(
             "/api/browser/login",
             json={"url": "https://www.linkedin.com/login", "authorized": True},
         )
-        assert login.json() == {"status": "ready"}
+        assert login.status_code == 202
+        assert login.json()["state"] == "running"
+        assert settle_login(client)["state"] == "signed_in"
         assert browser.login_urls == ["https://www.linkedin.com/login"]
+
         login_ui = client.post(
             "/browser/login",
-            data={
-                "login_url": "https://x.com/login",
-                "authorize_login": "on",
-            },
+            data={"login_url": "https://x.com/i/flow/login", "authorize_login": "on"},
             headers={"HX-Request": "true"},
         )
         assert login_ui.status_code == 200
-        assert "session saved" in login_ui.text
-        assert browser.login_urls[-1] == "https://x.com/login"
+        # The interface is told to poll rather than block on the response.
+        assert 'hx-get="/browser/login/status"' in login_ui.text
+        assert settle_login(client)["state"] == "signed_in"
+        assert browser.login_urls[-1] == "https://x.com/i/flow/login"
+        assert "session is saved" in client.get("/browser/login/status").text
 
 
 def test_provider_api_masks_secret_and_supports_test_replace_and_delete(
@@ -859,6 +976,7 @@ def test_add_form_batch_upload_browser_and_validation_paths() -> None:
         provider_settings=FakeProviders(),
         resolved_ingestion=resolved,
         browser_capture=FakeBrowserCapture(),
+        login_session=BrowserLoginSession(FakeBrowserCapture()),
     )
     with TestClient(app, base_url="http://localhost") as client:
         redirected = client.post(
@@ -986,33 +1104,74 @@ def test_disabled_and_failed_capture_services_return_safe_errors() -> None:
         async def capture(self, url: str, *, authorized: bool = False) -> ResolvedSource:
             raise BrowserDependencyUnavailable(url)
 
-        async def open_login(self, url: str, *, authorized: bool = False) -> None:
+        async def open_login(
+            self, url: str, *, authorized: bool = False, force: bool = False
+        ) -> LoginOutcome:
             raise BrowserDependencyUnavailable(url)
 
+    missing_browser = MissingBrowser()
     missing_app = create_web_app(
         engine=FakeEngine(repository),  # type: ignore[arg-type]
         ingestion=FakeIngestion(repository),  # type: ignore[arg-type]
         repository=repository,  # type: ignore[arg-type]
         provider_settings=FakeProviders(),
         resolved_ingestion=FakeResolvedIngestion(repository),
-        browser_capture=MissingBrowser(),
+        browser_capture=missing_browser,
+        login_session=BrowserLoginSession(missing_browser),
     )
     with TestClient(missing_app, base_url="http://localhost") as client:
         response = client.post(
             "/browser/login",
-            data={"login_url": "https://x.com/login", "authorize_login": "on"},
+            data={"login_url": "https://x.com/i/flow/login", "authorize_login": "on"},
             headers={"HX-Request": "true"},
         )
         assert response.status_code == 200
-        assert "Managed browser did not open" in response.text
-        assert "Install the browser extra and Chromium" in response.text
+        # A missing dependency is reported through the same status the interface
+        # already polls, rather than as a failed form submission.
+        assert settle_login(client)["state"] == "unavailable"
+        assert "Install the browser extra and Chromium" in client.get("/browser/login/status").text
+
+
+def test_a_second_sign_in_attempt_is_refused_while_one_is_running() -> None:
+    repository = FakeRepository()
+
+    class SlowBrowser(FakeBrowserCapture):
+        async def open_login(
+            self, url: str, *, authorized: bool = False, force: bool = False
+        ) -> LoginOutcome:
+            await asyncio.sleep(0.5)
+            return await super().open_login(url, authorized=authorized, force=force)
+
+    browser = SlowBrowser()
+    app = create_web_app(
+        engine=FakeEngine(repository),  # type: ignore[arg-type]
+        ingestion=FakeIngestion(repository),  # type: ignore[arg-type]
+        repository=repository,  # type: ignore[arg-type]
+        provider_settings=FakeProviders(),
+        resolved_ingestion=FakeResolvedIngestion(repository),
+        browser_capture=browser,
+        login_session=BrowserLoginSession(browser),
+    )
+    with TestClient(app, base_url="http://localhost") as client:
+        first = client.post(
+            "/api/browser/login",
+            json={"url": "https://x.com/i/flow/login", "authorized": True},
+        )
+        assert first.status_code == 202
+        # Two managed browsers would contend for the same locked profile directory.
+        second = client.post(
+            "/api/browser/login",
+            json={"url": "https://x.com/i/flow/login", "authorized": True},
+        )
+        assert second.status_code == 409
+        assert settle_login(client)["state"] == "signed_in"
 
 
 def test_evidence_mismatch_returns_visible_ingestion_failure_instead_of_500() -> None:
     repository = FakeRepository()
 
     class EvidenceFailingIngestion(FakeIngestion):
-        async def add(self, source: str) -> ArtifactRecord:
+        async def add(self, source: str, *, threads: ThreadPolicy = ThreadPolicy.AUTO) -> ArtifactRecord:
             raise EvidenceValidationError(source)
 
     app = create_web_app(
@@ -1125,3 +1284,414 @@ def test_provider_html_and_api_failure_paths(
             ).status_code
             == 502
         )
+
+
+def test_batch_ingestion_reports_failures_and_forwards_the_thread_flag() -> None:
+    """An unattended run must say what it captured and what it could not."""
+
+    repository = FakeRepository()
+
+    class PartlyFailingIngestion(FakeIngestion):
+        async def add(self, source: str, *, threads: ThreadPolicy = ThreadPolicy.AUTO) -> ArtifactRecord:
+            self.thread_policies.append(threads)
+            if source.endswith("/dead"):
+                raise SourceUnavailableError("gone")
+            return make_record("art_added")
+
+    ingestion = PartlyFailingIngestion(repository)
+    app = create_web_app(
+        engine=FakeEngine(repository),  # type: ignore[arg-type]
+        ingestion=ingestion,  # type: ignore[arg-type]
+        repository=repository,  # type: ignore[arg-type]
+        provider_settings=FakeProviders(),
+    )
+    with TestClient(app, base_url="http://localhost") as client:
+        response = client.post(
+            "/api/ingestion",
+            json={
+                "sources": [
+                    "https://x.com/a/status/1",
+                    "https://example.com/dead",
+                    "https://x.com/a/status/2",
+                ],
+                "threads": "always",
+            },
+        )
+
+    assert response.status_code == 202
+    body = response.json()
+    # One dead link does not discard the rest of the run.
+    assert len(body["records"]) == 2
+    assert body["failures"] == [
+        {"source": "https://example.com/dead", "error_code": "SourceUnavailableError"}
+    ]
+    assert body["aborted"] is None
+    assert ingestion.thread_policies == [ThreadPolicy.ALWAYS] * 3
+    # A batch defaults to the free public pass first.
+    assert ingestion.two_pass_requested == [False]
+
+
+def test_single_ingestion_defaults_to_automatic_thread_escalation() -> None:
+    repository = FakeRepository()
+    ingestion = FakeIngestion(repository)
+    app = create_web_app(
+        engine=FakeEngine(repository),  # type: ignore[arg-type]
+        ingestion=ingestion,  # type: ignore[arg-type]
+        repository=repository,  # type: ignore[arg-type]
+        provider_settings=FakeProviders(),
+    )
+    with TestClient(app, base_url="http://localhost") as client:
+        response = client.post("/api/ingestion", json={"source": "https://x.com/a/status/1"})
+
+    assert response.status_code == 202
+    assert ingestion.thread_policies == [ThreadPolicy.AUTO]
+
+
+def test_the_artifact_page_shows_where_the_capture_led() -> None:
+    """A post's own URL says where knowledge came from; the paper or repository
+    it pointed at is the thing worth opening."""
+
+    repository = FakeRepository()
+    record = repository.records[0]
+    record.artifact.metadata.update(
+        {
+            "supporting_sources": ["https://github.com/example/hyperresearch"],
+            "outbound_urls": [
+                "https://github.com/example/hyperresearch",
+                "https://substack.example/only-mentioned",
+            ],
+        }
+    )
+    record.snapshots.append(
+        Snapshot(
+            id="snap_followed",
+            artifact_id=record.artifact.id,
+            source_url="https://github.com/example/hyperresearch",
+            content_hash="followed-hash",
+            mime_type="text/markdown",
+            text="A" * 4321,
+            extraction_method="github_readme_api",
+        )
+    )
+
+    app = create_web_app(
+        engine=FakeEngine(repository),  # type: ignore[arg-type]
+        ingestion=FakeIngestion(repository),  # type: ignore[arg-type]
+        repository=repository,  # type: ignore[arg-type]
+        provider_settings=FakeProviders(),
+    )
+    with TestClient(app, base_url="http://localhost") as client:
+        page = client.get(f"/artifacts/{record.artifact.id}").text
+
+    assert "Linked sources" in page
+    # One line per destination: the link itself, nothing else.
+    assert 'href="https://github.com/example/hyperresearch"' in page
+    assert "https://substack.example/only-mentioned" in page
+    # Both states are labelled: an unlabelled link would be ambiguous.
+    assert re.search(r'hyperresearch</a>\s*(?:<!--.*?-->\s*)?<span class="hint">read</span>', page, re.S)
+    assert re.search(r'only-mentioned</a>\s*(?:<!--.*?-->\s*)?<span class="hint">not read</span>', page, re.S)
+
+
+def test_an_artifact_without_linked_sources_omits_the_section() -> None:
+    repository = FakeRepository()
+    app = create_web_app(
+        engine=FakeEngine(repository),  # type: ignore[arg-type]
+        ingestion=FakeIngestion(repository),  # type: ignore[arg-type]
+        repository=repository,  # type: ignore[arg-type]
+        provider_settings=FakeProviders(),
+    )
+    with TestClient(app, base_url="http://localhost") as client:
+        page = client.get(f"/artifacts/{repository.records[0].artifact.id}").text
+
+    assert "Linked sources" not in page
+
+
+def _directory_app(repository: FakeRepository, changed: list[int] | None = None) -> Any:
+    return create_web_app(
+        engine=FakeEngine(repository),  # type: ignore[arg-type]
+        ingestion=FakeIngestion(repository),  # type: ignore[arg-type]
+        repository=repository,  # type: ignore[arg-type]
+        provider_settings=FakeProviders(),
+        on_record_changed=(lambda: changed.append(1)) if changed is not None else None,
+    )
+
+
+def test_the_search_page_lists_all_knowledge_before_any_search() -> None:
+    """An empty page hides the knowledge that is already there."""
+
+    repository = FakeRepository()
+    with TestClient(_directory_app(repository), base_url="http://localhost") as client:
+        page = client.get("/search").text
+
+    assert "All knowledge" in page
+    assert repository.records[0].artifact.title in page
+    assert 'name="artifact_ids"' in page
+    assert 'id="directory-select-all"' in page
+
+
+def test_the_directory_sorts_the_whole_corpus_not_just_the_first_page() -> None:
+    repository = FakeRepository()
+    for index, title in enumerate(["Zebra technique", "Alpha method"]):
+        record = make_record(f"art_sorted_{index}")
+        record.artifact.title = title
+        record.artifact.canonical_url = f"https://example.test/{index}"
+        repository.records.append(record)
+
+    with TestClient(_directory_app(repository), base_url="http://localhost") as client:
+        alphabetical = client.get("/search?sort=title").text
+        unknown_sort = client.get("/search?sort=nonsense").text
+
+    titles = re.findall(r'/artifacts/art_\w+">([^<]+)</a>', alphabetical)
+    assert titles == sorted(titles, key=str.casefold)
+    # An unrecognised sort falls back rather than erroring.
+    assert re.search(r'sort-option is-active"\s+href="/search\?sort=newest"', unknown_sort)
+
+
+def test_bulk_retire_removes_every_selected_record_and_invalidates_retrieval() -> None:
+    repository = FakeRepository()
+    for index in range(2):
+        record = make_record(f"art_retire_{index}")
+        record.artifact.canonical_url = f"https://example.test/retire-{index}"
+        repository.records.append(record)
+    changed: list[int] = []
+    before = repository.count_artifacts()
+
+    with TestClient(_directory_app(repository, changed), base_url="http://localhost") as client:
+        response = client.post(
+            "/artifacts/retire",
+            data={"artifact_ids": ["art_retire_0", "art_retire_1"], "sort": "newest"},
+            headers={"HX-Request": "true"},
+        )
+
+    assert response.status_code == 200
+    assert repository.count_artifacts() == before - 2
+    assert "Retired 2 records" in response.text
+    # Retrieval indexes would still reference the removed artifacts otherwise.
+    assert changed == [1]
+
+
+def test_retiring_nothing_is_rejected_rather_than_silently_succeeding() -> None:
+    repository = FakeRepository()
+    with TestClient(_directory_app(repository), base_url="http://localhost") as client:
+        assert client.post("/artifacts/retire", data={}).status_code == 422
+
+
+def test_retiring_an_unknown_record_reports_not_found() -> None:
+    repository = FakeRepository()
+    with TestClient(_directory_app(repository), base_url="http://localhost") as client:
+        response = client.post("/artifacts/retire", data={"artifact_ids": ["art_missing"]})
+        assert response.status_code == 404
+        assert client.delete("/api/records/art_missing").status_code == 404
+
+
+def test_a_single_record_can_be_retired_from_its_own_page_and_over_the_api() -> None:
+    repository = FakeRepository()
+    extra = make_record("art_api_retire")
+    extra.artifact.canonical_url = "https://example.test/api-retire"
+    repository.records.append(extra)
+
+    with TestClient(_directory_app(repository), base_url="http://localhost") as client:
+        page = client.get("/artifacts/art_api_retire").text
+        assert 'action="/artifacts/art_api_retire/retire"' in page
+
+        response = client.delete("/api/records/art_api_retire")
+        assert response.status_code == 200
+        assert response.json() == {"retired": ["art_api_retire"]}
+    assert repository.get_record("art_api_retire") is None
+
+
+def test_the_search_bar_can_restrict_results_by_publication_date() -> None:
+    repository = FakeRepository()
+    engine = FakeEngine(repository)
+    app = create_web_app(
+        engine=engine,  # type: ignore[arg-type]
+        ingestion=FakeIngestion(repository),  # type: ignore[arg-type]
+        repository=repository,  # type: ignore[arg-type]
+        provider_settings=FakeProviders(),
+    )
+    with TestClient(app, base_url="http://localhost") as client:
+        client.post(
+            "/search",
+            data={"query": "agent memory", "limit": "10", "published_after": "2026-01-15"},
+            headers={"HX-Request": "true"},
+        )
+
+    assert engine.queries[-1].published_after is not None
+    assert engine.queries[-1].published_after.date().isoformat() == "2026-01-15"
+
+
+def test_an_omitted_date_leaves_undated_sources_in_the_results() -> None:
+    """Setting the filter excludes sources with no known date, so it stays unset."""
+
+    repository = FakeRepository()
+    engine = FakeEngine(repository)
+    app = create_web_app(
+        engine=engine,  # type: ignore[arg-type]
+        ingestion=FakeIngestion(repository),  # type: ignore[arg-type]
+        repository=repository,  # type: ignore[arg-type]
+        provider_settings=FakeProviders(),
+    )
+    with TestClient(app, base_url="http://localhost") as client:
+        client.post(
+            "/search",
+            data={"query": "agent memory", "limit": "10", "published_after": ""},
+            headers={"HX-Request": "true"},
+        )
+
+    assert engine.queries[-1].published_after is None
+
+
+def test_an_unreadable_record_explains_itself_and_offers_retirement() -> None:
+    """A plain GET reporting 'correct the submitted fields' told the user nothing."""
+
+    repository = FakeRepository()
+
+    class CorruptEngine(FakeEngine):
+        def get_knowledge_record(self, artifact_id: str) -> Any:
+            raise CorruptRecordError(artifact_id, "source_url: Field required")
+
+    app = create_web_app(
+        engine=CorruptEngine(repository),  # type: ignore[arg-type]
+        ingestion=FakeIngestion(repository),  # type: ignore[arg-type]
+        repository=repository,  # type: ignore[arg-type]
+        provider_settings=FakeProviders(),
+    )
+    with TestClient(app, base_url="http://localhost") as client:
+        response = client.get("/artifacts/art_broken")
+
+    assert response.status_code == 500
+    assert "could not be read" in response.text
+    assert "source_url: Field required" in response.text
+    # The only action that helps is offered directly.
+    assert 'action="/artifacts/art_broken/retire"' in response.text
+    assert "correct the submitted fields" not in response.text
+
+
+def test_the_x_api_panel_is_hidden_until_a_client_id_is_configured() -> None:
+    """The billed surface must not advertise itself to users who never opted in."""
+
+    repository = FakeRepository()
+    with TestClient(_directory_app(repository), base_url="http://localhost") as client:
+        page = client.get("/add").text
+
+    assert "Authorize the X API" not in page
+    # The free surfaces are always present.
+    assert "Save X bookmarks" in page
+
+
+def test_authorizing_without_a_client_id_is_refused() -> None:
+    repository = FakeRepository()
+    with TestClient(_directory_app(repository), base_url="http://localhost") as client:
+        assert client.post("/oauth/x/authorize", follow_redirects=False).status_code == 501
+        assert client.post("/api/ingestion/x-bookmarks").status_code == 409
+
+
+def test_authorizing_sends_the_user_to_x_with_pkce() -> None:
+    repository = FakeRepository()
+
+    class StubApi:
+        authorized = False
+
+    app = create_web_app(
+        engine=FakeEngine(repository),  # type: ignore[arg-type]
+        ingestion=FakeIngestion(repository),  # type: ignore[arg-type]
+        repository=repository,  # type: ignore[arg-type]
+        provider_settings=FakeProviders(),
+        x_api=StubApi(),  # type: ignore[arg-type]
+        x_api_client_id="client-id",
+    )
+    with TestClient(app, base_url="http://localhost") as client:
+        page = client.get("/add").text
+        response = client.post("/oauth/x/authorize", follow_redirects=False)
+
+    # Asserted on the route the page offers rather than its wording, so copy can
+    # change without pretending the capability did.
+    assert 'action="/oauth/x/authorize"' in page
+    assert response.status_code == 303
+    location = response.headers["location"]
+    assert location.startswith("https://x.com/i/oauth2/authorize?")
+    assert "code_challenge_method=S256" in location
+    assert "client_secret" not in location
+
+
+def test_a_callback_with_a_mismatched_state_is_rejected() -> None:
+    """A callback that did not come from our request must not be exchanged."""
+
+    repository = FakeRepository()
+
+    class StubApi:
+        authorized = False
+
+        async def complete_authorization(self, code: str, pending: Any) -> Any:
+            raise AssertionError("the code must not be exchanged")
+
+    app = create_web_app(
+        engine=FakeEngine(repository),  # type: ignore[arg-type]
+        ingestion=FakeIngestion(repository),  # type: ignore[arg-type]
+        repository=repository,  # type: ignore[arg-type]
+        provider_settings=FakeProviders(),
+        x_api=StubApi(),  # type: ignore[arg-type]
+        x_api_client_id="client-id",
+    )
+    with TestClient(app, base_url="http://localhost") as client:
+        client.post("/oauth/x/authorize", follow_redirects=False)
+        response = client.get("/oauth/x/callback?code=abc&state=forged", follow_redirects=False)
+
+    assert response.status_code == 400
+    assert "did not match" in response.text
+
+
+def test_a_callback_without_a_started_authorization_is_rejected() -> None:
+    repository = FakeRepository()
+
+    class StubApi:
+        authorized = False
+
+    app = create_web_app(
+        engine=FakeEngine(repository),  # type: ignore[arg-type]
+        ingestion=FakeIngestion(repository),  # type: ignore[arg-type]
+        repository=repository,  # type: ignore[arg-type]
+        provider_settings=FakeProviders(),
+        x_api=StubApi(),  # type: ignore[arg-type]
+        x_api_client_id="client-id",
+    )
+    with TestClient(app, base_url="http://localhost") as client:
+        response = client.get("/oauth/x/callback?code=abc&state=s", follow_redirects=False)
+
+    assert response.status_code == 400
+    assert "No X authorization was in progress" in response.text
+
+
+def test_a_bookmark_import_takes_the_free_public_pass_first() -> None:
+    """Browser time should be spent only on posts that came back needing it."""
+
+    import json as _json
+
+    repository = FakeRepository()
+    ingestion = FakeIngestion(repository)
+    app = create_web_app(
+        engine=FakeEngine(repository),  # type: ignore[arg-type]
+        ingestion=ingestion,  # type: ignore[arg-type]
+        repository=repository,  # type: ignore[arg-type]
+        provider_settings=FakeProviders(),
+    )
+    body = _json.dumps(["https://x.com/a/status/1", "https://x.com/b/status/2"]).encode()
+    with TestClient(app, base_url="http://localhost") as client:
+        assert client.post("/api/ingestion/bookmarks", content=body).status_code == 202
+
+    assert ingestion.two_pass_requested == [True]
+
+
+def test_a_non_standard_license_is_distinguished_from_having_none(
+    web_stack: tuple[TestClient, FakeRepository, FakeIngestion, FakeProviders],
+) -> None:
+    """A license file that must be read is a different decision from all-rights-reserved."""
+
+    client, repository, _, _ = web_stack
+    repository.records[0].artifact.metadata["license_unidentified"] = True
+
+    page = client.get("/artifacts/art_memory").text
+
+    assert "Non-standard" in page
+    assert "read it before adopting" in page
+    assert "Not stated" not in page

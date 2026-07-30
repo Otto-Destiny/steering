@@ -112,3 +112,35 @@ def test_local_environment_is_allowlisted_and_process_environment_wins(
     resolved = store.load()
     assert resolved.generation_provider == resolved.embedding_provider == "openai"
     assert resolved.providers["openai"].embedding_dimension == 768
+
+
+@pytest.mark.parametrize("raw", ["true", "TRUE", "1", "yes", "on"])
+def test_headless_browser_capture_can_be_enabled_from_the_environment(raw: str) -> None:
+    config = apply_environment_overrides(AppConfig(), {"STEERING_BROWSER_HEADLESS": raw})
+
+    assert config.browser_headless is True
+
+
+@pytest.mark.parametrize("raw", ["false", "0", "no", "off", ""])
+def test_headless_browser_capture_stays_off_for_falsey_values(raw: str) -> None:
+    config = apply_environment_overrides(AppConfig(), {"STEERING_BROWSER_HEADLESS": raw})
+
+    assert config.browser_headless is False
+
+
+def test_visible_browser_capture_remains_the_default() -> None:
+    assert apply_environment_overrides(AppConfig(), {}).browser_headless is False
+
+
+def test_an_unreadable_flag_is_rejected_rather_than_read_as_off() -> None:
+    """Treating 'maybe' as false would leave the user believing it was on."""
+
+    with pytest.raises(ValueError, match="true/false"):
+        apply_environment_overrides(AppConfig(), {"STEERING_BROWSER_HEADLESS": "maybe"})
+
+
+def test_the_flag_is_accepted_from_a_local_env_file(tmp_path: Path) -> None:
+    env_file = tmp_path / ".env.local"
+    env_file.write_text("STEERING_BROWSER_HEADLESS=true\n", encoding="utf-8")
+
+    assert load_local_environment(env_file) == {"STEERING_BROWSER_HEADLESS": "true"}

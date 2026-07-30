@@ -8,8 +8,10 @@ import getpass
 import importlib
 import inspect
 import json
+import os
 import shutil
 import sys
+import traceback
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -25,6 +27,7 @@ from steering.config.secrets import (
     SecretStore,
 )
 from steering.config.store import ConfigStore
+from steering.database.runtime import DatabaseCorruptedError
 from steering.domain.models import ProviderConfig
 from steering.providers.fastembed_local import (
     LOCAL_PROVIDER_ID,
@@ -307,12 +310,60 @@ async def _add(args: argparse.Namespace, context: _CliContext) -> None:
         source = cast(str, args.source)
         sources = [source]
 
-    result = await _daemon_request(context, "POST", "/api/ingestion", payload={"sources": sources})
+    if args.bundle_threads and args.root_post_only:
+        raise CliError("Choose either --bundle-threads or --root-post-only, not both.")
+    threads = "always" if args.bundle_threads else "never" if args.root_post_only else "auto"
+    result = await _daemon_request(
+        context,
+        "POST",
+        "/api/ingestion",
+        payload={"sources": sources, "threads": threads, "two_pass": bool(args.two_pass)},
+    )
     records = result.get("records", []) if isinstance(result, dict) else []
+    failures = result.get("failures", []) if isinstance(result, dict) else []
+    aborted = result.get("aborted") if isinstance(result, dict) else None
     _print_json(
         {
             "added": len(records),
+            "failed": len(failures),
+            **({"aborted": aborted} if aborted else {}),
+            "failures": failures,
             "artifacts": [record["artifact"] for record in records if isinstance(record, dict)],
+        },
+        context.stdout,
+    )
+
+
+async def _import_bookmarks(args: argparse.Namespace, context: _CliContext) -> None:
+    """Ingest the posts saved by the bookmarklet, without opening a browser."""
+
+    from steering.ingestion.bookmarks import (
+        UnsupportedBookmarkExportError,
+        bookmark_sources_from_file,
+    )
+
+    try:
+        sources = bookmark_sources_from_file(args.export)
+    except UnsupportedBookmarkExportError as exc:
+        raise CliError(str(exc)) from None
+
+    threads = "always" if args.bundle_threads else "never" if args.root_post_only else "auto"
+    result = await _daemon_request(
+        context,
+        "POST",
+        "/api/ingestion",
+        payload={"sources": sources, "threads": threads, "two_pass": not args.single_pass},
+    )
+    records = result.get("records", []) if isinstance(result, dict) else []
+    failures = result.get("failures", []) if isinstance(result, dict) else []
+    aborted = result.get("aborted") if isinstance(result, dict) else None
+    _print_json(
+        {
+            "bookmarked_posts": len(sources),
+            "added": len(records),
+            "failed": len(failures),
+            **({"aborted": aborted} if aborted else {}),
+            "failures": failures,
         },
         context.stdout,
     )
@@ -347,8 +398,12 @@ async def _jobs(args: argparse.Namespace, context: _CliContext) -> None:
     _print_json(jobs, context.stdout)
 
 
-async def _doctor(_args: argparse.Namespace, context: _CliContext) -> None:
+async def _doctor(args: argparse.Namespace, context: _CliContext) -> None:
     report = await _daemon_request(context, "GET", "/api/health", timeout=10.0)
+    if getattr(args, "records", False):
+        # Reads every record, so it is opt-in rather than part of the fast check.
+        report = dict(report)
+        report["records"] = await _daemon_request(context, "GET", "/api/maintenance/audit", timeout=300.0)
     _print_json(report, context.stdout)
 
 
@@ -433,6 +488,37 @@ def build_parser() -> argparse.ArgumentParser:
     source = add.add_mutually_exclusive_group(required=True)
     source.add_argument("source", nargs="?")
     source.add_argument("--batch", type=Path)
+    add.add_argument(
+        "--bundle-threads",
+        action="store_true",
+        help=(
+            "always read the author's self-reply thread through the signed-in browser, "
+            "and stop rather than settle for a root-post-only capture"
+        ),
+    )
+    add.add_argument(
+        "--root-post-only",
+        action="store_true",
+        help="never open the browser; capture only the root post",
+    )
+    add.add_argument(
+        "--two-pass",
+        action="store_true",
+        help="capture the whole batch publicly first, then read threads only where one is missing",
+    )
+
+    bookmarks = commands.add_parser(
+        "import-bookmarks",
+        help="ingest X posts saved by the bookmarklet, with no browser automation",
+    )
+    bookmarks.add_argument("export", type=Path)
+    bookmarks.add_argument("--bundle-threads", action="store_true")
+    bookmarks.add_argument("--root-post-only", action="store_true")
+    bookmarks.add_argument(
+        "--single-pass",
+        action="store_true",
+        help="capture each post fully in order instead of a free public pass first",
+    )
 
     telegram = commands.add_parser("import-telegram", help="ingest URLs from a Telegram export")
     telegram.add_argument("export", type=Path)
@@ -440,7 +526,12 @@ def build_parser() -> argparse.ArgumentParser:
     jobs = commands.add_parser("jobs", help="show recent ingestion jobs")
     jobs.add_argument("--limit", type=int, default=100)
     commands.add_parser("serve", help="run the local web and MCP daemon")
-    commands.add_parser("doctor", help="check local configuration and runtime health")
+    doctor = commands.add_parser("doctor", help="check local configuration and runtime health")
+    doctor.add_argument(
+        "--records",
+        action="store_true",
+        help="also read every stored record and report any that cannot be opened",
+    )
 
     backup = commands.add_parser("backup", help="create a verified logical backup")
     backup.add_argument("destination", type=Path)
@@ -460,6 +551,7 @@ async def _dispatch(args: argparse.Namespace, context: _CliContext) -> None:
         "configure-provider": _configure_provider,
         "local-embeddings": _local_embeddings,
         "add": _add,
+        "import-bookmarks": _import_bookmarks,
         "import-telegram": _import_telegram,
         "jobs": _jobs,
         "serve": _serve,
@@ -492,10 +584,29 @@ def main(
     except CliError as exc:
         print(f"error: {exc}", file=stderr)
         return 2
+    except DatabaseCorruptedError as exc:
+        # This message is written for the user and contains only paths, so it is
+        # safe to show in full, unlike an arbitrary exception.
+        print(f"error: {exc}", file=stderr)
+        return 1
     except Exception as exc:
+        # An arbitrary exception message can carry a credential echoed back by a
+        # provider, so only its type is printed. The full detail is available on
+        # request, which the user opts into knowingly.
         print(f"error: command failed ({type(exc).__name__})", file=stderr)
+        if _debug_requested():
+            traceback.print_exc(file=stderr)
+        else:
+            print(
+                "set STEERING_LOG_LEVEL=debug and retry for the full traceback",
+                file=stderr,
+            )
         return 1
     return 0
+
+
+def _debug_requested() -> bool:
+    return os.environ.get("STEERING_LOG_LEVEL", "").strip().lower() == "debug"
 
 
 if __name__ == "__main__":

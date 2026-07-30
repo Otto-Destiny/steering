@@ -57,6 +57,24 @@ class FixtureRepository:
     def list_records(self) -> list[ArtifactRecord]:
         return self.records
 
+    def list_artifacts(self, *, limit: int | None = None) -> list[Artifact]:
+        artifacts = [record.artifact for record in self.records]
+        return artifacts if limit is None else artifacts[:limit]
+
+    def count_artifacts(self) -> int:
+        return len(self.records)
+
+    def find_artifact_by_url(self, canonical_url: str) -> Artifact | None:
+        return next(
+            (r.artifact for r in self.records if r.artifact.canonical_url == canonical_url),
+            None,
+        )
+
+    def delete_record(self, artifact_id: str) -> bool:
+        before = len(self.records)
+        self.records = [r for r in self.records if r.artifact.id != artifact_id]
+        return len(self.records) != before
+
     def list_jobs(self, limit: int = 100) -> list[Any]:
         return []
 

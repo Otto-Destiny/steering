@@ -67,7 +67,11 @@ def test_json_helpers_and_missing_fingerprint_are_safe(tmp_path: Path) -> None:
     assert cli._json_safe(tmp_path) == str(tmp_path)
     with pytest.raises(cli.CliError, match="did not return"):
         cli._masked_fingerprint("provider", None)
-    assert cli._runtime_module().__name__ == "steering.runtime"
+    # `steering serve` dispatches through this module, so what matters is that it
+    # resolves to the module that actually exposes the server entry point.
+    runtime_module = cli._runtime_module()
+    assert runtime_module.__name__ == "steering.app"
+    assert callable(runtime_module.run_server)
 
 
 async def test_daemon_request_uses_local_config_and_handles_invalid_responses(
@@ -192,3 +196,38 @@ def test_async_server_and_generic_failures_are_handled_without_leaking(
     assert code == 1
     assert "RuntimeError" in error
     assert "secret-canary" not in error
+
+
+def test_database_corruption_is_explained_while_arbitrary_errors_stay_opaque(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A curated recovery message is safe to show; an arbitrary one may hold a secret."""
+
+    class CorruptModule:
+        @staticmethod
+        def run_server(*, config_store: object) -> None:
+            raise cli.DatabaseCorruptedError(
+                "the database write-ahead log at 'x.lbug.wal' is corrupt; do not delete it"
+            )
+
+    code, _, error = invoke(["serve"], monkeypatch, tmp_path, CorruptModule())
+
+    assert code == 1
+    assert "write-ahead log" in error
+    assert "do not delete" in error
+
+
+def test_the_debug_hint_is_offered_but_secrets_are_never_printed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    class LeakyModule:
+        @staticmethod
+        def run_server(*, config_store: object) -> None:
+            raise RuntimeError("provider echoed sk-secret-canary back")
+
+    code, _, error = invoke(["serve"], monkeypatch, tmp_path, LeakyModule())
+
+    assert code == 1
+    assert "RuntimeError" in error
+    assert "sk-secret-canary" not in error
+    assert "STEERING_LOG_LEVEL=debug" in error

@@ -6,6 +6,10 @@
     <label class="sr-only" for="query">Search query</label>
     <input id="query" name="query" value="{{ query }}" required maxlength="4000" placeholder="Agent memory under strict latency constraints">
     <input name="limit" type="number" value="10" min="1" max="50" aria-label="Result limit">
+    <label class="inline" title="Only sources with a known publication date on or after this day">
+      <span class="sr-only">Published after</span>
+      <input name="published_after" type="date" aria-label="Published after">
+    </label>
     <label class="inline"><input name="breadth" type="checkbox"> Breadth mode</label>
     <button class="button primary" type="submit">Search</button>
   </form>
@@ -13,4 +17,10 @@
   <section id="search-results" class="result-region" aria-live="polite">
     {% include "partials/search_results.html" %}
   </section>
+
+  {# This page doubles as the directory of everything captured, so it is never
+     blank before a search. Results render above and replace it in place. #}
+  {% if not query %}
+    {% include "partials/knowledge_directory.html" %}
+  {% endif %}
 {% endblock %}

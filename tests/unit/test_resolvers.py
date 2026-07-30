@@ -17,8 +17,8 @@ from steering.ingestion.resolvers import (
     ResolverRegistry,
     TextResolver,
     WebResolver,
-    XResolver,
     default_registry,
+    frontmatter_license,
 )
 from steering.ingestion.security import SafeFetcher, SourceUnavailableError
 
@@ -45,34 +45,9 @@ def blank_pdf_fixture() -> bytes:
 
 
 @pytest.mark.asyncio
-async def test_x_oembed_and_plain_text_resolution_are_deterministic() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        assert request.url.host == "publish.x.com"
-        assert request.url.params["url"] == "https://x.com/researcher/status/123"
-        payload = {
-            "author_name": "Researcher",
-            "provider_url": "https://x.com",
-            "html": (
-                "<blockquote><p>Released a memory method. "
-                '<a href="https://example.org/paper.pdf">paper</a></p>'
-                '<a href="https://x.com/researcher/status/123">May 1</a></blockquote>'
-            ),
-        }
-        return httpx.Response(200, json=payload, headers={"content-type": "application/json"})
-
-    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
-    resolver = XResolver(
-        SafeFetcher(client=client, guard=AllowPublicFixtureGuard())  # type: ignore[arg-type]
-    )
-    resolved = await resolver.resolve("https://twitter.com/researcher/status/123/")
-    await client.aclose()
-
-    assert resolved.canonical_url == "https://x.com/researcher/status/123"
-    assert resolved.source_kind is SourceKind.X
-    assert resolved.author == "Researcher"
-    assert resolved.outbound_urls == ["https://example.org/paper.pdf"]
-
+async def test_plain_text_resolution_is_deterministic() -> None:
     pasted = await TextResolver().resolve("text:A practical agent memory technique\nUse bounded summaries.")
+
     assert pasted.source_kind is SourceKind.TEXT
     assert pasted.text.startswith("A practical agent memory technique")
     assert pasted.canonical_url.startswith("text://")
@@ -186,10 +161,8 @@ async def test_huggingface_uses_repository_readme_instead_of_noisy_page_html() -
 
 
 @pytest.mark.asyncio
-async def test_x_github_and_pdf_error_paths_are_safe() -> None:
+async def test_github_and_pdf_error_paths_are_safe() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
-        if request.url.host == "publish.x.com":
-            return httpx.Response(200, json={"author_name": "Missing HTML"})
         if request.url.host == "api.github.com" and request.url.path.endswith("/invalid/readme"):
             return httpx.Response(
                 200,
@@ -216,8 +189,6 @@ async def test_x_github_and_pdf_error_paths_are_safe() -> None:
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     fetcher = SafeFetcher(client=client, guard=AllowPublicFixtureGuard())  # type: ignore[arg-type]
-    with pytest.raises(SourceUnavailableError, match="invalid payload"):
-        await XResolver(fetcher).resolve("https://x.com/user/status/99")
 
     raw = await GitHubResolver(fetcher).resolve("https://github.com/example/raw")
     assert raw.text.startswith("# Raw README")
@@ -353,3 +324,74 @@ async def test_paper_resolver_prefers_one_declared_full_text_and_accepts_scholar
     assert "bounded retrieval method" in scholarly_xml.text
     assert scholarly_xml.outbound_urls == ["https://example.org/code"]
     await client.aclose()
+
+
+# --------------------------------------------------------------------------- #
+# License capture
+# --------------------------------------------------------------------------- #
+
+
+def test_a_model_card_declares_its_license_in_frontmatter() -> None:
+    card = "---\nlicense: apache-2.0\ntags:\n- text-generation\n---\n\n# A model\n"
+
+    assert frontmatter_license(card) == "apache-2.0"
+
+
+def test_a_quoted_or_listed_license_reads_the_same() -> None:
+    assert frontmatter_license('---\nlicense: "cc-by-4.0"\n---\n') == "cc-by-4.0"
+    assert frontmatter_license("---\nlicense:\n- mit\n---\n") == "mit"
+
+
+def test_a_card_without_frontmatter_declares_nothing() -> None:
+    assert frontmatter_license("# Just a readme\n\nlicense: mit\n") is None
+    assert frontmatter_license("---\ntags: []\n---\n") is None
+
+
+@pytest.mark.asyncio
+async def test_github_capture_records_the_license_the_registry_reports() -> None:
+    """GitHub's own field beats anything a model might read out of prose."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/readme"):
+            return httpx.Response(200, text="# project\n\nA useful tool.")
+        return httpx.Response(200, json={"license": {"spdx_id": "Apache-2.0", "name": "Apache 2.0"}})
+
+    resolved = await GitHubResolver(fixture_fetcher(httpx.MockTransport(handler))).resolve(
+        "https://github.com/example/project"
+    )
+
+    assert resolved.metadata["license"] == "Apache-2.0"
+
+
+@pytest.mark.asyncio
+async def test_an_unidentifiable_license_is_reported_as_absent_not_invented() -> None:
+    """NOASSERTION means GitHub could not identify the file, which is not an answer."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/readme"):
+            return httpx.Response(200, text="# project\n\nA useful tool.")
+        return httpx.Response(200, json={"license": {"spdx_id": "NOASSERTION"}})
+
+    resolved = await GitHubResolver(fixture_fetcher(httpx.MockTransport(handler))).resolve(
+        "https://github.com/example/project"
+    )
+
+    assert "license" not in resolved.metadata
+
+
+@pytest.mark.asyncio
+async def test_a_failed_license_lookup_never_costs_the_capture() -> None:
+    """Rate limiting is normal for an unauthenticated client; the README still matters."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/readme"):
+            return httpx.Response(200, text="# project\n\nA useful tool.")
+        return httpx.Response(403, text="rate limited")
+
+    resolved = await GitHubResolver(fixture_fetcher(httpx.MockTransport(handler))).resolve(
+        "https://github.com/example/project"
+    )
+
+    assert resolved.text.startswith("# project")
+    assert "license" not in resolved.metadata
+    assert "license_unidentified" not in resolved.metadata

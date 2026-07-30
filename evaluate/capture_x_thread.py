@@ -1,5 +1,12 @@
 """Capture an X post and its author's self-reply thread in a visible browser.
 
+This is the corpus-building tool for `evaluate/`, not the product code path.
+Production capture lives in `steering.ingestion.browser`, and shortlink unwrapping
+lives in `steering.ingestion.x`. Keep behavioural fixes in those modules: the two
+implementations have diverged once already, and a redirect-handling change made
+here was ported into the product in a form that could never work against the real
+Playwright API.
+
 The browser profile remains local and must never be committed. The capture stores
 post text, links, and media URLs; it does not download images, videos, or papers.
 """

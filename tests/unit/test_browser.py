@@ -1,19 +1,35 @@
+"""Managed browser capture tests.
+
+The doubles here deliberately mirror the real driver's contracts rather than a
+convenient subset. An earlier `context.request` double accepted `max_redirects=0`
+and returned a `location` header, while real Playwright *rejects* on redirect
+with that setting, so a shortlink resolver that could never work in production
+passed its tests. Shortlink unwrapping now goes through the guarded fetcher,
+which is exercised here against a transport that redirects exactly as t.co does.
+"""
+
 from __future__ import annotations
 
+import asyncio
 import sys
+import time
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from typing import Any
 
+import httpx
 import pytest
 
 from steering.domain.models import SourceKind
-from steering.ingestion.browser import BrowserCaptureUnavailable, ManagedBrowserCapture
-from steering.ingestion.security import UnsafeSourceError
+from steering.ingestion.browser import (
+    BrowserAuthenticationRequired,
+    BrowserCaptureUnavailable,
+    LoginOutcome,
+    ManagedBrowserCapture,
+)
+from steering.ingestion.security import SafeFetcher, UnsafeSourceError
 
-
-async def _async_value(value: bool) -> bool:
-    return value
+PAPER_URL = "https://arxiv.org/abs/2501.12948"
 
 
 class RecordingGuard:
@@ -36,12 +52,19 @@ class BlockingGuard(RecordingGuard):
         return url
 
 
-class FakeMouse:
-    def __init__(self) -> None:
-        self.scrolls = 0
+def shortlink_fetcher(destinations: dict[str, str]) -> SafeFetcher:
+    """A guarded fetcher over a transport that redirects the way t.co does."""
 
-    async def wheel(self, _x: int, _y: int) -> None:
-        self.scrolls += 1
+    def handler(request: httpx.Request) -> httpx.Response:
+        target = destinations.get(str(request.url))
+        if target is not None:
+            return httpx.Response(301, headers={"location": target})
+        return httpx.Response(200, text="destination page")
+
+    return SafeFetcher(
+        client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+        guard=RecordingGuard(),  # type: ignore[arg-type]
+    )
 
 
 class FakeLocator:
@@ -63,17 +86,21 @@ class FakePage:
         *,
         final_url: str | None = None,
         article_batches: list[list[dict[str, Any]]] | None = None,
+        logged_in: bool = True,
+        visible_post_ids: tuple[str, ...] = ("42",),
     ) -> None:
         self.payload = payload
         self.article_batches = article_batches
         self.article_batch_index = 0
+        self.logged_in = logged_in
+        self.visible_post_ids = visible_post_ids
         self.url = final_url or "about:blank"
         self.goto_calls: list[tuple[str, str, int]] = []
         self.evaluate_scripts: list[str] = []
-        self.mouse = FakeMouse()
         self.handlers: dict[str, Any] = {}
         self.closed = False
         self.default_timeout: int | None = None
+        self.waited_ms = 0
 
     async def goto(self, url: str, *, wait_until: str, timeout: int) -> FakeResponse:
         self.goto_calls.append((url, wait_until, timeout))
@@ -85,11 +112,15 @@ class FakePage:
         self.default_timeout = timeout
 
     def locator(self, selector: str) -> FakeLocator:
-        visible = selector in {
+        if selector in {
             '[data-testid="AppTabBar_Home_Link"]',
             '[data-testid="SideNav_NewTweet_Button"]',
             'a[href="/home"]',
-        } or ('a[href*="/status/42"]' in selector and "time" in selector)
+        }:
+            return FakeLocator(int(self.logged_in))
+        visible = "time" in selector and any(
+            f"/status/{post_id}" in selector for post_id in self.visible_post_ids
+        )
         return FakeLocator(int(visible))
 
     def get_by_role(self, _role: str, *, name: str) -> FakeLocator:
@@ -105,8 +136,11 @@ class FakePage:
     async def close(self) -> None:
         self.closed = True
 
-    async def wait_for_timeout(self, _milliseconds: int) -> None:
-        return None
+    async def wait_for_timeout(self, milliseconds: int) -> None:
+        # Real `wait_for_timeout` actually sleeps, and the polling loops are paced
+        # by it. A double that returned immediately would let those loops spin.
+        self.waited_ms += milliseconds
+        await asyncio.sleep(milliseconds / 1000)
 
     async def evaluate(self, script: str, _arguments: dict[str, str] | None = None) -> Any:
         self.evaluate_scripts.append(script)
@@ -117,6 +151,21 @@ class FakePage:
             self.article_batch_index += 1
             return self.article_batches[index]
         return self.payload
+
+
+class ClosingPage(FakePage):
+    """A page the user closes part-way through polling, as a real user would."""
+
+    def __init__(self, *args: Any, close_after: int = 1, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.close_after = close_after
+        self.polls = 0
+
+    def locator(self, selector: str) -> FakeLocator:
+        self.polls += 1
+        if self.polls > self.close_after:
+            self.closed = True
+        return super().locator(selector)
 
 
 class FakeResponse:
@@ -132,41 +181,17 @@ class MissingPeerResponse(FakeResponse):
         return {}
 
 
-class FakeRequestContext:
-    def __init__(self, redirects: dict[str, str] | None = None) -> None:
-        self.redirects = redirects or {}
-        self.calls: list[tuple[str, dict[str, Any]]] = []
-
-    async def get(self, url: str, **options: Any) -> SimpleNamespace:
-        self.calls.append((url, options))
-        redirected = self.redirects.get(url)
-        return SimpleNamespace(
-            url=url,
-            headers={"location": redirected} if redirected else {},
-        )
-
-
 class FakeContext:
-    def __init__(
-        self,
-        page: FakePage,
-        *,
-        redirects: dict[str, str] | None = None,
-    ) -> None:
+    def __init__(self, page: FakePage) -> None:
         self.pages = [page]
         self.closed = False
-        self.events: list[str] = []
         self.routes: list[tuple[str, Any]] = []
-        self.request = FakeRequestContext(redirects)
 
     async def new_page(self) -> FakePage:
         return self.pages[0]
 
     async def close(self) -> None:
         self.closed = True
-
-    async def wait_for_event(self, event: str) -> None:
-        self.events.append(event)
 
     async def route(self, pattern: str, handler: Any) -> None:
         self.routes.append((pattern, handler))
@@ -216,6 +241,58 @@ def install_fake_playwright(monkeypatch: pytest.MonkeyPatch, chromium: FakeChrom
     monkeypatch.setitem(sys.modules, "playwright.async_api", api)
 
 
+def x_thread_fixture() -> list[list[dict[str, Any]]]:
+    """Three scroll batches, as X's virtualized timeline really delivers them."""
+
+    root = {
+        "post_id": "42",
+        "handle": "researcher",
+        "status_url": "https://x.com/researcher/status/42",
+        "posted_at": "2026-07-16T12:00:00Z",
+        "author_label": "Researcher",
+        "text": "Root claim",
+        "quoted_text": "",
+        "links": [{"url": "https://x.com/researcher/status/42", "text": "", "title": None}],
+        "media": [{"url": "https://pbs.twimg.com/paper.png", "alt": "First page of a technical paper"}],
+    }
+    self_reply = {
+        "post_id": "43",
+        "handle": "researcher",
+        "status_url": "https://x.com/researcher/status/43",
+        "posted_at": "2026-07-16T13:00:00Z",
+        "author_label": "Researcher",
+        "text": "Self reply with paper link",
+        "quoted_text": "",
+        # X shortens every outbound link and renders the destination without a
+        # scheme, truncated with an ellipsis when it is long.
+        "links": [{"url": "https://t.co/paper", "text": "arxiv.org/abs/2501.1294…", "title": None}],
+        "media": [],
+    }
+    other_author = {
+        "post_id": "99",
+        "handle": "someone_else",
+        "status_url": "https://x.com/someone_else/status/99",
+        "posted_at": "2026-07-16T12:30:00Z",
+        "author_label": "Someone Else",
+        "text": "Other author's comment",
+        "quoted_text": "",
+        "links": [{"url": "https://github.com/unrelated/project", "text": "Unrelated"}],
+        "media": [],
+    }
+    stale_post = {
+        "post_id": "10",
+        "handle": "researcher",
+        "status_url": "https://x.com/researcher/status/10",
+        "posted_at": "2026-07-13T10:00:00Z",
+        "author_label": "Researcher",
+        "text": "Old unrelated post",
+        "quoted_text": "",
+        "links": [{"url": "https://huggingface.co/unrelated/model", "text": "Old model"}],
+        "media": [],
+    }
+    return [[root, other_author], [root, self_reply, other_author], [self_reply, stale_post]]
+
+
 @pytest.mark.asyncio
 async def test_browser_capture_requires_authorization_and_uses_isolated_child_profile(
     tmp_path: Path,
@@ -237,7 +314,7 @@ async def test_browser_capture_requires_authorization_and_uses_isolated_child_pr
         {
             "title": "Public article",
             "text": "A visible article about evaluation.",
-            "links": ["https://example.org/paper.pdf"],
+            "links": [{"url": "https://example.org/paper.pdf", "text": "paper"}],
             "media": [],
             "author": "Engineer",
         }
@@ -247,6 +324,7 @@ async def test_browser_capture_requires_authorization_and_uses_isolated_child_pr
     install_fake_playwright(monkeypatch, chromium)
 
     resolved = await capture.capture("https://example.org/article", authorized=True)
+
     launched_path, options = chromium.launches[0]
     assert Path(launched_path) == requested_root / "steering-managed-profile"
     assert Path(launched_path) != requested_root
@@ -254,7 +332,7 @@ async def test_browser_capture_requires_authorization_and_uses_isolated_child_pr
     assert context.closed is True
     assert resolved.source_kind is SourceKind.WEBPAGE
     assert resolved.extraction_method == "authorized_visible_browser"
-    assert guard.urls == ["https://example.org/article", "https://example.org/article"]
+    assert resolved.outbound_urls == ["https://example.org/paper.pdf"]
     assert context.routes[0][0] == "**/*"
 
 
@@ -309,101 +387,18 @@ async def test_response_guard_does_not_close_login_for_subresource_without_peer_
 
 
 @pytest.mark.asyncio
-async def test_authorized_x_capture_bundles_mocked_self_replies_without_live_browser(
+async def test_authorized_x_capture_bundles_self_replies_and_unwraps_shortlinks(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    root = {
-        "post_id": "42",
-        "handle": "researcher",
-        "status_url": "https://x.com/researcher/status/42",
-        "posted_at": "2026-07-16T12:00:00Z",
-        "author_label": "Researcher",
-        "text": "Root claim",
-        "links": [
-            {
-                "url": "https://x.com/researcher/status/42",
-                "text": "",
-                "title": None,
-                "aria_label": None,
-            }
-        ],
-        "media": [
-            {
-                "url": "https://pbs.twimg.com/paper.png",
-                "alt": "First page of a technical paper",
-            }
-        ],
-    }
-    self_reply = {
-        "post_id": "43",
-        "handle": "researcher",
-        "status_url": "https://x.com/researcher/status/43",
-        "posted_at": "2026-07-16T13:00:00Z",
-        "author_label": "Researcher",
-        "text": "Self reply with paper link",
-        "links": [
-            {
-                "url": "https://t.co/paper",
-                "text": "Paper",
-                "title": None,
-                "aria_label": None,
-            }
-        ],
-        "media": [],
-    }
-    other_author = {
-        "post_id": "99",
-        "handle": "someone_else",
-        "status_url": "https://x.com/someone_else/status/99",
-        "posted_at": "2026-07-16T12:30:00Z",
-        "author_label": "Someone Else",
-        "text": "Other author's comment",
-        "links": [
-            {
-                "url": "https://github.com/unrelated/project",
-                "text": "Unrelated",
-                "title": None,
-                "aria_label": None,
-            }
-        ],
-        "media": [],
-    }
-    old_same_author_post = {
-        "post_id": "10",
-        "handle": "researcher",
-        "status_url": "https://x.com/researcher/status/10",
-        "posted_at": "2026-07-13T10:00:00Z",
-        "author_label": "Researcher",
-        "text": "Old unrelated post",
-        "links": [
-            {
-                "url": "https://huggingface.co/unrelated/model",
-                "text": "Old model",
-                "title": None,
-                "aria_label": None,
-            }
-        ],
-        "media": [],
-    }
-    page = FakePage(
-        {},
-        article_batches=[
-            [root, other_author],
-            [root, self_reply, other_author],
-            [self_reply, old_same_author_post],
-        ],
-    )
-    context = FakeContext(
-        page,
-        redirects={"https://t.co/paper": "https://arxiv.org/abs/42"},
-    )
+    page = FakePage({}, article_batches=x_thread_fixture())
+    context = FakeContext(page)
     chromium = FakeChromium(context)
     install_fake_playwright(monkeypatch, chromium)
-    guard = RecordingGuard()
     capture = ManagedBrowserCapture(
         profile_directory=tmp_path,
-        guard=guard,  # type: ignore[arg-type]
+        guard=RecordingGuard(),  # type: ignore[arg-type]
+        link_resolver=shortlink_fetcher({"https://t.co/paper": PAPER_URL}),
     )
 
     resolved = await capture.capture("https://x.com/i/status/42", authorized=True)
@@ -412,42 +407,75 @@ async def test_authorized_x_capture_bundles_mocked_self_replies_without_live_bro
     assert Path(launched_path) == tmp_path / "steering-managed-profile"
     assert options["channel"] == "chrome"
     assert options["no_viewport"] is True
-    assert options["locale"] == "en-US"
-    assert options["args"] == [
-        "--disable-blink-features=AutomationControlled",
-        "--start-maximized",
-    ]
-    assert context.routes == []
+    # The X path must carry the same network guarantees as every other capture.
+    assert context.routes[0][0] == "**/*"
 
     assert resolved.source_kind is SourceKind.X
+    assert resolved.canonical_url == "https://x.com/researcher/status/42"
+    assert resolved.metadata["capture_scope"] == "author_thread"
     assert resolved.metadata["bundled_self_replies"] == 1
     assert resolved.text == "Root claim\n\n---\n\nSelf reply with paper link"
     assert "Other author's comment" not in resolved.text
     assert "Old unrelated post" not in resolved.text
-    assert resolved.outbound_urls == ["https://arxiv.org/abs/42"]
+    assert resolved.published_at is not None
+    # The destination, not the shortlink: the whole point of the capture.
+    assert resolved.outbound_urls == [PAPER_URL]
     assert resolved.media_urls == ["https://pbs.twimg.com/paper.png"]
     assert resolved.metadata["media_inclusion_candidates"] == [
         {"url": "https://pbs.twimg.com/paper.png", "alt": "First page of a technical paper"}
     ]
-    assert context.request.calls == [
-        (
-            "https://t.co/paper",
-            {
-                "fail_on_status_code": False,
-                "max_redirects": 0,
-                "timeout": 20_000,
-            },
-        )
-    ]
-    assert "https://arxiv.org/abs/42" in guard.urls
 
 
 @pytest.mark.asyncio
-async def test_open_login_requires_authorization_and_waits_in_isolated_profile(
+async def test_x_capture_without_a_signed_in_session_fails_fast(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    page = FakePage({})
+    """Capture must never hold a request open waiting for a human to sign in."""
+
+    page = FakePage({}, article_batches=[[]], logged_in=False, visible_post_ids=())
+    context = FakeContext(page)
+    install_fake_playwright(monkeypatch, FakeChromium(context))
+    capture = ManagedBrowserCapture(
+        profile_directory=tmp_path,
+        guard=RecordingGuard(),  # type: ignore[arg-type]
+        capture_timeout_seconds=2,
+        # A capture must never inherit the human-scale login budget.
+        login_timeout_seconds=900,
+    )
+
+    started = time.monotonic()
+    with pytest.raises(BrowserAuthenticationRequired, match="not signed in to X"):
+        await capture.capture("https://x.com/researcher/status/42", authorized=True)
+
+    assert time.monotonic() - started < 10
+    assert context.closed is True
+
+
+@pytest.mark.asyncio
+async def test_x_capture_rejects_non_post_urls_before_launching(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    context = FakeContext(FakePage({}))
+    chromium = FakeChromium(context)
+    install_fake_playwright(monkeypatch, chromium)
+    capture = ManagedBrowserCapture(
+        profile_directory=tmp_path,
+        guard=RecordingGuard(),  # type: ignore[arg-type]
+    )
+
+    with pytest.raises(BrowserCaptureUnavailable, match="needs a post URL"):
+        await capture.capture("https://x.com/researcher", authorized=True)
+    assert chromium.launches == []
+
+
+@pytest.mark.asyncio
+async def test_open_login_requires_authorization_and_reports_a_detected_sign_in(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    page = FakePage({}, logged_in=True)
     context = FakeContext(page)
     chromium = FakeChromium(context)
     install_fake_playwright(monkeypatch, chromium)
@@ -455,24 +483,61 @@ async def test_open_login_requires_authorization_and_waits_in_isolated_profile(
         profile_directory=tmp_path,
         guard=RecordingGuard(),  # type: ignore[arg-type]
     )
-    monkeypatch.setattr(capture, "_x_logged_in", lambda _page: _async_value(True))
 
     with pytest.raises(PermissionError, match="explicit authorization"):
-        await capture.open_login("https://x.com/login")
-    await capture.open_login("https://x.com/login", authorized=True)
+        await capture.open_login("https://x.com/i/flow/login")
 
+    outcome = await capture.open_login("https://x.com/i/flow/login", authorized=True)
+
+    assert outcome is LoginOutcome.SIGNED_IN
     launched_path, options = chromium.launches[0]
     assert Path(launched_path) == tmp_path / "steering-managed-profile"
     assert options["channel"] == "chrome"
-    assert options["args"] == [
-        "--disable-blink-features=AutomationControlled",
-        "--start-maximized",
-    ]
-    assert options["no_viewport"] is True
-    assert "viewport" not in options
-    assert options["locale"] == "en-US"
-    assert page.goto_calls[0][0] == "https://x.com/login"
+    assert page.goto_calls[0][0] == "https://x.com/i/flow/login"
     assert context.closed is True
+
+
+@pytest.mark.asyncio
+async def test_open_login_treats_a_closed_window_as_a_finished_attempt(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Closing the window is how users finish; it must not be reported as an error."""
+
+    page = ClosingPage({}, logged_in=False, close_after=1)
+    context = FakeContext(page)
+    install_fake_playwright(monkeypatch, FakeChromium(context))
+    capture = ManagedBrowserCapture(
+        profile_directory=tmp_path,
+        guard=RecordingGuard(),  # type: ignore[arg-type]
+    )
+
+    outcome = await capture.open_login("https://x.com/i/flow/login", authorized=True)
+
+    assert outcome is LoginOutcome.CLOSED_BEFORE_SIGN_IN
+    assert context.closed is True
+
+
+@pytest.mark.parametrize(
+    ("displayed", "expected"),
+    [
+        # X renders destinations without a scheme; the old check required one and
+        # therefore never matched real markup.
+        ("arxiv.org/abs/2501.12948", "https://arxiv.org/abs/2501.12948"),
+        ("https://github.com/example/repo", "https://github.com/example/repo"),
+        ("arxiv.org/abs/2501.1294…", None),
+        ("Paper", None),
+        ("x.com/researcher/status/42", None),
+        ("pic.twitter.com/abc", None),
+        ("", None),
+        (None, None),
+    ],
+)
+def test_displayed_anchor_text_is_read_the_way_x_renders_it(
+    displayed: str | None,
+    expected: str | None,
+) -> None:
+    assert ManagedBrowserCapture._displayed_external_url(displayed) == expected
 
 
 class FailingPage(FakePage):
@@ -498,3 +563,126 @@ async def test_capture_wraps_browser_failures_without_leaking_details(
         await capture.capture("https://example.org", authorized=True)
     assert "fixture timeout" not in str(error.value)
     assert context.closed is True
+
+
+@pytest.mark.asyncio
+async def test_capture_can_run_headless_so_unattended_batches_need_no_window(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A capture only replays the session sign-in already stored, so it needs no window."""
+
+    page = FakePage({}, article_batches=x_thread_fixture())
+    context = FakeContext(page)
+    chromium = FakeChromium(context)
+    install_fake_playwright(monkeypatch, chromium)
+    capture = ManagedBrowserCapture(
+        profile_directory=tmp_path,
+        guard=RecordingGuard(),  # type: ignore[arg-type]
+        link_resolver=shortlink_fetcher({"https://t.co/paper": PAPER_URL}),
+        headless=True,
+    )
+
+    resolved = await capture.capture("https://x.com/researcher/status/42", authorized=True)
+
+    _path, options = chromium.launches[0]
+    assert options["headless"] is True
+    # Headless has no window to maximize, and the thread only renders and scrolls
+    # inside a viewport with real height.
+    assert options["viewport"] == {"width": 1440, "height": 1000}
+    assert "no_viewport" not in options
+    assert "--start-maximized" not in options["args"]
+    assert resolved.outbound_urls == [PAPER_URL]
+
+
+@pytest.mark.asyncio
+async def test_sign_in_stays_visible_even_when_captures_are_headless(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A human types the credentials, so this step can never be headless."""
+
+    page = FakePage({}, logged_in=True)
+    context = FakeContext(page)
+    chromium = FakeChromium(context)
+    install_fake_playwright(monkeypatch, chromium)
+    capture = ManagedBrowserCapture(
+        profile_directory=tmp_path,
+        guard=RecordingGuard(),  # type: ignore[arg-type]
+        headless=True,
+    )
+
+    outcome = await capture.open_login("https://x.com/i/flow/login", authorized=True)
+
+    _path, options = chromium.launches[0]
+    assert outcome is LoginOutcome.SIGNED_IN
+    assert options["headless"] is False
+    assert options["no_viewport"] is True
+
+
+@pytest.mark.asyncio
+async def test_visible_capture_remains_the_default(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    page = FakePage({}, article_batches=x_thread_fixture())
+    chromium = FakeChromium(FakeContext(page))
+    install_fake_playwright(monkeypatch, chromium)
+    capture = ManagedBrowserCapture(
+        profile_directory=tmp_path,
+        guard=RecordingGuard(),  # type: ignore[arg-type]
+    )
+
+    await capture.capture("https://x.com/researcher/status/42", authorized=True)
+
+    _path, options = chromium.launches[0]
+    assert options["headless"] is False
+
+
+@pytest.mark.asyncio
+async def test_open_login_skips_the_window_when_a_session_already_exists(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    chromium = FakeChromium(FakeContext(FakePage({})))
+    install_fake_playwright(monkeypatch, chromium)
+    capture = ManagedBrowserCapture(
+        profile_directory=tmp_path,
+        guard=RecordingGuard(),  # type: ignore[arg-type]
+    )
+    session_file = capture.profile_directory / "Default" / "Network"
+    session_file.mkdir(parents=True, exist_ok=True)
+    (session_file / "Cookies").write_bytes(b"stub cookie store")
+
+    outcome = await capture.open_login("https://x.com/i/flow/login", authorized=True)
+
+    assert outcome is LoginOutcome.ALREADY_SIGNED_IN
+    # Nothing was launched, so there is no window to flash and vanish.
+    assert chromium.launches == []
+
+
+@pytest.mark.asyncio
+async def test_forcing_sign_in_opens_the_window_despite_a_stored_session(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    chromium = FakeChromium(FakeContext(FakePage({}, logged_in=True)))
+    install_fake_playwright(monkeypatch, chromium)
+    capture = ManagedBrowserCapture(
+        profile_directory=tmp_path,
+        guard=RecordingGuard(),  # type: ignore[arg-type]
+    )
+    cookies = capture.profile_directory / "Default" / "Network"
+    cookies.mkdir(parents=True, exist_ok=True)
+    (cookies / "Cookies").write_bytes(b"stub cookie store")
+
+    outcome = await capture.open_login("https://x.com/i/flow/login", authorized=True, force=True)
+
+    assert outcome is LoginOutcome.SIGNED_IN
+    assert len(chromium.launches) == 1
+
+
+def test_a_fresh_profile_reports_no_stored_session(tmp_path: Path) -> None:
+    capture = ManagedBrowserCapture(profile_directory=tmp_path)
+
+    assert capture.has_stored_session() is False
