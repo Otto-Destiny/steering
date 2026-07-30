@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="/static/app.css">
     <script src="/static/htmx.min.js" defer></script>
   </head>
-  <body>
+  <body class="{% block body_class %}{% endblock %}">
     <a class="skip-link" href="#main">Skip to content</a>
     <header class="site-header">
       <a class="brand" href="/" aria-label="STEERING home">STEERING <span>0.1</span></a>

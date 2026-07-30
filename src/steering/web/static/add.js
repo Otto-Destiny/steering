@@ -38,6 +38,8 @@
   var LIST_TYPES = [".txt", ".csv", ".yaml", ".yml"];
   var deepNoteDefault = deepNote ? deepNote.textContent.trim() : "";
   var staged = null;
+  var sourceRefreshPending = false;
+  var sourceAction = null;
 
   function extensionOf(name) {
     var dot = name.lastIndexOf(".");
@@ -69,6 +71,96 @@
     } catch (error) {
       return "link";
     }
+  }
+
+  function sourceRowFor(hostname) {
+    var rows = document.querySelectorAll("[data-source-host]");
+    for (var index = 0; index < rows.length; index += 1) {
+      var sourceHost = rows[index].getAttribute("data-source-host");
+      if (hostname === sourceHost || hostname.endsWith("." + sourceHost)) return rows[index];
+    }
+    return null;
+  }
+
+  function deepNoteForInput() {
+    var found = lines();
+    if (found.length !== 1 || !/^https?:\/\//i.test(found[0])) return deepNoteDefault;
+    try {
+      var row = sourceRowFor(new URL(found[0]).hostname.toLowerCase());
+      if (!row) return deepNoteDefault;
+      return row.getAttribute("data-source-signed-in") === "true"
+        ? "Signed in. Reads the whole thread."
+        : "Sign in first, from the panel beside this.";
+    } catch (error) {
+      return deepNoteDefault;
+    }
+  }
+
+  function updateDeepDefaultFromRail() {
+    var rows = document.querySelectorAll("[data-source-signed-in]");
+    if (!rows.length) return;
+    var signedIn = Array.prototype.some.call(rows, function (row) {
+      return row.getAttribute("data-source-signed-in") === "true";
+    });
+    deepNoteDefault = signedIn
+      ? "Signed in. Reads the whole thread."
+      : "Sign in first, from the panel beside this.";
+  }
+
+  function focusSourceAction(host, selector) {
+    if (!host) return;
+    var rows = document.querySelectorAll("[data-source-host]");
+    for (var index = 0; index < rows.length; index += 1) {
+      if (rows[index].getAttribute("data-source-host") !== host) continue;
+      var action = rows[index].querySelector(selector);
+      if (action) action.focus();
+      return;
+    }
+  }
+
+  /**
+   * Login status polling returns a small notice. Once it succeeds, read the
+   * authoritative Add page and swap only the Sources rail, preserving anything
+   * already typed or staged in the capture form.
+   */
+  function refreshSourcesAfterLogin() {
+    var completed = document.querySelector(
+      "#browser-login-result [data-login-succeeded='true']:not([data-sources-synced])"
+    );
+    if (!completed || sourceRefreshPending) return;
+    sourceRefreshPending = true;
+
+    fetch("/add", { headers: { Accept: "text/html" }, credentials: "same-origin" })
+      .then(function (response) {
+        if (!response.ok) throw new Error("Could not refresh source status");
+        return response.text();
+      })
+      .then(function (markup) {
+        var nextPage = new DOMParser().parseFromString(markup, "text/html");
+        var nextRail = nextPage.getElementById("sources-rail");
+        var currentRail = document.getElementById("sources-rail");
+        if (!nextRail || !currentRail) throw new Error("Source status was missing");
+
+        completed.setAttribute("data-sources-synced", "true");
+        var savedNotice = completed.cloneNode(true);
+        var nextResult = nextRail.querySelector("#browser-login-result");
+        if (nextResult) nextResult.appendChild(savedNotice);
+        currentRail.replaceWith(nextRail);
+        if (window.htmx) window.htmx.process(nextRail);
+
+        var nextDeepNote = nextPage.getElementById("depth-deep-note");
+        if (nextDeepNote) deepNoteDefault = nextDeepNote.textContent.trim();
+        updateDeepDefaultFromRail();
+        render();
+        if (sourceAction && sourceAction.kind === "login") {
+          focusSourceAction(sourceAction.host, "[data-source-signout] button");
+          sourceAction = null;
+        }
+        sourceRefreshPending = false;
+      })
+      .catch(function () {
+        sourceRefreshPending = false;
+      });
   }
 
   /** Move a file into the input whose name the route reads. */
@@ -150,7 +242,7 @@
           ? state.many
             ? "One link at a time."
             : "Needs a link."
-          : deepNoteDefault;
+          : deepNoteForInput();
       }
     }
 
@@ -231,6 +323,31 @@
       event.preventDefault();
       form.requestSubmit();
     }
+  });
+
+  document.body.addEventListener("htmx:beforeRequest", function (event) {
+    var form = event.target.closest ? event.target.closest("form") : null;
+    if (!form) return;
+    if (form.hasAttribute("data-source-login")) {
+      sourceAction = { kind: "login", host: form.getAttribute("data-source-login") };
+      return;
+    }
+    if (form.hasAttribute("data-source-signout")) {
+      var host = form.querySelector('input[name="host"]');
+      sourceAction = { kind: "signout", host: host ? host.value : "" };
+    }
+  });
+
+  document.body.addEventListener("htmx:afterSwap", function (event) {
+    refreshSourcesAfterLogin();
+    var target = event.detail && event.detail.target;
+    if (!sourceAction || sourceAction.kind !== "signout" || !target || target.id !== "sources-rail") {
+      return;
+    }
+    updateDeepDefaultFromRail();
+    render();
+    focusSourceAction(sourceAction.host, "[data-source-login] button");
+    sourceAction = null;
   });
 
   /**

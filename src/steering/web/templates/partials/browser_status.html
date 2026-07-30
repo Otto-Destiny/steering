@@ -1,5 +1,8 @@
 <div class="notice {% if status.succeeded %}success{% endif %}"
      role="status"
+     aria-busy="{{ 'true' if polling else 'false' }}"
+     data-login-state="{{ status.state }}"
+     data-login-succeeded="{{ 'true' if status.succeeded else 'false' }}"
      {# `hx-target="this"` is required, not decorative. htmx inherits hx-target
         from the enclosing form, so without it `outerHTML` replaces the result
         container instead of this element. The container is then gone, the next
@@ -10,6 +13,10 @@
      {% if polling %}hx-get="/browser/login/status" hx-trigger="every 1s" hx-target="this" hx-swap="outerHTML"{% endif %}>
   <span>
     {% if polling %}<strong>Waiting for sign-in…</strong>{% endif %}
-    {{ status.message }}
+    {% if status.state == 'already_signed_in' %}
+      A signed-in session already exists. Deep capture is ready.
+    {% else %}
+      {{ status.message }}
+    {% endif %}
   </span>
 </div>

@@ -70,6 +70,12 @@ ISSUE_ACTIONS = ("accept_correction", "keep_both", "dismiss", "reject")
 #: index of a personal corpus, bounded so a large graph cannot stall the browser.
 DIRECTORY_LIMIT = 100
 DIRECTORY_SORTS = ("newest", "oldest", "title")
+#: The platforms a signed-in capture can read, and where each one signs in.
+#: One managed profile is shared, so each is reported by the cookies it left.
+BROWSER_PLATFORMS = (
+    {"name": "X", "host": "x.com", "login_url": "https://x.com/i/flow/login"},
+    {"name": "LinkedIn", "host": "linkedin.com", "login_url": "https://www.linkedin.com/login"},
+)
 
 
 def _bookmarklet_source() -> str:
@@ -226,7 +232,42 @@ class WebController:
             x_api_authorized=self.x_api is not None and self.x_api.authorized,
             browser_available=self.browser_capture is not None,
             browser_signed_in=self.login_session is not None and self.login_session.signed_in,
+            platforms=self._platform_status(),
         )
+
+    def _platform_status(self) -> list[dict[str, Any]]:
+        session = self.login_session
+        return [
+            {**platform, "signed_in": session is not None and session.is_signed_in_to(platform["host"])}
+            for platform in BROWSER_PLATFORMS
+        ]
+
+    def _sources_rail(self, request: Request, **values: Any) -> Response:
+        return self.template(
+            request,
+            "partials/sources_rail.html",
+            bookmarklet=_bookmarklet_source(),
+            x_api_configured=bool(self.x_api_client_id),
+            x_api_authorized=self.x_api is not None and self.x_api.authorized,
+            browser_available=self.browser_capture is not None,
+            platforms=self._platform_status(),
+            **values,
+        )
+
+    async def browser_signout_ui(self, request: Request) -> Response:
+        """Forget one platform's session and redraw what is now available."""
+
+        form = await _form(request)
+        host = _string(form, "host")
+        if not any(host == platform["host"] for platform in BROWSER_PLATFORMS):
+            raise HTTPException(422, "Choose a platform to sign out of.")
+        try:
+            self._login_session().sign_out(host)
+        except (BrowserCaptureUnavailable, RuntimeError) as exc:
+            raise HTTPException(409, str(exc)) from None
+        if self.is_htmx(request):
+            return self._sources_rail(request)
+        return RedirectResponse("/add", status_code=303)
 
     async def x_authorize_ui(self, request: Request) -> Response:
         """Send the user to X's consent screen for a read-only, opt-in token."""
@@ -1092,6 +1133,7 @@ def create_web_app(
         Route("/oauth/x/authorize", controller.x_authorize_ui, methods=["POST"]),
         Route(DEFAULT_REDIRECT_PATH, controller.x_callback_ui, methods=["GET"]),
         Route("/browser/login", controller.browser_login_ui, methods=["POST"]),
+        Route("/browser/signout", controller.browser_signout_ui, methods=["POST"]),
         Route("/browser/login/status", controller.browser_login_status_ui, methods=["GET"]),
         Route("/search", controller.search_page, methods=["GET"]),
         Route("/search", controller.search_submit, methods=["POST"]),

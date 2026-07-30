@@ -33,7 +33,11 @@ from steering.domain.models import (
     SourceKind,
 )
 from steering.extraction.service import EvidenceValidationError
-from steering.ingestion.browser import BrowserDependencyUnavailable, LoginOutcome
+from steering.ingestion.browser import (
+    BrowserCaptureUnavailable,
+    BrowserDependencyUnavailable,
+    LoginOutcome,
+)
 from steering.ingestion.login_session import BrowserLoginSession
 from steering.ingestion.security import SourceUnavailableError
 from steering.ingestion.service import BatchReport, ThreadPolicy
@@ -1567,14 +1571,23 @@ def test_an_unreadable_record_explains_itself_and_offers_retirement() -> None:
     assert "correct the submitted fields" not in response.text
 
 
-def test_the_x_api_panel_is_hidden_until_a_client_id_is_configured() -> None:
-    """The billed surface must not advertise itself to users who never opted in."""
+def test_the_x_api_is_listed_but_offers_no_billed_action_until_it_is_configured() -> None:
+    """Discoverable without being pushed.
+
+    Hiding the paid surface entirely meant nobody learned that a faster,
+    browser-free import existed. It is listed with what enables it, and the
+    action that costs money appears only once someone has opted in.
+    """
 
     repository = FakeRepository()
     with TestClient(_directory_app(repository), base_url="http://localhost") as client:
         page = client.get("/add").text
 
-    assert "Authorize the X API" not in page
+    assert "X API" in page
+    assert "STEERING_X_API_CLIENT_ID" in page
+    # Nothing billable can be started from here yet.
+    assert 'action="/oauth/x/authorize"' not in page
+    assert "Import bookmarks" not in page
     # The free surfaces are always present.
     assert "Save X bookmarks" in page
 
@@ -1695,3 +1708,88 @@ def test_a_non_standard_license_is_distinguished_from_having_none(
     assert "Non-standard" in page
     assert "read it before adopting" in page
     assert "Not stated" not in page
+
+
+class StubManagedBrowser:
+    """A managed profile whose sessions can be released one platform at a time."""
+
+    def __init__(self, *hosts: str) -> None:
+        self.hosts = set(hosts)
+        self.locked = False
+
+    def has_stored_session(self) -> bool:
+        return bool(self.hosts)
+
+    def is_signed_in_to(self, host: str) -> bool:
+        return host in self.hosts
+
+    def sign_out(self, host: str) -> bool:
+        if self.locked:
+            raise BrowserCaptureUnavailable("The managed profile is in use.")
+        return self.hosts.discard(host) is None and host not in self.hosts
+
+
+def browser_client(*hosts: str) -> tuple[TestClient, StubManagedBrowser]:
+    repository = FakeRepository()
+    capture = StubManagedBrowser(*hosts)
+    app = create_web_app(
+        engine=FakeEngine(repository),  # type: ignore[arg-type]
+        ingestion=FakeIngestion(repository),  # type: ignore[arg-type]
+        repository=repository,  # type: ignore[arg-type]
+        provider_settings=FakeProviders(),
+        browser_capture=capture,  # type: ignore[arg-type]
+        login_session=BrowserLoginSession(capture),  # type: ignore[arg-type]
+    )
+    return TestClient(app, base_url="http://localhost"), capture
+
+
+def test_the_sources_panel_reports_each_platform_separately() -> None:
+    """One shared profile, so the panel must say which site the session is for."""
+
+    client, _ = browser_client("x.com")
+    with client:
+        page = client.get("/add").text
+
+    assert 'data-source-host="x.com"' in page
+    assert 'data-source-signed-in="true"' in page
+    assert "Sign out" in page
+    # LinkedIn shares the same profile but has no session, and must say so.
+    assert 'data-source-login="linkedin.com"' in page
+    # The paid path is listed even unconfigured, or nobody discovers it exists.
+    assert "X API" in page
+    assert "STEERING_X_API_CLIENT_ID" in page
+
+
+def test_signing_out_releases_one_platform_and_redraws_what_is_left() -> None:
+    client, capture = browser_client("x.com", "linkedin.com")
+    with client:
+        rail = client.post(
+            "/browser/signout",
+            data={"host": "x.com"},
+            headers={"HX-Request": "true"},
+        )
+
+    assert rail.status_code == 200
+    assert capture.hosts == {"linkedin.com"}
+    # The panel comes back showing the platform that is now signable-in again.
+    assert 'data-source-login="x.com"' in rail.text
+    assert 'data-source-signed-in="true"' in rail.text
+
+
+def test_signing_out_of_an_unknown_platform_is_refused() -> None:
+    client, capture = browser_client("x.com")
+    with client:
+        response = client.post("/browser/signout", data={"host": "evil.example"})
+
+    assert response.status_code == 422
+    assert capture.hosts == {"x.com"}
+
+
+def test_a_profile_in_use_says_so_instead_of_silently_doing_nothing() -> None:
+    client, capture = browser_client("x.com")
+    capture.locked = True
+    with client:
+        response = client.post("/browser/signout", data={"host": "x.com"})
+
+    assert response.status_code == 409
+    assert capture.hosts == {"x.com"}

@@ -17,6 +17,7 @@ import time
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import pytest
 import uvicorn
@@ -43,9 +44,13 @@ class StubLogin:
     def __init__(self, *, stored_session: bool) -> None:
         self.stored_session = stored_session
         self.opened: list[str] = []
+        self.signed_in_hosts = {"x.com"} if stored_session else set()
 
     def has_stored_session(self) -> bool:
         return self.stored_session
+
+    def is_signed_in_to(self, host: str) -> bool:
+        return any(host == saved or host.endswith("." + saved) for saved in self.signed_in_hosts)
 
     async def capture(self, url: str, *, authorized: bool = False) -> Any:
         raise NotImplementedError
@@ -61,6 +66,8 @@ class StubLogin:
 
         self.opened.append(url)
         await asyncio.sleep(SIGN_IN_SECONDS)
+        self.stored_session = True
+        self.signed_in_hosts.add(urlsplit(url).hostname or "")
         return LoginOutcome.SIGNED_IN
 
 
@@ -114,7 +121,6 @@ def _panel(base_url: str) -> Iterator[tuple[Any, list[str], list[str]]]:
             )
             page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
             page.goto(f"{base_url}/add", wait_until="load")
-            page.check('input[name="authorize_login"]')
             yield page, polls, errors
         finally:
             browser.close()
@@ -123,27 +129,42 @@ def _panel(base_url: str) -> Iterator[tuple[Any, list[str], list[str]]]:
 def test_the_panel_keeps_polling_until_sign_in_completes() -> None:
     login = StubLogin(stored_session=False)
     with _serving(login) as base_url, _panel(base_url) as (page, polls, errors):
-        page.click('button:has-text("Open managed login browser")')
+        ids = page.locator("[id]").evaluate_all("nodes => nodes.map(node => node.id)")
+        assert len(ids) == len(set(ids))
+
+        page.click('[data-source-login="x.com"] button:has-text("Sign in")')
 
         page.wait_for_selector("#browser-login-result >> text=/Waiting for sign-in/", timeout=5_000)
         page.wait_for_selector("#browser-login-result >> text=/Signed in/", timeout=20_000)
+        page.wait_for_selector('[data-source-host="x.com"][data-source-signed-in="true"]')
 
         # Polling that dies after one response is the defect this guards.
         assert len(polls) >= 2
         assert errors == []
         # The container the panel swaps into must survive every poll.
         assert page.locator("#browser-login-result").count() == 1
+        assert page.locator('[data-source-host="x.com"] button').inner_text() == "Sign out"
+        assert page.locator('[data-source-host="linkedin.com"] button').inner_text() == "Sign in"
 
 
-def test_an_existing_session_answers_without_polling_or_a_waiting_message() -> None:
+def test_an_existing_session_is_shown_rather_than_discovered_by_clicking() -> None:
+    """A signed-in platform states itself, so nothing has to be tried to find out.
+
+    The panel used to offer sign-in regardless and answer "already signed in"
+    afterwards. Reporting the session up front is why no browser is opened and
+    nothing polls here.
+    """
+
     login = StubLogin(stored_session=True)
     with _serving(login) as base_url, _panel(base_url) as (page, polls, errors):
-        page.click('button:has-text("Open managed login browser")')
-        page.wait_for_selector("#browser-login-result >> text=/already exists/", timeout=10_000)
+        signed_in = page.locator('[data-source-host="x.com"]')
+        assert signed_in.get_attribute("data-source-signed-in") == "true"
+        assert "signed in" in signed_in.inner_text()
+        assert signed_in.locator("button").inner_text() == "Sign out"
+        # The only way back is deliberate, so no sign-in action is offered here.
+        assert page.locator('[data-source-login="x.com"]').count() == 0
 
-        message = page.locator("#browser-login-result").inner_text()
-        assert "Waiting for sign-in" not in message
+        assert page.locator('[data-source-host="linkedin.com"] button').inner_text() == "Sign in"
         assert polls == []
         assert errors == []
-        # No browser is opened for a session that is already there.
         assert login.opened == []

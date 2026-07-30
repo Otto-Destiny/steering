@@ -13,6 +13,7 @@ import logging
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Protocol
+from urllib.parse import urlsplit
 
 from steering.ingestion.browser import (
     BrowserCaptureUnavailable,
@@ -115,7 +116,7 @@ class BrowserLoginSession:
 
         if self._task is not None and not self._task.done():
             raise RuntimeError("a managed browser sign-in is already in progress")
-        if not force and self._already_signed_in():
+        if not force and self._already_signed_in(url):
             # Answer in the response itself. Reporting "waiting for sign-in" and
             # correcting it a poll later shows the user a state that was never
             # true, which is exactly what looks broken.
@@ -126,19 +127,40 @@ class BrowserLoginSession:
         self._task = asyncio.create_task(self._run(url, force=force))
         return self._status
 
-    def _already_signed_in(self) -> bool:
+    def _already_signed_in(self, url: str) -> bool:
+        """Whether this platform is signed in, not merely whether any site is.
+
+        One profile is shared, so asking only "is there a session" would answer yes
+        for LinkedIn because X had been used, and the sign-in would never open.
+        """
+
+        host = urlsplit(url).hostname or ""
+        per_platform = getattr(self._capture, "is_signed_in_to", None)
+        if host and callable(per_platform):
+            return bool(per_platform(host))
         probe = getattr(self._capture, "has_stored_session", None)
         return bool(probe()) if callable(probe) else False
 
+    def is_signed_in_to(self, host: str) -> bool:
+        probe = getattr(self._capture, "is_signed_in_to", None)
+        return bool(probe(host)) if callable(probe) else self.signed_in
+
     @property
     def signed_in(self) -> bool:
-        """Whether a stored session exists, so the interface can say what is available.
+        """Whether any stored session exists in the managed profile."""
 
-        One managed profile is shared by every platform, so this reports that a
-        sign-in happened at all, never which site it was for.
-        """
+        probe = getattr(self._capture, "has_stored_session", None)
+        return bool(probe()) if callable(probe) else False
 
-        return self._already_signed_in()
+    def sign_out(self, host: str) -> bool:
+        """Forget one platform's session, so signing in again is offered."""
+
+        release = getattr(self._capture, "sign_out", None)
+        if not callable(release):
+            raise RuntimeError("this runtime cannot sign out of the managed browser")
+        released = bool(release(host))
+        LOGGER.info("signed out of %s in the managed profile (changed=%s)", host, released)
+        return released
 
     def status(self) -> LoginStatus:
         task = self._task

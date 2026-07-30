@@ -11,8 +11,10 @@ which is exercised here against a transport that redirects exactly as t.co does.
 from __future__ import annotations
 
 import asyncio
+import sqlite3
 import sys
 import time
+from contextlib import closing
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from typing import Any
@@ -686,3 +688,90 @@ def test_a_fresh_profile_reports_no_stored_session(tmp_path: Path) -> None:
     capture = ManagedBrowserCapture(profile_directory=tmp_path)
 
     assert capture.has_stored_session() is False
+
+
+# --------------------------------------------------------------------------- #
+# Managed profile sessions
+# --------------------------------------------------------------------------- #
+
+
+def cookie_store(profile: Path, *hosts: str) -> Path:
+    """Write the cookie store Chromium leaves behind, with the hosts given."""
+
+    store = profile / "steering-managed-profile" / "Default" / "Network" / "Cookies"
+    store.parent.mkdir(parents=True, exist_ok=True)
+    with closing(sqlite3.connect(store)) as db:
+        db.execute("CREATE TABLE IF NOT EXISTS cookies (host_key TEXT, name TEXT, value TEXT)")
+        db.executemany(
+            "INSERT INTO cookies (host_key, name, value) VALUES (?, 'session', 'x')",
+            [(host,) for host in hosts],
+        )
+        db.commit()
+    return store
+
+
+def managed(profile: Path) -> ManagedBrowserCapture:
+    return ManagedBrowserCapture(profile_directory=profile, guard=RecordingGuard())  # type: ignore[arg-type]
+
+
+def test_a_session_is_reported_for_the_platform_it_belongs_to(tmp_path: Path) -> None:
+    """One profile is shared, so "a session exists" says nothing about which site."""
+
+    cookie_store(tmp_path, ".x.com", "x.com")
+    capture = managed(tmp_path)
+
+    assert capture.has_stored_session() is True
+    assert capture.is_signed_in_to("x.com") is True
+    assert capture.is_signed_in_to("linkedin.com") is False
+
+
+def test_a_login_page_subdomain_matches_the_cookie_domain(tmp_path: Path) -> None:
+    """Signing in leaves `linkedin.com` while the login page is `www.linkedin.com`."""
+
+    cookie_store(tmp_path, ".linkedin.com")
+    capture = managed(tmp_path)
+
+    assert capture.is_signed_in_to("www.linkedin.com") is True
+    assert capture.is_signed_in_to("x.com") is False
+
+
+def test_signing_out_of_one_platform_leaves_the_others_signed_in(tmp_path: Path) -> None:
+    """Clearing the whole profile to release one site would sign out the rest."""
+
+    cookie_store(tmp_path, ".x.com", "x.com", ".linkedin.com", "accounts.google.com")
+    capture = managed(tmp_path)
+
+    assert capture.sign_out("x.com") is True
+
+    assert capture.is_signed_in_to("x.com") is False
+    assert capture.is_signed_in_to("linkedin.com") is True
+    assert capture.has_stored_session() is True
+
+
+def test_signing_out_of_a_platform_that_was_never_used_changes_nothing(tmp_path: Path) -> None:
+    cookie_store(tmp_path, ".x.com")
+    capture = managed(tmp_path)
+
+    assert capture.sign_out("linkedin.com") is False
+    assert capture.is_signed_in_to("x.com") is True
+
+
+def test_an_unreadable_cookie_store_reports_no_session_rather_than_failing(tmp_path: Path) -> None:
+    """A status panel must never be the reason the capture page breaks."""
+
+    store = tmp_path / "steering-managed-profile" / "Default" / "Network" / "Cookies"
+    store.parent.mkdir(parents=True, exist_ok=True)
+    store.write_bytes(b"not a database")
+    capture = managed(tmp_path)
+
+    assert capture.has_stored_session() is True
+    assert capture.signed_in_hosts() == frozenset()
+    assert capture.is_signed_in_to("x.com") is False
+
+
+def test_a_profile_that_was_never_signed_in_holds_nothing(tmp_path: Path) -> None:
+    capture = managed(tmp_path)
+
+    assert capture.has_stored_session() is False
+    assert capture.signed_in_hosts() == frozenset()
+    assert capture.sign_out("x.com") is False

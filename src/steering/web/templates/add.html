@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Add knowledge · STEERING{% endblock %}
+{% block body_class %}capture-page{% endblock %}
 {% block content %}
   {#
     One visible surface, posting the fields the ingestion route already reads.
@@ -7,7 +8,6 @@
     person actually typed or dropped, so nobody has to classify their own input.
   #}
   <header class="page-heading capture-heading">
-    <p class="eyebrow">Capture</p>
     <h1>Add knowledge</h1>
     <p>Paste a link, a list of links, or text. Drop a file. STEERING works out the rest.</p>
   </header>
@@ -51,7 +51,7 @@
             <em>Public capture. Free, no browser.</em>
           </span>
         </label>
-        <label class="depth-option" id="depth-deep-option">
+        <label class="depth-option{% if not browser_available %} is-unavailable{% endif %}" id="depth-deep-option">
           <input type="radio" name="depth" value="deep" id="depth-deep"
                  {% if not browser_available %}disabled{% endif %}>
           <span class="depth-face">
@@ -78,6 +78,7 @@
 
       <div class="capture-go">
         <button class="button primary capture-submit" type="submit" id="capture-submit">Capture</button>
+        <kbd class="capture-shortcut" aria-label="Control or Command plus Enter">⌘↵</kbd>
         <span id="add-progress" class="htmx-indicator" role="status">Capturing and extracting…</span>
       </div>
       <div id="add-result" class="result-region ingestion-feedback" aria-live="polite"></div>
@@ -91,82 +92,7 @@
       <input type="file" name="bookmarks_file" id="capture-bookmarks" tabindex="-1">
     </form>
 
-    <aside class="rail" aria-labelledby="rail-heading">
-      <h2 class="rail-heading" id="rail-heading">Sources</h2>
-
-      <div class="conn">
-        <span class="status {{ 'is-on' if browser_signed_in else 'is-off' }}" aria-hidden="true"></span>
-        <div class="conn-body">
-          <strong>Signed-in browser</strong>
-          {% if not browser_available %}
-            <em>Not installed. Public capture still works.</em>
-          {% elif browser_signed_in %}
-            <em>Deep capture is available. One profile is shared by every platform.</em>
-          {% else %}
-            <em>Sign in once to unlock deep capture.</em>
-          {% endif %}
-          {% if browser_available %}
-            <form class="conn-form" action="/browser/login" method="post" hx-post="/browser/login"
-                  hx-target="#browser-login-result" hx-swap="innerHTML" hx-indicator="#browser-login-progress">
-              <label class="visually-hidden" for="login-url">Platform</label>
-              <select id="login-url" name="login_url" required>
-                <option value="https://x.com/i/flow/login">X</option>
-                <option value="https://www.linkedin.com/login">LinkedIn</option>
-              </select>
-              {# Opening a browser as you is a real permission, so it stays a real tick. #}
-              <label class="conn-consent">
-                <input type="checkbox" name="authorize_login" required>
-                Open STEERING's isolated browser profile.
-              </label>
-              {% if browser_signed_in %}
-                {# Forcing re-authentication discards a working session, so it stays opt-in. #}
-                <label class="conn-consent">
-                  <input type="checkbox" name="force_login">
-                  Sign in again — only if captures start failing with a sign-in error.
-                </label>
-              {% endif %}
-              <button class="button conn-action" type="submit">Open managed login browser</button>
-              <span id="browser-login-progress" class="htmx-indicator" role="status">Opening the browser…</span>
-            </form>
-            <div id="browser-login-result" class="conn-result" aria-live="polite"></div>
-          {% endif %}
-        </div>
-      </div>
-
-      {% if x_api_configured %}
-        <div class="conn">
-          <span class="status {{ 'is-on' if x_api_authorized else 'is-off' }}" aria-hidden="true"></span>
-          <div class="conn-body">
-            <strong>X API</strong>
-            {% if x_api_authorized %}
-              <em>Authorized. Reads threads and bookmarks with no browser.</em>
-              <form class="conn-form" action="/api/ingestion/x-bookmarks" method="post"
-                    hx-post="/api/ingestion/x-bookmarks" hx-target="#add-result" hx-swap="innerHTML">
-                <button class="button conn-action" type="submit">Import bookmarks</button>
-              </form>
-            {% else %}
-              <em>Optional, billed per read. Runs unattended, with no browser.</em>
-              <form class="conn-form" action="/oauth/x/authorize" method="post">
-                <button class="button conn-action" type="submit">Authorize</button>
-              </form>
-            {% endif %}
-          </div>
-        </div>
-      {% endif %}
-
-      <div class="conn">
-        <span class="status is-on" aria-hidden="true"></span>
-        <div class="conn-body">
-          <strong>Bookmarks</strong>
-          <em>Drag this to your bookmarks bar, open
-            <a href="https://x.com/i/bookmarks" rel="noreferrer">x.com/i/bookmarks</a> and click it. Then
-            drop the saved file into the field beside this.</em>
-          <p class="conn-form">
-            <a class="button conn-action" href="{{ bookmarklet }}" onclick="return false;" draggable="true">Save X bookmarks</a>
-          </p>
-        </div>
-      </div>
-    </aside>
+    {% include "partials/sources_rail.html" %}
   </div>
 
   <noscript>

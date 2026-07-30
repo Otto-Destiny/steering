@@ -3,7 +3,11 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+import shutil
+import sqlite3
 import subprocess
+import tempfile
+from contextlib import closing
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
@@ -89,6 +93,13 @@ _X_ARTICLES_SCRIPT = r"""() => [...document.querySelectorAll('article')].map(ele
 }).filter(Boolean)"""
 
 
+def registered_domain(host: str) -> str:
+    """Reduce a host to the domain a cookie would be shared across."""
+
+    labels = host.strip().lstrip(".").lower().split(".")
+    return ".".join(labels[-2:]) if len(labels) >= 2 else labels[0] if labels else ""
+
+
 class BrowserCaptureUnavailable(RuntimeError):
     """Raised when the optional, explicitly authorized browser is unavailable."""
 
@@ -163,6 +174,20 @@ class ManagedBrowserCapture:
         self.login_timeout_seconds = login_timeout_seconds
         self.headless = headless
 
+    def _cookie_stores(self) -> list[Path]:
+        if not self.profile_directory.is_dir():
+            return []
+        return [
+            candidate
+            for relative in (
+                Path("Default") / "Network" / "Cookies",
+                Path("Default") / "Cookies",
+                Path("Network") / "Cookies",
+                Path("Cookies"),
+            )
+            if (candidate := self.profile_directory / relative).exists()
+        ]
+
     def has_stored_session(self) -> bool:
         """Report whether a previous sign-in left a session in the managed profile.
 
@@ -171,17 +196,78 @@ class ManagedBrowserCapture:
         never signed in should pay nothing for the feature existing.
         """
 
-        if not self.profile_directory.is_dir():
+        return bool(self._cookie_stores())
+
+    def signed_in_hosts(self) -> frozenset[str]:
+        """Which sites the managed profile actually holds cookies for.
+
+        One profile is shared by every platform, so the presence of a session says
+        nothing about *which* site it belongs to. The cookie store records the host,
+        which is the only honest way to tell a signed-in platform from one that has
+        never been used.
+
+        Reads a copy, because a running browser holds the store open, and answers
+        with what it could read rather than failing: a status panel must never be
+        the reason a capture page breaks.
+        """
+
+        hosts: set[str] = set()
+        for store in self._cookie_stores():
+            with tempfile.TemporaryDirectory() as scratch:
+                copy = Path(scratch) / "cookies.sqlite"
+                try:
+                    shutil.copyfile(store, copy)
+                    with closing(sqlite3.connect(f"file:{copy}?mode=ro", uri=True)) as db:
+                        rows = db.execute("SELECT DISTINCT host_key FROM cookies").fetchall()
+                except (OSError, sqlite3.Error) as exc:
+                    LOGGER.debug("could not read the managed cookie store (%s)", exc)
+                    continue
+            hosts.update(str(row[0]).lstrip(".").lower() for row in rows if row[0])
+        return frozenset(hosts)
+
+    def is_signed_in_to(self, host: str) -> bool:
+        """Whether the profile holds a session for a site, however it is subdomained.
+
+        Cookies are stored per host, so a sign-in leaves ``linkedin.com`` while the
+        login page is ``www.linkedin.com``. Comparing the registered domain matches
+        them without keeping a suffix list for two known platforms.
+        """
+
+        wanted = registered_domain(host)
+        return any(registered_domain(stored) == wanted for stored in self.signed_in_hosts()) and bool(wanted)
+
+    def sign_out(self, host: str) -> bool:
+        """Forget one platform's session without disturbing the others.
+
+        The profile is shared, so clearing all of it to sign out of one site would
+        silently sign the user out of the rest. Cookies are removed for the site's
+        registered domain, which is what the status panel reads back.
+
+        A running browser holds the store open; that is reported rather than
+        pretended away, because a sign-out that quietly did nothing is worse than
+        one that says it could not.
+        """
+
+        wanted = registered_domain(host)
+        if not wanted:
             return False
-        return any(
-            (self.profile_directory / relative).exists()
-            for relative in (
-                Path("Default") / "Network" / "Cookies",
-                Path("Default") / "Cookies",
-                Path("Network") / "Cookies",
-                Path("Cookies"),
-            )
-        )
+        removed = 0
+        for store in self._cookie_stores():
+            try:
+                with closing(sqlite3.connect(store)) as db:
+                    cursor = db.execute(
+                        "DELETE FROM cookies WHERE host_key = ? OR host_key LIKE ?",
+                        (wanted, f"%.{wanted}"),
+                    )
+                    db.commit()
+                    removed += cursor.rowcount or 0
+            except sqlite3.Error as exc:
+                raise BrowserCaptureUnavailable(
+                    "The managed profile is in use, so the session could not be cleared. "
+                    "Close the managed browser and try again."
+                ) from exc
+        LOGGER.info("cleared %d cookie(s) for %s from the managed profile", removed, wanted)
+        return removed > 0
 
     async def capture(self, url: str, *, authorized: bool = False) -> ResolvedSource:
         if not authorized:
