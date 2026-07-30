@@ -1136,3 +1136,44 @@ def test_a_thread_capture_still_upgrades_a_root_post_record() -> None:
     incoming = recapture(scope=AUTHOR_THREAD)
 
     assert IngestionService._upgrades_public_social_capture(existing, incoming) is True
+
+
+class SharedProfileCapture:
+    """One managed profile, holding sessions for whichever sites were signed in."""
+
+    def __init__(self, *hosts: str) -> None:
+        self.hosts = set(hosts)
+        self.captures: list[str] = []
+
+    def has_stored_session(self) -> bool:
+        return bool(self.hosts)
+
+    def is_signed_in_to(self, host: str) -> bool:
+        return host in self.hosts
+
+    async def capture(self, url: str, *, authorized: bool = False) -> ResolvedSource:
+        self.captures.append(url)
+        raise AssertionError("the reader should not have been reached")
+
+
+def test_a_linkedin_session_does_not_make_x_threads_readable() -> None:
+    """The profile is shared, so "a session exists" said yes for the wrong site.
+
+    The reader then launched a browser that could not authenticate, spending real
+    time to arrive back at the public capture it already had.
+    """
+
+    from steering.ingestion.service import BrowserThreadReader
+
+    linkedin_only = BrowserThreadReader(SharedProfileCapture("linkedin.com"))  # type: ignore[arg-type]
+
+    assert linkedin_only.available() is False
+    assert linkedin_only._capture.captures == []
+
+
+def test_an_x_session_makes_x_threads_readable() -> None:
+    from steering.ingestion.service import BrowserThreadReader
+
+    assert BrowserThreadReader(SharedProfileCapture("x.com")).available() is True  # type: ignore[arg-type]
+    assert BrowserThreadReader(SharedProfileCapture("x.com", "linkedin.com")).available() is True  # type: ignore[arg-type]
+    assert BrowserThreadReader(SharedProfileCapture()).available() is False  # type: ignore[arg-type]

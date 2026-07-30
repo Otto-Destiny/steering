@@ -128,6 +128,23 @@ def _string(form: FormData, name: str, default: str = "") -> str:
     return value.strip() if isinstance(value, str) else default
 
 
+#: What a capture failure means in the words of someone reading the page, rather
+#: than the name of the exception that carried it.
+_FAILURE_REASONS = {
+    "SourceUnavailableError": "could not be reached, or needs you to be signed in",
+    "XPostUnavailable": "the post is deleted, private, or age-restricted",
+    "BrowserAuthenticationRequired": "needs a signed-in browser session",
+    "BrowserCaptureUnavailable": "the signed-in browser could not read it",
+    "UnsupportedUploadError": "that kind of file is not supported",
+    "EvidenceValidationError": "nothing source-backed could be extracted from it",
+    "ValueError": "is not a source STEERING can read",
+}
+
+
+def _failure_reason(code: str) -> str:
+    return _FAILURE_REASONS.get(code, "could not be captured")
+
+
 def _lines(value: str) -> list[str]:
     return [line.strip() for line in value.splitlines() if line.strip()]
 
@@ -391,17 +408,38 @@ class WebController:
             source=source or None,
             sources=sources if mode == "batch" else [],
         )
-        records = await (
-            self.ingestion.add_batch(ingestion_data.sources)
-            if ingestion_data.sources
-            else self._single_record(ingestion_data.source)
+        if not ingestion_data.sources:
+            return self._ingestion_response(request, await self._single_record(ingestion_data.source))
+        # Reported rather than raised. One unreachable link used to end the run and
+        # return an error, so every source after it was never tried and the ones
+        # already captured went unmentioned.
+        report = await self.ingestion.add_batch_report(ingestion_data.sources)
+        return self._ingestion_response(
+            request,
+            report.records,
+            failures=report.failures,
+            aborted=report.aborted,
         )
-        return self._ingestion_response(request, records)
 
-    def _ingestion_response(self, request: Request, records: list[Any]) -> Response:
+    def _ingestion_response(
+        self,
+        request: Request,
+        records: list[Any],
+        *,
+        failures: Sequence[tuple[str, str]] = (),
+        aborted: str | None = None,
+    ) -> Response:
         if self.is_htmx(request):
-            return self.template(request, "partials/ingestion_result.html", records=records)
-        return RedirectResponse(f"/artifacts/{records[0].artifact.id}", status_code=303)
+            return self.template(
+                request,
+                "partials/ingestion_result.html",
+                records=records,
+                failures=[{"source": source, "reason": _failure_reason(code)} for source, code in failures],
+                aborted=aborted,
+            )
+        if records:
+            return RedirectResponse(f"/artifacts/{records[0].artifact.id}", status_code=303)
+        raise HTTPException(422, aborted or "Nothing could be captured from what was submitted.")
 
     async def _ingest_upload(self, upload: UploadFile) -> Any:
         if self.resolved_ingestion is None:

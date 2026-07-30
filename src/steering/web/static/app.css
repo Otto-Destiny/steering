@@ -219,6 +219,10 @@ dd { margin: 0; }
 .conn-result:empty { display: none; }
 .conn-result { margin-top: .4rem; font-size: .85rem; }
 .conn-result .notice { padding: .65rem .75rem; overflow-wrap: anywhere; }
+.failure-list { margin: .5rem 0 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: .25rem; font-size: .88rem; }
+.failure-list .failure-source { overflow-wrap: anywhere; }
+.failure-list .hint { color: var(--muted); }
+.ingestion-feedback { display: flex; flex-direction: column; gap: .6rem; }
 
 @media (max-width: 900px) {
   .capture-layout { grid-template-columns: minmax(0, 1fr); }

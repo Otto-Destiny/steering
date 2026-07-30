@@ -1793,3 +1793,74 @@ def test_a_profile_in_use_says_so_instead_of_silently_doing_nothing() -> None:
 
     assert response.status_code == 409
     assert capture.hosts == {"x.com"}
+
+
+class PartiallyFailingIngestion(FakeIngestion):
+    """One unreachable link among several, which is the ordinary case."""
+
+    def __init__(self, repository: Any, unreachable: str) -> None:
+        super().__init__(repository)
+        self.unreachable = unreachable
+        self.attempted: list[str] = []
+
+    async def add(self, source: str, *, threads: ThreadPolicy = ThreadPolicy.AUTO) -> ArtifactRecord:
+        self.attempted.append(source)
+        if source == self.unreachable:
+            raise SourceUnavailableError("LinkedIn requires authorized capture")
+        return await super().add(source, threads=threads)
+
+
+def test_one_unreachable_link_no_longer_discards_the_rest_of_the_batch() -> None:
+    """A dead link used to end the run, losing every source after it in silence."""
+
+    repository = FakeRepository()
+    ingestion = PartiallyFailingIngestion(repository, "https://www.linkedin.com/posts/nope")
+    app = create_web_app(
+        engine=FakeEngine(repository),  # type: ignore[arg-type]
+        ingestion=ingestion,  # type: ignore[arg-type]
+        repository=repository,  # type: ignore[arg-type]
+        provider_settings=FakeProviders(),
+    )
+    batch = "\n".join(
+        [
+            "https://x.com/a/status/1",
+            "https://www.linkedin.com/posts/nope",
+            "https://x.com/b/status/2",
+        ]
+    )
+    with TestClient(app, base_url="http://localhost") as client:
+        response = client.post(
+            "/add",
+            data={"mode": "batch", "batch": batch},
+            headers={"HX-Request": "true"},
+        )
+
+    assert response.status_code == 200
+    # Every source is attempted, including the ones after the failure.
+    assert len(ingestion.attempted) == 3
+    assert "2 sources were added" in response.text
+    assert "1 skipped" in response.text
+    # Named, so the reader knows which link still needs doing, and why.
+    assert "https://www.linkedin.com/posts/nope" in response.text
+    assert "needs you to be signed in" in response.text
+
+
+def test_a_batch_where_nothing_succeeds_still_says_what_failed() -> None:
+    repository = FakeRepository()
+    ingestion = PartiallyFailingIngestion(repository, "https://www.linkedin.com/posts/nope")
+    app = create_web_app(
+        engine=FakeEngine(repository),  # type: ignore[arg-type]
+        ingestion=ingestion,  # type: ignore[arg-type]
+        repository=repository,  # type: ignore[arg-type]
+        provider_settings=FakeProviders(),
+    )
+    with TestClient(app, base_url="http://localhost") as client:
+        response = client.post(
+            "/add",
+            data={"mode": "batch", "batch": "https://www.linkedin.com/posts/nope"},
+            headers={"HX-Request": "true"},
+        )
+
+    assert response.status_code == 200
+    assert "1 skipped" in response.text
+    assert "Capture succeeded" not in response.text

@@ -1,4 +1,30 @@
-<div class="notice success" role="status">
-  <span><strong>Capture succeeded.</strong> {{ records|length }} source{% if records|length != 1 %}s were{% else %} was{% endif %} added.</span>
-  {% if records|length == 1 %}<a href="/artifacts/{{ records[0].artifact.id }}">Review artifact</a>{% endif %}
-</div>
+{# A run reports everything it did, not only whether it finished. Returning an
+   error alone hid the sources captured before the failure, and left nobody able
+   to tell which links still needed submitting. #}
+{% if records %}
+  <div class="notice success" role="status">
+    <span><strong>Capture succeeded.</strong> {{ records|length }} source{% if records|length != 1 %}s were{% else %} was{% endif %} added.</span>
+    {% if records|length == 1 %}<a href="/artifacts/{{ records[0].artifact.id }}">Review artifact</a>{% endif %}
+  </div>
+{% endif %}
+{% if failures %}
+  <div class="notice" role="status">
+    <span><strong>{{ failures|length }} skipped.</strong>{% if records %} Everything else was captured.{% endif %}</span>
+    <ul class="failure-list">
+      {% for failure in failures %}
+        <li>
+          <span class="failure-source">{{ failure.source }}</span>
+          <span class="hint">{{ failure.reason }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+{% endif %}
+{% if aborted %}
+  <div class="notice warning" role="status">
+    <span><strong>The run stopped early.</strong> {{ aborted }}</span>
+  </div>
+{% endif %}
+{% if not records and not failures and not aborted %}
+  <div class="notice" role="status"><span>Nothing was captured.</span></div>
+{% endif %}

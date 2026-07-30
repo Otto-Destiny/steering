@@ -159,6 +159,17 @@ class BrowserThreadReader:
         self._capture = capture
 
     def available(self) -> bool:
+        """Whether X specifically is signed in, not merely some platform.
+
+        One browser profile is shared, so asking whether *a* session exists made a
+        LinkedIn sign-in look like an X one. The reader then launched a browser
+        that could not authenticate, spending real time to arrive back at the
+        public capture it already had.
+        """
+
+        per_platform = getattr(self._capture, "is_signed_in_to", None)
+        if callable(per_platform):
+            return bool(per_platform("x.com"))
         probe = getattr(self._capture, "has_stored_session", None)
         return bool(probe()) if callable(probe) else True
 
