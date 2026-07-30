@@ -338,8 +338,13 @@ class ManagedBrowserCapture:
 
         if not authorized:
             raise PermissionError("opening the managed browser requires explicit authorization")
-        if not force and self.has_stored_session():
-            LOGGER.info("managed profile already holds a session; skipping the sign-in window")
+        # Asked per platform, not per profile. One profile is shared, so checking
+        # only whether *a* session exists meant signing in to a second site
+        # returned "already signed in" and never opened a window. An unreadable
+        # store answers no, because opening a window a user can see beats
+        # silently doing nothing on a guess.
+        if not force and self.is_signed_in_to(urlsplit(url).hostname or ""):
+            LOGGER.info("managed profile already holds a session for %s; skipping the window", url)
             return LoginOutcome.ALREADY_SIGNED_IN
         canonical = canonical_http_url(url)
         await self.guard.validate_url(canonical)

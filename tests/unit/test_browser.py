@@ -652,9 +652,7 @@ async def test_open_login_skips_the_window_when_a_session_already_exists(
         profile_directory=tmp_path,
         guard=RecordingGuard(),  # type: ignore[arg-type]
     )
-    session_file = capture.profile_directory / "Default" / "Network"
-    session_file.mkdir(parents=True, exist_ok=True)
-    (session_file / "Cookies").write_bytes(b"stub cookie store")
+    cookie_store(tmp_path, ".x.com")
 
     outcome = await capture.open_login("https://x.com/i/flow/login", authorized=True)
 
@@ -674,9 +672,7 @@ async def test_forcing_sign_in_opens_the_window_despite_a_stored_session(
         profile_directory=tmp_path,
         guard=RecordingGuard(),  # type: ignore[arg-type]
     )
-    cookies = capture.profile_directory / "Default" / "Network"
-    cookies.mkdir(parents=True, exist_ok=True)
-    (cookies / "Cookies").write_bytes(b"stub cookie store")
+    cookie_store(tmp_path, ".x.com")
 
     outcome = await capture.open_login("https://x.com/i/flow/login", authorized=True, force=True)
 
@@ -775,3 +771,43 @@ def test_a_profile_that_was_never_signed_in_holds_nothing(tmp_path: Path) -> Non
     assert capture.has_stored_session() is False
     assert capture.signed_in_hosts() == frozenset()
     assert capture.sign_out("x.com") is False
+
+
+@pytest.mark.asyncio
+async def test_signing_in_to_a_second_platform_opens_a_window(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Being signed in to X must not stand in for being signed in to LinkedIn.
+
+    One profile is shared, so asking whether *a* session existed answered yes and
+    returned "already signed in" without opening anything. Pressing Sign in then
+    did nothing while reporting success, and LinkedIn stayed unreachable.
+    """
+
+    chromium = FakeChromium(FakeContext(FakePage({})))
+    install_fake_playwright(monkeypatch, chromium)
+    capture = ManagedBrowserCapture(
+        profile_directory=tmp_path,
+        guard=RecordingGuard(),  # type: ignore[arg-type]
+    )
+    cookie_store(tmp_path, ".x.com")
+
+    launched: list[str] = []
+
+    class FinishedProcess:
+        async def wait(self) -> int:
+            return 0
+
+    async def fake_launch(*command: str, **_options: Any) -> FinishedProcess:
+        launched.append(command[-1])
+        return FinishedProcess()
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_launch)
+
+    outcome = await capture.open_login("https://www.linkedin.com/login", authorized=True)
+
+    assert outcome is LoginOutcome.SIGNED_IN
+    assert launched == ["https://www.linkedin.com/login"]
+    # The X session it was signed in to is untouched by signing in elsewhere.
+    assert capture.is_signed_in_to("x.com") is True
