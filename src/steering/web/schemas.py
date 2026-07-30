@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
+
+from steering.ingestion.service import ThreadPolicy
 
 
 class WebInput(BaseModel):
@@ -14,6 +17,9 @@ class SearchInput(WebInput):
     limit: int = Field(default=10, ge=1, le=50)
     breadth: bool = False
     project_id: str | None = Field(default=None, max_length=200)
+    #: Sources with no known publication date are excluded once this is set, so
+    #: it is left unset unless the user asks for it.
+    published_after: datetime | None = None
 
 
 class DesignInput(WebInput):
@@ -27,12 +33,20 @@ class DesignInput(WebInput):
 class IngestionInput(WebInput):
     source: str | None = Field(default=None, max_length=250_000)
     sources: list[str] = Field(default_factory=list, max_length=1_000)
+    threads: ThreadPolicy = ThreadPolicy.AUTO
+    #: Capture everything publicly first, then read threads only where one is
+    #: still missing. Free pass first, browser time only where it is earned.
+    two_pass: bool = False
 
     @model_validator(mode="after")
     def require_content(self) -> IngestionInput:
         if not self.source and not self.sources:
             raise ValueError("provide source or sources")
         return self
+
+
+class RetireInput(WebInput):
+    artifact_ids: list[str] = Field(min_length=1, max_length=500)
 
 
 class BrowserCaptureInput(WebInput):

@@ -23,13 +23,42 @@ def _prepare_revision_two_backup(connection: lb.Connection, database_path: Path)
     verify_backup(backup_path)
 
 
+class DatabaseCorruptedError(RuntimeError):
+    """Raised when the database cannot be opened and needs manual recovery."""
+
+
+def _open_database(path: Path) -> lb.Database:
+    """Open the database, turning storage damage into an actionable instruction.
+
+    A write-ahead log left behind by a killed process is the common way this
+    fails, and it is recoverable: the log holds only writes since the last
+    checkpoint, so setting it aside restores the database minus those. The raw
+    storage error says none of that, which leaves a user with a working database
+    and no idea it is one command away.
+    """
+
+    try:
+        return lb.Database(str(path))
+    except RuntimeError as exc:
+        detail = str(exc)
+        if "wal" not in detail.lower():
+            raise
+        wal = Path(f"{path}.wal")
+        raise DatabaseCorruptedError(
+            f"the database write-ahead log at '{wal}' is corrupt, which usually means a "
+            "previous run was killed. Move that file elsewhere (keep it, do not delete it) "
+            f"and start again; '{path}' reopens at its last checkpoint. "
+            f"Original error: {detail}"
+        ) from exc
+
+
 class DatabaseRuntime:
     """Own the one writable Ladybug Database for the daemon lifetime."""
 
     def __init__(self, database_path: str | Path) -> None:
         self.path = Path(database_path).expanduser().resolve(strict=False)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.database = lb.Database(str(self.path))
+        self.database = _open_database(self.path)
         connection: lb.Connection | None = None
         try:
             connection = lb.Connection(self.database)

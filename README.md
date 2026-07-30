@@ -49,8 +49,9 @@ Build with today's best ideas, not yesterday's. STEERING is the missing intellig
 
 ## What 0.1 includes
 
-- Public X oEmbed capture, public LinkedIn capture, and explicit isolated browser capture for content
-  you are authorized to view.
+- Public X capture that keeps the author's real destination links instead of `t.co` shortlinks, so a post
+  about a paper pulls in the paper. Public LinkedIn capture, plus explicit isolated browser capture for
+  content you are authorized to view.
 - GitHub README, platform-neutral paper/PDF, scholarly HTML, documentation, webpage, pasted text,
   batch file, Telegram HTML/JSON export, and disposable file-upload ingestion.
 - LLM-based structured extraction with exact source-span validation, provenance snapshots, trust
@@ -112,7 +113,12 @@ uv run steering add https://github.com/example/project
 uv run steering add --batch saved-links.txt
 uv run steering import-telegram path/to/result.json
 uv run steering doctor
+uv run steering doctor --records
 ```
+
+`doctor` reports configuration and runtime health. Adding `--records` also opens every stored
+record and lists any that cannot be read, so damage is found in one pass rather than one click
+at a time.
 
 Knowledge construction requires a configured generation model, and semantic retrieval requires a configured
 embedding provider. A missing provider produces an actionable setup error instead of silently degrading retrieval.

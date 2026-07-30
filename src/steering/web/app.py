@@ -1,27 +1,48 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+import logging
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any, TypeVar
 
+import anyio.to_thread
 from pydantic import BaseModel, ValidationError
 from starlette.applications import Starlette
 from starlette.datastructures import FormData, UploadFile
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
-from starlette.responses import JSONResponse, RedirectResponse, Response
+from starlette.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 
 from steering import SCHEMA_VERSION, __version__
+from steering.database.repository import CorruptRecordError
 from steering.domain.models import Project, SearchQuery
 from steering.domain.protocols import ArtifactRepository, ImageUnderstandingProvider
 from steering.extraction.service import EvidenceValidationError
-from steering.ingestion.browser import BrowserCaptureUnavailable, BrowserDependencyUnavailable
+from steering.ingestion.bookmarks import (
+    MAX_EXPORT_BYTES,
+    UnsupportedBookmarkExportError,
+    bookmark_sources,
+)
+from steering.ingestion.browser import (
+    BrowserAuthenticationRequired,
+    BrowserCaptureUnavailable,
+    BrowserDependencyUnavailable,
+)
+from steering.ingestion.login_session import BrowserLoginSession, LoginStatus
 from steering.ingestion.security import SourceUnavailableError
-from steering.ingestion.service import IngestionService
+from steering.ingestion.service import IngestionService, ThreadPolicy
 from steering.ingestion.uploads import MAX_UPLOAD_BYTES, UnsupportedUploadError, resolve_upload
+from steering.ingestion.x_api import (
+    DEFAULT_REDIRECT_PATH,
+    PendingAuthorization,
+    XApiClient,
+    XApiError,
+    XApiNotAuthorized,
+    start_authorization,
+)
 from steering.intelligence.service import SteeringEngine
 from steering.providers.openai_compatible import ProviderConnectionError, ProviderTimeoutError
 from steering.web.capture import AuthorizedBrowserCapture, ResolvedSourceIngestion
@@ -36,13 +57,31 @@ from steering.web.schemas import (
     OutcomeInput,
     ProjectInput,
     ProviderInput,
+    RetireInput,
     SearchInput,
 )
 from steering.web.security import MAX_REQUEST_BYTES, LocalMutationGuardMiddleware
 
+LOGGER = logging.getLogger(__name__)
 TInput = TypeVar("TInput", bound=BaseModel)
 WEB_ROOT = Path(__file__).resolve().parent
 ISSUE_ACTIONS = ("accept_correction", "keep_both", "dismiss", "reject")
+#: How many artifacts the directory lists at once. Generous enough to be a real
+#: index of a personal corpus, bounded so a large graph cannot stall the browser.
+DIRECTORY_LIMIT = 100
+DIRECTORY_SORTS = ("newest", "oldest", "title")
+#: The platforms a signed-in capture can read, and where each one signs in.
+#: One managed profile is shared, so each is reported by the cookies it left.
+BROWSER_PLATFORMS = (
+    {"name": "X", "host": "x.com", "login_url": "https://x.com/i/flow/login"},
+    {"name": "LinkedIn", "host": "linkedin.com", "login_url": "https://www.linkedin.com/login"},
+)
+
+
+def _bookmarklet_source() -> str:
+    """The one-line bookmarklet the Add page offers for dragging."""
+
+    return (WEB_ROOT / "static" / "bookmarklet.min.txt").read_text(encoding="utf-8").strip()
 
 
 def _json(value: Any) -> Any:
@@ -89,6 +128,23 @@ def _string(form: FormData, name: str, default: str = "") -> str:
     return value.strip() if isinstance(value, str) else default
 
 
+#: What a capture failure means in the words of someone reading the page, rather
+#: than the name of the exception that carried it.
+_FAILURE_REASONS = {
+    "SourceUnavailableError": "could not be reached, or needs you to be signed in",
+    "XPostUnavailable": "the post is deleted, private, or age-restricted",
+    "BrowserAuthenticationRequired": "needs a signed-in browser session",
+    "BrowserCaptureUnavailable": "the signed-in browser could not read it",
+    "UnsupportedUploadError": "that kind of file is not supported",
+    "EvidenceValidationError": "nothing source-backed could be extracted from it",
+    "ValueError": "is not a source STEERING can read",
+}
+
+
+def _failure_reason(code: str) -> str:
+    return _FAILURE_REASONS.get(code, "could not be captured")
+
+
 def _lines(value: str) -> list[str]:
     return [line.strip() for line in value.splitlines() if line.strip()]
 
@@ -103,8 +159,12 @@ class WebController:
         provider_settings: ProviderSettingsService,
         resolved_ingestion: ResolvedSourceIngestion | None,
         browser_capture: AuthorizedBrowserCapture | None,
+        login_session: BrowserLoginSession | None,
         image_provider: ImageUnderstandingProvider | None,
         templates: Jinja2Templates,
+        on_record_changed: Callable[[], None] | None = None,
+        x_api: XApiClient | None = None,
+        x_api_client_id: str | None = None,
     ) -> None:
         self.engine = engine
         self.ingestion = ingestion
@@ -112,8 +172,13 @@ class WebController:
         self.provider_settings = provider_settings
         self.resolved_ingestion = resolved_ingestion
         self.browser_capture = browser_capture
+        self.login_session = login_session
         self.image_provider = image_provider
         self.templates = templates
+        self.on_record_changed = on_record_changed
+        self.x_api = x_api
+        self.x_api_client_id = x_api_client_id
+        self._pending_x_authorization: PendingAuthorization | None = None
 
     def context(self, request: Request, **values: Any) -> dict[str, Any]:
         return {
@@ -147,11 +212,19 @@ class WebController:
             result[issue.id] = rows
         return result
 
-    def template(self, request: Request, name: str, **values: Any) -> Response:
+    def template(
+        self,
+        request: Request,
+        name: str,
+        *,
+        status_code: int = 200,
+        **values: Any,
+    ) -> Response:
         return self.templates.TemplateResponse(
             request=request,
             name=name,
             context=self.context(request, **values),
+            status_code=status_code,
         )
 
     @staticmethod
@@ -159,22 +232,155 @@ class WebController:
         return request.headers.get("HX-Request", "").lower() == "true"
 
     async def dashboard(self, request: Request) -> Response:
-        records = sorted(
-            self.repository.list_records(),
-            key=lambda item: item.artifact.captured_at,
-            reverse=True,
-        )
-        jobs = self.repository.list_jobs(limit=8)
         return self.template(
             request,
             "dashboard.html",
-            records=records[:8],
-            record_count=len(records),
-            jobs=jobs,
+            artifacts=self.repository.list_artifacts(limit=8),
+            record_count=self.repository.count_artifacts(),
+            jobs=self.repository.list_jobs(limit=8),
         )
 
+    async def favicon(self, request: Request) -> Response:
+        """Answer the path a browser probes before it has read any markup."""
+
+        return FileResponse(WEB_ROOT / "static" / "favicon.ico", media_type="image/x-icon")
+
     async def add_page(self, request: Request) -> Response:
-        return self.template(request, "add.html")
+        return self.template(
+            request,
+            "add.html",
+            bookmarklet=_bookmarklet_source(),
+            x_api_configured=bool(self.x_api_client_id),
+            x_api_authorized=self.x_api is not None and self.x_api.authorized,
+            browser_available=self.browser_capture is not None,
+            browser_signed_in=self.login_session is not None and self.login_session.signed_in,
+            platforms=self._platform_status(),
+        )
+
+    def _platform_status(self) -> list[dict[str, Any]]:
+        session = self.login_session
+        return [
+            {**platform, "signed_in": session is not None and session.is_signed_in_to(platform["host"])}
+            for platform in BROWSER_PLATFORMS
+        ]
+
+    def _sources_rail(self, request: Request, **values: Any) -> Response:
+        return self.template(
+            request,
+            "partials/sources_rail.html",
+            bookmarklet=_bookmarklet_source(),
+            x_api_configured=bool(self.x_api_client_id),
+            x_api_authorized=self.x_api is not None and self.x_api.authorized,
+            browser_available=self.browser_capture is not None,
+            platforms=self._platform_status(),
+            **values,
+        )
+
+    async def browser_signout_ui(self, request: Request) -> Response:
+        """Forget one platform's session and redraw what is now available."""
+
+        form = await _form(request)
+        host = _string(form, "host")
+        if not any(host == platform["host"] for platform in BROWSER_PLATFORMS):
+            raise HTTPException(422, "Choose a platform to sign out of.")
+        try:
+            self._login_session().sign_out(host)
+        except (BrowserCaptureUnavailable, RuntimeError) as exc:
+            raise HTTPException(409, str(exc)) from None
+        if self.is_htmx(request):
+            return self._sources_rail(request)
+        return RedirectResponse("/add", status_code=303)
+
+    async def x_authorize_ui(self, request: Request) -> Response:
+        """Send the user to X's consent screen for a read-only, opt-in token."""
+
+        if self.x_api is None or not self.x_api_client_id:
+            raise HTTPException(
+                501,
+                "The X API is not configured. Set STEERING_X_API_CLIENT_ID first.",
+            )
+        redirect_uri = str(request.url.replace(path=DEFAULT_REDIRECT_PATH, query=""))
+        consent_url, pending = start_authorization(self.x_api_client_id, redirect_uri)
+        self._pending_x_authorization = pending
+        return RedirectResponse(consent_url, status_code=303)
+
+    async def x_callback_ui(self, request: Request) -> Response:
+        pending = self._pending_x_authorization
+        self._pending_x_authorization = None
+        error = request.query_params.get("error")
+        code = request.query_params.get("code")
+        state = request.query_params.get("state")
+        if error:
+            raise HTTPException(400, f"X declined the authorization ({error}).")
+        if pending is None or not code:
+            raise HTTPException(400, "No X authorization was in progress. Start again.")
+        if state != pending.state:
+            # A mismatched state means this callback did not come from the
+            # request we started, so the code must not be exchanged.
+            raise HTTPException(400, "The X authorization response did not match this request.")
+        if self.x_api is None:
+            raise HTTPException(501, "The X API is not configured.")
+        await self.x_api.complete_authorization(code, pending)
+        LOGGER.info("X API authorization completed and stored")
+        return RedirectResponse("/add", status_code=303)
+
+    async def api_import_x_bookmarks(self, request: Request) -> Response:
+        """Read bookmarks through the authorized API instead of the bookmarklet."""
+
+        if self.x_api is None or not self.x_api.authorized:
+            raise HTTPException(409, "Authorize the X API before importing bookmarks from it.")
+        try:
+            sources = await self.x_api.bookmarks()
+        except XApiNotAuthorized as exc:
+            raise HTTPException(409, str(exc)) from None
+        except XApiError as exc:
+            raise HTTPException(502, str(exc)) from None
+        if not sources:
+            raise HTTPException(404, "The X API returned no bookmarked posts.")
+        # The bookmarks response already carried each post, so ingestion reuses
+        # it rather than billing a second read for the same content.
+        report = await self.ingestion.add_prepared_batch_report(sources)
+        return JSONResponse(
+            {
+                "records": _json(report.records),
+                "failures": [{"source": source, "error_code": code} for source, code in report.failures],
+                "aborted": report.aborted,
+            },
+            status_code=202,
+        )
+
+    async def import_bookmarks_ui(self, request: Request) -> Response:
+        form = await _form(request)
+        upload = form.get("bookmarks_file")
+        if not isinstance(upload, UploadFile) or not upload.filename:
+            raise HTTPException(422, "Choose the bookmarks file the bookmarklet saved.")
+        report = await self._import_bookmarks(await upload.read(MAX_EXPORT_BYTES + 1))
+        if self.is_htmx(request):
+            return self.template(request, "partials/ingestion_result.html", records=report.records)
+        return RedirectResponse("/search", status_code=303)
+
+    async def api_import_bookmarks(self, request: Request) -> Response:
+        report = await self._import_bookmarks(await request.body())
+        return JSONResponse(
+            {
+                "records": _json(report.records),
+                "failures": [{"source": source, "error_code": code} for source, code in report.failures],
+                "aborted": report.aborted,
+            },
+            status_code=202,
+        )
+
+    async def _import_bookmarks(self, payload: bytes) -> Any:
+        if len(payload) > MAX_EXPORT_BYTES:
+            raise HTTPException(413, "The bookmarks export exceeds the 8 MiB limit.")
+        try:
+            sources = bookmark_sources(payload.decode("utf-8-sig"))
+        except UnicodeDecodeError:
+            raise HTTPException(422, "The bookmarks export must be UTF-8 text.") from None
+        except UnsupportedBookmarkExportError as exc:
+            raise HTTPException(422, str(exc)) from None
+        LOGGER.info("importing %d bookmarked post(s)", len(sources))
+        return await self.ingestion.add_batch_report(sources, two_pass=True)
 
     async def add_submit(self, request: Request) -> Response:
         form = await _form(request)
@@ -207,17 +413,38 @@ class WebController:
             source=source or None,
             sources=sources if mode == "batch" else [],
         )
-        records = await (
-            self.ingestion.add_batch(ingestion_data.sources)
-            if ingestion_data.sources
-            else self._single_record(ingestion_data.source)
+        if not ingestion_data.sources:
+            return self._ingestion_response(request, await self._single_record(ingestion_data.source))
+        # Reported rather than raised. One unreachable link used to end the run and
+        # return an error, so every source after it was never tried and the ones
+        # already captured went unmentioned.
+        report = await self.ingestion.add_batch_report(ingestion_data.sources)
+        return self._ingestion_response(
+            request,
+            report.records,
+            failures=report.failures,
+            aborted=report.aborted,
         )
-        return self._ingestion_response(request, records)
 
-    def _ingestion_response(self, request: Request, records: list[Any]) -> Response:
+    def _ingestion_response(
+        self,
+        request: Request,
+        records: list[Any],
+        *,
+        failures: Sequence[tuple[str, str]] = (),
+        aborted: str | None = None,
+    ) -> Response:
         if self.is_htmx(request):
-            return self.template(request, "partials/ingestion_result.html", records=records)
-        return RedirectResponse(f"/artifacts/{records[0].artifact.id}", status_code=303)
+            return self.template(
+                request,
+                "partials/ingestion_result.html",
+                records=records,
+                failures=[{"source": source, "reason": _failure_reason(code)} for source, code in failures],
+                aborted=aborted,
+            )
+        if records:
+            return RedirectResponse(f"/artifacts/{records[0].artifact.id}", status_code=303)
+        raise HTTPException(422, aborted or "Nothing could be captured from what was submitted.")
 
     async def _ingest_upload(self, upload: UploadFile) -> Any:
         if self.resolved_ingestion is None:
@@ -252,37 +479,35 @@ class WebController:
                 "Managed browser capture is unavailable. Install the browser extra and Chromium, "
                 "then restart STEERING.",
             ) from None
-        except BrowserCaptureUnavailable:
-            raise HTTPException(
-                502,
-                "Managed browser capture ended before the page could be read. Try again.",
-            ) from None
+        except BrowserAuthenticationRequired as exc:
+            raise HTTPException(409, str(exc)) from None
+        except BrowserCaptureUnavailable as exc:
+            raise HTTPException(502, f"Managed browser capture did not complete. {exc}") from None
         except Exception:
+            LOGGER.exception("authorized browser capture failed")
             raise HTTPException(502, "Authorized browser capture failed.") from None
 
-    async def _open_browser_login(self, data: BrowserCaptureInput) -> None:
+    def _login_session(self) -> BrowserLoginSession:
+        if self.login_session is None:
+            raise HTTPException(501, "Managed browser login is not enabled in this runtime.")
+        return self.login_session
+
+    def _start_browser_login(self, data: BrowserCaptureInput, *, force: bool = False) -> LoginStatus:
         if not data.authorized:
             raise HTTPException(403, "Opening the managed browser requires explicit authorization.")
-        if self.browser_capture is None:
-            raise HTTPException(501, "Managed browser login is not enabled in this runtime.")
+        session = self._login_session()
         try:
-            await self.browser_capture.open_login(data.url, authorized=True)
-        except PermissionError:
-            raise HTTPException(403, "Opening the managed browser was not authorized.") from None
-        except BrowserDependencyUnavailable:
-            raise HTTPException(
-                503,
-                "Managed browser capture is unavailable. Install the browser extra and Chromium, "
-                "then restart STEERING.",
-            ) from None
-        except BrowserCaptureUnavailable:
-            raise HTTPException(
-                502,
-                "The managed browser closed before the login session was saved. Try again and keep "
-                "the window open until sign-in is complete.",
-            ) from None
-        except Exception:
-            raise HTTPException(502, "Managed browser login failed.") from None
+            return session.start(data.url, force=force)
+        except RuntimeError as exc:
+            raise HTTPException(409, str(exc)) from None
+
+    def _login_response(self, request: Request, status: LoginStatus) -> Response:
+        return self.template(
+            request,
+            "partials/browser_status.html",
+            status=status,
+            polling=status.running,
+        )
 
     async def browser_login_ui(self, request: Request) -> Response:
         form = await _form(request)
@@ -290,24 +515,115 @@ class WebController:
             url=_string(form, "login_url"),
             authorized=form.get("authorize_login") == "on",
         )
-        await self._open_browser_login(data)
+        status = self._start_browser_login(data, force=form.get("force_login") == "on")
         if self.is_htmx(request):
-            return self.template(
-                request,
-                "partials/browser_status.html",
-                message="Managed browser session saved. You can now capture an authorized URL.",
-            )
+            return self._login_response(request, status)
         return RedirectResponse("/add", status_code=303)
 
-    async def _single_record(self, source: str | None) -> list[Any]:
+    async def browser_login_status_ui(self, request: Request) -> Response:
+        return self._login_response(request, self._login_session().status())
+
+    async def _single_record(
+        self,
+        source: str | None,
+        *,
+        threads: ThreadPolicy = ThreadPolicy.AUTO,
+    ) -> list[Any]:
         if source is None:
             raise HTTPException(422, "A URL or text value is required.")
-        return [await self.ingestion.add(source)]
+        return [await self.ingestion.add(source, threads=threads)]
 
     async def search_page(self, request: Request) -> Response:
         query = request.query_params.get("q", "").strip()
         hits = await self.engine.search(SearchQuery(query=query, limit=10)) if query else []
-        return self.template(request, "search.html", query=query, hits=hits)
+        # Before a search is run the page would otherwise be empty, which hides
+        # the knowledge that is already there. This page doubles as the directory
+        # of everything captured, newest first, until results replace it.
+        sort = self._directory_sort(request.query_params.get("sort"))
+        return self.template(
+            request,
+            "search.html",
+            query=query,
+            hits=hits,
+            artifacts=[] if query else self._directory(sort),
+            record_count=self.repository.count_artifacts(),
+            sort=sort,
+            sorts=DIRECTORY_SORTS,
+        )
+
+    @staticmethod
+    def _directory_sort(value: str | None) -> str:
+        return value if value in DIRECTORY_SORTS else DIRECTORY_SORTS[0]
+
+    def _directory(self, sort: str) -> list[Any]:
+        """Order the whole corpus before limiting it.
+
+        Sorting only the newest page would make "oldest" mean "oldest of the most
+        recent hundred", which is not what the control says.
+        """
+
+        artifacts = self.repository.list_artifacts()
+        if sort == "oldest":
+            artifacts.reverse()
+        elif sort == "title":
+            artifacts.sort(key=lambda artifact: artifact.title.casefold())
+        return artifacts[:DIRECTORY_LIMIT]
+
+    async def retire_artifact_ui(self, request: Request) -> Response:
+        """Retire one record, from its own page."""
+
+        self._retire([request.path_params["artifact_id"]])
+        return RedirectResponse("/search", status_code=303)
+
+    async def retire_selected_ui(self, request: Request) -> Response:
+        """Retire everything ticked in the knowledge directory."""
+
+        form = await _form(request)
+        selected = [str(value) for value in form.getlist("artifact_ids") if value]
+        if not selected:
+            raise HTTPException(422, "Select at least one record to retire.")
+        self._retire(selected)
+        sort = self._directory_sort(_string(form, "sort") or None)
+        if self.is_htmx(request):
+            return self.template(
+                request,
+                "partials/knowledge_directory.html",
+                artifacts=self._directory(sort),
+                record_count=self.repository.count_artifacts(),
+                sort=sort,
+                sorts=DIRECTORY_SORTS,
+                retired=len(selected),
+            )
+        return RedirectResponse(f"/search?sort={sort}", status_code=303)
+
+    async def api_retire_artifact(self, request: Request) -> Response:
+        artifact_id = request.path_params["artifact_id"]
+        self._retire([artifact_id])
+        return JSONResponse({"retired": [artifact_id]})
+
+    async def api_retire_selected(self, request: Request) -> Response:
+        data = await _payload(request, RetireInput)
+        self._retire(list(data.artifact_ids))
+        return JSONResponse({"retired": list(data.artifact_ids)})
+
+    def _retire(self, artifact_ids: Sequence[str]) -> None:
+        """Remove records and their evidence, then invalidate retrieval.
+
+        Retiring is permanent: the artifact, its snapshots, chunks, claims, and
+        quotes are deleted. Only the shared entities and concepts other artifacts
+        also reference survive.
+        """
+
+        missing = [
+            artifact_id for artifact_id in artifact_ids if not self.repository.delete_record(artifact_id)
+        ]
+        if missing:
+            raise HTTPException(404, "One or more knowledge records were not found.")
+        LOGGER.info("retired %d knowledge record(s): %s", len(artifact_ids), ", ".join(artifact_ids))
+        if self.on_record_changed is not None:
+            # Retrieval indexes still reference a removed artifact until the
+            # retriever is told the graph changed.
+            self.on_record_changed()
 
     async def search_submit(self, request: Request) -> Response:
         form = await _form(request)
@@ -316,6 +632,7 @@ class WebController:
             limit=_string(form, "limit", "10"),
             breadth=form.get("breadth") == "on",
             project_id=_string(form, "project_id") or None,
+            published_after=_string(form, "published_after") or None,
         )
         hits = await self.engine.search(
             SearchQuery(
@@ -323,14 +640,37 @@ class WebController:
                 limit=data.limit,
                 breadth=data.breadth,
                 project_id=data.project_id,
+                published_after=data.published_after,
             )
         )
         if self.is_htmx(request):
             return self.template(request, "partials/search_results.html", hits=hits, query=data.query)
-        return self.template(request, "search.html", hits=hits, query=data.query)
+        return self.template(
+            request,
+            "search.html",
+            hits=hits,
+            query=data.query,
+            artifacts=[],
+            record_count=self.repository.count_artifacts(),
+            sort=DIRECTORY_SORTS[0],
+            sorts=DIRECTORY_SORTS,
+        )
 
     async def artifact_page(self, request: Request) -> Response:
-        record = self.engine.get_knowledge_record(request.path_params["artifact_id"])
+        artifact_id = request.path_params["artifact_id"]
+        try:
+            record = self.engine.get_knowledge_record(artifact_id)
+        except CorruptRecordError as exc:
+            # Its stored data cannot be read, so the only useful thing this page
+            # can offer is the reason and a way to remove it.
+            LOGGER.error("artifact %s is unreadable: %s", artifact_id, exc.detail)
+            return self.template(
+                request,
+                "corrupt_artifact.html",
+                artifact_id=artifact_id,
+                detail=exc.detail,
+                status_code=500,
+            )
         if record is None:
             raise HTTPException(404, "Knowledge record not found.")
         return self.template(
@@ -339,7 +679,41 @@ class WebController:
             record=record,
             actions=ISSUE_ACTIONS,
             issue_evidence=self._issue_evidence(record.issues),
+            linked_sources=self._linked_sources(record),
         )
+
+    def _linked_sources(self, record: Any) -> list[dict[str, Any]]:
+        """Where the capture led, which is the point of capturing a social post.
+
+        A post's own URL says where knowledge came from. The paper or repository
+        it pointed at is the thing worth opening, so both the sources that were
+        followed and the ones that only got recorded are surfaced together.
+        """
+
+        metadata = record.artifact.metadata
+        followed = [str(url) for url in metadata.get("supporting_sources") or []]
+        # A followed source is stored as a snapshot of this record, so its title
+        # is the snapshot's rather than a separate artifact's.
+        titles = {snapshot.source_url: snapshot for snapshot in record.snapshots}
+        rows: list[dict[str, Any]] = []
+        for url in followed:
+            snapshot = titles.get(url)
+            rows.append(
+                {
+                    "url": url,
+                    "title": url,
+                    "characters": len(snapshot.text) if snapshot is not None else 0,
+                    "followed": True,
+                }
+            )
+        seen = set(followed)
+        for value in metadata.get("outbound_urls") or []:
+            url = str(value)
+            if url in seen or not url.startswith(("http://", "https://")):
+                continue
+            seen.add(url)
+            rows.append({"url": url, "title": url, "characters": 0, "followed": False})
+        return rows
 
     async def issues_page(self, request: Request) -> Response:
         issues = self.repository.list_issues(unresolved_only=False)
@@ -627,12 +1001,24 @@ class WebController:
 
     async def api_ingestion(self, request: Request) -> Response:
         data = await _payload(request, IngestionInput)
-        records = (
-            await self.ingestion.add_batch(data.sources)
-            if data.sources
-            else await self._single_record(data.source)
+        if not data.sources:
+            records = await self._single_record(data.source, threads=data.threads)
+            return JSONResponse({"records": _json(records), "failures": []}, status_code=202)
+        # A batch is reported in full: one dead link must not discard the rest of
+        # an unattended run, and a stopped run must say why.
+        report = await self.ingestion.add_batch_report(
+            data.sources,
+            threads=data.threads,
+            two_pass=data.two_pass,
         )
-        return JSONResponse({"records": _json(records)}, status_code=202)
+        return JSONResponse(
+            {
+                "records": _json(report.records),
+                "failures": [{"source": source, "error_code": code} for source, code in report.failures],
+                "aborted": report.aborted,
+            },
+            status_code=202,
+        )
 
     async def api_ingestion_upload(self, request: Request) -> Response:
         form = await _form(request)
@@ -651,8 +1037,12 @@ class WebController:
 
     async def api_browser_login(self, request: Request) -> Response:
         data = await _payload(request, BrowserCaptureInput)
-        await self._open_browser_login(data)
-        return JSONResponse({"status": "ready"})
+        status = self._start_browser_login(data)
+        return JSONResponse({"state": status.state, "message": status.message}, status_code=202)
+
+    async def api_browser_login_status(self, request: Request) -> Response:
+        status = self._login_session().status()
+        return JSONResponse({"state": status.state, "message": status.message})
 
     async def api_jobs(self, request: Request) -> Response:
         return JSONResponse({"jobs": _json(self.repository.list_jobs(limit=100))})
@@ -734,6 +1124,16 @@ class WebController:
         count, backup = await self.engine.retriever.reembed_all()
         return JSONResponse({"reindexed": True, "reembedded_chunks": count, "verified_backup": backup})
 
+    async def api_maintenance_audit(self, request: Request) -> Response:
+        damaged = await anyio.to_thread.run_sync(self.repository.unreadable_records)
+        return JSONResponse(
+            {
+                "checked": self.repository.count_artifacts(),
+                "unreadable": damaged,
+                "unreadable_count": len(damaged),
+            }
+        )
+
 
 def create_web_app(
     *,
@@ -743,7 +1143,11 @@ def create_web_app(
     provider_settings: ProviderSettingsService,
     resolved_ingestion: ResolvedSourceIngestion | None = None,
     browser_capture: AuthorizedBrowserCapture | None = None,
+    login_session: BrowserLoginSession | None = None,
     image_provider: ImageUnderstandingProvider | None = None,
+    on_record_changed: Callable[[], None] | None = None,
+    x_api: XApiClient | None = None,
+    x_api_client_id: str | None = None,
     templates_directory: Path | None = None,
     static_directory: Path | None = None,
 ) -> Starlette:
@@ -757,17 +1161,32 @@ def create_web_app(
         provider_settings=provider_settings,
         resolved_ingestion=resolved_ingestion,
         browser_capture=browser_capture,
+        login_session=login_session,
         image_provider=image_provider,
         templates=templates,
+        on_record_changed=on_record_changed,
+        x_api=x_api,
+        x_api_client_id=x_api_client_id,
     )
     routes = [
         Route("/", controller.dashboard, methods=["GET"]),
         Route("/add", controller.add_page, methods=["GET"]),
         Route("/add", controller.add_submit, methods=["POST"]),
+        Route("/bookmarks/import", controller.import_bookmarks_ui, methods=["POST"]),
+        Route("/oauth/x/authorize", controller.x_authorize_ui, methods=["POST"]),
+        Route(DEFAULT_REDIRECT_PATH, controller.x_callback_ui, methods=["GET"]),
         Route("/browser/login", controller.browser_login_ui, methods=["POST"]),
+        Route("/browser/signout", controller.browser_signout_ui, methods=["POST"]),
+        Route("/browser/login/status", controller.browser_login_status_ui, methods=["GET"]),
         Route("/search", controller.search_page, methods=["GET"]),
         Route("/search", controller.search_submit, methods=["POST"]),
         Route("/artifacts/{artifact_id:str}", controller.artifact_page, methods=["GET"]),
+        Route("/artifacts/retire", controller.retire_selected_ui, methods=["POST"]),
+        Route(
+            "/artifacts/{artifact_id:str}/retire",
+            controller.retire_artifact_ui,
+            methods=["POST"],
+        ),
         Route("/issues", controller.issues_page, methods=["GET"]),
         Route("/issues/{issue_id:str}/resolve", controller.issue_resolve_ui, methods=["POST"]),
         Route("/design", controller.design_page, methods=["GET"]),
@@ -797,17 +1216,27 @@ def create_web_app(
             controller.provider_delete_ui,
             methods=["POST"],
         ),
+        Route("/favicon.ico", controller.favicon, methods=["GET"]),
         Route("/api/health", controller.api_health, methods=["GET"]),
         Route("/api/search", controller.api_search, methods=["POST"]),
         Route("/api/records", controller.api_records, methods=["GET"]),
         Route("/api/records/{artifact_id:str}", controller.api_record, methods=["GET"]),
+        Route("/api/records/retire", controller.api_retire_selected, methods=["POST"]),
+        Route(
+            "/api/records/{artifact_id:str}",
+            controller.api_retire_artifact,
+            methods=["DELETE"],
+        ),
         Route("/api/design", controller.api_design, methods=["POST"]),
         Route("/api/issues", controller.api_issues, methods=["GET"]),
         Route("/api/issues/{issue_id:str}/resolve", controller.api_issue_resolve, methods=["POST"]),
         Route("/api/ingestion", controller.api_ingestion, methods=["POST"]),
         Route("/api/ingestion/upload", controller.api_ingestion_upload, methods=["POST"]),
         Route("/api/ingestion/browser", controller.api_ingestion_browser, methods=["POST"]),
+        Route("/api/ingestion/bookmarks", controller.api_import_bookmarks, methods=["POST"]),
+        Route("/api/ingestion/x-bookmarks", controller.api_import_x_bookmarks, methods=["POST"]),
         Route("/api/browser/login", controller.api_browser_login, methods=["POST"]),
+        Route("/api/browser/login/status", controller.api_browser_login_status, methods=["GET"]),
         Route("/api/jobs", controller.api_jobs, methods=["GET"]),
         Route("/api/providers", controller.api_providers, methods=["GET", "POST"]),
         Route("/api/providers/{provider_id:str}/test", controller.api_provider_test, methods=["POST"]),
@@ -825,6 +1254,11 @@ def create_web_app(
             "/api/maintenance/reindex",
             controller.api_maintenance_reindex,
             methods=["POST"],
+        ),
+        Route(
+            "/api/maintenance/audit",
+            controller.api_maintenance_audit,
+            methods=["GET"],
         ),
         Mount(
             "/static",

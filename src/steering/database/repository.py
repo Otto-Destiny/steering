@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager, suppress
 from datetime import UTC, datetime
@@ -9,7 +10,7 @@ from time import time_ns
 from typing import Any, TypeVar, cast
 
 import ladybug as lb
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from steering.database.backup import create_backup
 from steering.database.native import (
@@ -45,6 +46,7 @@ from steering.domain.models import (
     utc_now,
 )
 
+LOGGER = logging.getLogger(__name__)
 TModel = TypeVar("TModel", bound=BaseModel)
 
 
@@ -58,6 +60,27 @@ class CanonicalMappingError(ValueError):
 
 class SearchIndexError(RuntimeError):
     pass
+
+
+class CorruptRecordError(RuntimeError):
+    """Raised when a stored payload no longer validates against its model."""
+
+    def __init__(self, artifact_id: str, detail: str) -> None:
+        super().__init__(f"stored data for artifact {artifact_id} could not be read: {detail}")
+        self.artifact_id = artifact_id
+        self.detail = detail
+
+
+#: Members owned outright by one artifact. Entities and concepts are shared with
+#: other artifacts, so removal takes their membership rows but never the nodes.
+_MEMBER_TABLES: dict[str, str] = {
+    "snapshot": "Snapshots",
+    "chunk": "Chunks",
+    "claim": "Claims",
+    "evidence_span": "EvidenceSpans",
+    "relation": "Relations",
+    "issue": "ReviewIssues",
+}
 
 
 MODEL_TABLES: dict[type[BaseModel], str] = {
@@ -151,9 +174,24 @@ class LadybugArtifactRepository:
         if self._closed:
             raise RuntimeError("repository is closed")
 
+    def _execute(self, query: str, parameters: dict[str, Any] | None = None) -> Any:
+        """Run one statement under the shared lock.
+
+        The daemon owns a single Ladybug connection, but ingestion runs on a worker
+        thread while web requests run on the event loop. Executing on that one
+        connection from two threads interleaves statements -- including statements
+        landing inside another thread's open transaction, which can commit a node
+        whose payload was never written. Every caller goes through here; the lock is
+        re-entrant, so methods already holding it nest freely and a transaction keeps
+        it for its whole span.
+        """
+
+        with self._lock:
+            self._ensure_open()
+            return self._connection.execute(query, parameters)
+
     def _rows(self, query: str, parameters: dict[str, Any] | None = None) -> list[dict[str, Any]]:
-        self._ensure_open()
-        result = self._connection.execute(query, parameters)
+        result = self._execute(query, parameters)
         if isinstance(result, list):
             raise RuntimeError("repository query unexpectedly returned multiple result sets")
         return cast(list[dict[str, Any]], result.rows_as_dict().get_all())
@@ -190,7 +228,7 @@ class LadybugArtifactRepository:
 
     def _save_member_link(self, artifact_id: str, member_type: str, member_id: str) -> None:
         link_id = f"{artifact_id}:{member_type}:{member_id}"
-        self._connection.execute(
+        self._execute(
             """
             MERGE (m:ArtifactMembers {id: $id})
             SET m.artifact_id = $artifact_id,
@@ -208,7 +246,7 @@ class LadybugArtifactRepository:
     def _save_model(self, model: BaseModel) -> None:
         payload = _payload(model)
         if isinstance(model, Snapshot):
-            self._connection.execute(
+            self._execute(
                 """MERGE (n:Snapshots {id: $id})
                 SET n.artifact_id = $artifact_id, n.content_hash = $content_hash, n.payload = $payload""",
                 {
@@ -225,7 +263,7 @@ class LadybugArtifactRepository:
                     f"chunk {model.id} embedding has {len(embedding)} dimensions; "
                     f"expected {EMBEDDING_DIMENSION}"
                 )
-            self._connection.execute(
+            self._execute(
                 """MERGE (n:Chunks {id: $id})
                 SET n.artifact_id = $artifact_id, n.snapshot_id = $snapshot_id,
                     n.ordinal = $ordinal, n.text = $text, n.locator = $locator,
@@ -254,7 +292,7 @@ class LadybugArtifactRepository:
                 },
             )
         elif isinstance(model, Claim):
-            self._connection.execute(
+            self._execute(
                 """MERGE (n:Claims {id: $id})
                 SET n.artifact_id = $artifact_id, n.category = $category,
                     n.text = $text, n.confidence = $confidence, n.payload = $payload""",
@@ -268,7 +306,7 @@ class LadybugArtifactRepository:
                 },
             )
         elif isinstance(model, EvidenceSpan):
-            self._connection.execute(
+            self._execute(
                 """MERGE (n:EvidenceSpans {id: $id})
                 SET n.snapshot_id = $snapshot_id, n.claim_id = $claim_id,
                     n.quote = $quote, n.start_offset = $start_offset,
@@ -285,7 +323,7 @@ class LadybugArtifactRepository:
                 },
             )
         elif isinstance(model, Relation):
-            self._connection.execute(
+            self._execute(
                 """MERGE (n:Relations {id: $id})
                 SET n.subject_id = $subject_id, n.predicate = $predicate,
                     n.object_id = $object_id, n.approved = $approved,
@@ -303,7 +341,7 @@ class LadybugArtifactRepository:
                 },
             )
         elif isinstance(model, ReviewIssue):
-            self._connection.execute(
+            self._execute(
                 """MERGE (n:ReviewIssues {id: $id})
                 SET n.artifact_id = $artifact_id, n.status = $status, n.created_at = $created_at,
                     n.resolved_at = $resolved_at, n.social_statement = $social_statement,
@@ -327,7 +365,7 @@ class LadybugArtifactRepository:
                 },
             )
         elif isinstance(model, Entity):
-            self._connection.execute(
+            self._execute(
                 """MERGE (n:Entities {id: $id})
                 SET n.name = $name, n.entity_type = $entity_type,
                     n.canonical_entity_id = $canonical_entity_id,
@@ -342,7 +380,7 @@ class LadybugArtifactRepository:
                 },
             )
         elif isinstance(model, Concept):
-            self._connection.execute(
+            self._execute(
                 """MERGE (n:Concepts {id: $id})
                 SET n.name = $name, n.description = $description, n.payload = $payload""",
                 {
@@ -356,7 +394,7 @@ class LadybugArtifactRepository:
             raise TypeError(f"unsupported aggregate member: {type(model).__name__}")
 
     def _save_artifact(self, artifact: Artifact) -> None:
-        self._connection.execute(
+        self._execute(
             """
             MERGE (a:Artifacts {id: $id})
             SET a.canonical_url = $canonical_url,
@@ -411,7 +449,7 @@ class LadybugArtifactRepository:
             },
         )
         if artifact.canonical_url is not None:
-            self._connection.execute(
+            self._execute(
                 """
                 MERGE (u:UrlIdentities {canonical_url: $canonical_url})
                 SET u.artifact_id = $artifact_id
@@ -430,19 +468,19 @@ class LadybugArtifactRepository:
             ("ArtifactHasIssue", "ReviewIssues", record.issues),
         )
         for relation_table, node_table, members in memberships:
-            self._connection.execute(
+            self._execute(
                 f"MATCH (a:Artifacts {{id: $artifact_id}})-[r:{relation_table}]->() DELETE r",
                 {"artifact_id": artifact_id},
             )
             for member in members:
-                self._connection.execute(
+                self._execute(
                     f"""MATCH (a:Artifacts {{id: $artifact_id}}),
                     (n:{node_table} {{id: $member_id}})
                     MERGE (a)-[:{relation_table}]->(n)""",
                     {"artifact_id": artifact_id, "member_id": _record_id(member)},
                 )
 
-        self._connection.execute(
+        self._execute(
             """MATCH (t:SearchTerms)-[r:TermReferencesArtifact]->
             (a:Artifacts {id: $artifact_id}) DELETE r""",
             {"artifact_id": artifact_id},
@@ -453,7 +491,7 @@ class LadybugArtifactRepository:
             concept_names=tuple(concept.name for concept in record.concepts),
         )
         for term, weight in terms.items():
-            self._connection.execute(
+            self._execute(
                 """MERGE (t:SearchTerms {term: $term}) SET t.kind = 'artifact_term'
                 WITH t MATCH (a:Artifacts {id: $artifact_id})
                 MERGE (t)-[r:TermReferencesArtifact]->(a)
@@ -462,23 +500,23 @@ class LadybugArtifactRepository:
             )
 
         for claim in record.claims:
-            self._connection.execute(
+            self._execute(
                 "MATCH (c:Claims {id: $id})-[r:ClaimHasEvidence]->() DELETE r",
                 {"id": claim.id},
             )
             for span_id in claim.evidence_span_ids:
-                self._connection.execute(
+                self._execute(
                     """MATCH (c:Claims {id: $claim_id}), (s:EvidenceSpans {id: $span_id})
                     MERGE (c)-[:ClaimHasEvidence]->(s)""",
                     {"claim_id": claim.id, "span_id": span_id},
                 )
         for snapshot in record.snapshots:
-            self._connection.execute(
+            self._execute(
                 "MATCH (s:Snapshots {id: $id})-[r:SnapshotHasEvidence]->() DELETE r",
                 {"id": snapshot.id},
             )
         for span in record.evidence_spans:
-            self._connection.execute(
+            self._execute(
                 """MATCH (s:Snapshots {id: $snapshot_id}), (e:EvidenceSpans {id: $span_id})
                 MERGE (s)-[:SnapshotHasEvidence]->(e)""",
                 {"snapshot_id": span.snapshot_id, "span_id": span.id},
@@ -520,11 +558,11 @@ class LadybugArtifactRepository:
         return [str(row["artifact_id"]) for row in rows]
 
     def _sync_native_knowledge_edge(self, relation: Relation) -> None:
-        self._connection.execute(
+        self._execute(
             "MATCH ()-[r:KnowledgeEdges]->() WHERE r.id = $id DELETE r",
             {"id": relation.id},
         )
-        self._connection.execute(
+        self._execute(
             """MATCH ()-[r:ArtifactKnowledgeLinks]->()
             WHERE r.relation_id = $id DELETE r""",
             {"id": relation.id},
@@ -535,7 +573,7 @@ class LadybugArtifactRepository:
         object_table = self._native_node_table(relation.object_id)
         if subject_table is None or object_table is None:
             return
-        self._connection.execute(
+        self._execute(
             f"""MATCH (s:{subject_table} {{id: $subject_id}}),
             (o:{object_table} {{id: $object_id}})
             MERGE (s)-[r:KnowledgeEdges {{id: $id}}]->(o)
@@ -557,7 +595,7 @@ class LadybugArtifactRepository:
             for object_owner in object_owners:
                 if subject_owner == object_owner:
                     continue
-                self._connection.execute(
+                self._execute(
                     """MATCH (s:Artifacts {id: $subject_owner}),
                     (o:Artifacts {id: $object_owner})
                     MERGE (s)-[r:ArtifactKnowledgeLinks {relation_id: $relation_id}]->(o)
@@ -670,6 +708,24 @@ class LadybugArtifactRepository:
             return canonical
 
     def get_record(self, artifact_id: str) -> ArtifactRecord | None:
+        try:
+            return self._get_record(artifact_id)
+        except ValidationError as exc:
+            # Surfacing this as a validation failure made a plain GET report that
+            # the user should "correct the submitted fields". Name the real
+            # problem so the interface can offer the only fix: retire the record.
+            raise CorruptRecordError(artifact_id, self._first_validation_detail(exc)) from exc
+
+    @staticmethod
+    def _first_validation_detail(exc: ValidationError) -> str:
+        errors = exc.errors(include_input=False, include_url=False)
+        if not errors:
+            return "payload did not match its stored model"
+        first = errors[0]
+        location = ".".join(str(part) for part in first.get("loc", ())) or "payload"
+        return f"{location}: {first.get('msg', 'invalid value')}"
+
+    def _get_record(self, artifact_id: str) -> ArtifactRecord | None:
         with self._lock:
             rows = self._rows(
                 "MATCH (a:Artifacts {id: $id}) RETURN a.payload AS payload",
@@ -707,6 +763,145 @@ class LadybugArtifactRepository:
             records = [self.get_record(str(row["id"])) for row in rows]
             return [record for record in records if record is not None]
 
+    def unreadable_records(self) -> list[dict[str, str]]:
+        """Find every record whose stored data can no longer be read.
+
+        Damage to a member payload leaves the artifact listable but unopenable,
+        so it only reveals itself when someone clicks it. Scanning finds them all
+        in one pass instead of one accident at a time.
+        """
+
+        with self._lock:
+            self._ensure_open()
+            rows = self._rows("MATCH (a:Artifacts) RETURN a.id AS id, a.title AS title ORDER BY a.id")
+        damaged: list[dict[str, str]] = []
+        for row in rows:
+            artifact_id = str(row["id"])
+            try:
+                self.get_record(artifact_id)
+            except CorruptRecordError as exc:
+                damaged.append(
+                    {
+                        "artifact_id": artifact_id,
+                        "title": str(row.get("title") or ""),
+                        "detail": exc.detail,
+                    }
+                )
+        if damaged:
+            LOGGER.warning("%d stored record(s) could not be read", len(damaged))
+        return damaged
+
+    def delete_record(self, artifact_id: str) -> bool:
+        """Remove one artifact and everything stored only for it.
+
+        Evidence is immutable while an artifact exists, so removal is the only
+        way to correct a bad capture. Members, membership rows, native edges, the
+        URL identity, and search terms all go with it; leaving any behind would
+        keep the artifact half-present in retrieval.
+
+        Nothing here parses a stored payload. A record whose payload no longer
+        validates is exactly the record a user most needs to remove, and reading
+        it first would make the repair depend on the damage.
+        """
+
+        with self._lock:
+            self._ensure_open()
+            rows = self._rows(
+                "MATCH (a:Artifacts {id: $id}) RETURN a.canonical_url AS canonical_url",
+                {"id": artifact_id},
+            )
+            if not rows:
+                return False
+            canonical_url = rows[0]["canonical_url"]
+            members = self._rows(
+                """MATCH (m:ArtifactMembers)
+                WHERE m.artifact_id = $id
+                RETURN m.member_type AS member_type, m.member_id AS member_id""",
+                {"id": artifact_id},
+            )
+            owned: dict[str, list[str]] = {}
+            for row in members:
+                table = _MEMBER_TABLES.get(str(row["member_type"]))
+                if table is not None:
+                    owned.setdefault(table, []).append(str(row["member_id"]))
+            with self._transaction():
+                # Membership rows go first, so what remains answers whether any
+                # other artifact still owns a member.
+                self._execute(
+                    "MATCH (m:ArtifactMembers) WHERE m.artifact_id = $id DELETE m",
+                    {"id": artifact_id},
+                )
+                # DETACH DELETE rather than enumerating edge tables: these nodes
+                # are being removed outright, and listing every relationship type
+                # by hand breaks silently whenever the schema gains another one.
+                for table, member_ids in owned.items():
+                    for member_id in member_ids:
+                        if self._member_is_shared(member_id):
+                            # Another artifact still references this node. Its
+                            # membership row is gone; the node stays for them.
+                            continue
+                        self._execute(
+                            f"MATCH (n:{table} {{id: $id}}) DETACH DELETE n",
+                            {"id": member_id},
+                        )
+                if canonical_url is not None:
+                    self._execute(
+                        "MATCH (u:UrlIdentities {canonical_url: $url}) DELETE u",
+                        {"url": str(canonical_url)},
+                    )
+                self._execute(
+                    "MATCH (a:Artifacts {id: $id}) DETACH DELETE a",
+                    {"id": artifact_id},
+                )
+            return True
+
+    def _member_is_shared(self, member_id: str) -> bool:
+        """Report whether another artifact still owns this member node."""
+
+        return bool(
+            self._rows(
+                "MATCH (m:ArtifactMembers) WHERE m.member_id = $id RETURN m.id AS id LIMIT 1",
+                {"id": member_id},
+            )
+        )
+
+    def find_artifact_by_url(self, canonical_url: str) -> Artifact | None:
+        """Look up an artifact header by URL without hydrating its whole record."""
+
+        with self._lock:
+            rows = self._rows(
+                """MATCH (u:UrlIdentities {canonical_url: $canonical_url})
+                RETURN u.artifact_id AS artifact_id""",
+                {"canonical_url": canonical_url},
+            )
+            if not rows:
+                return None
+            payloads = self._rows(
+                "MATCH (a:Artifacts {id: $id}) RETURN a.payload AS payload",
+                {"id": str(rows[0]["artifact_id"])},
+            )
+            if not payloads:
+                return None
+            return Artifact.model_validate_json(str(payloads[0]["payload"]))
+
+    def count_artifacts(self) -> int:
+        with self._lock:
+            return int(self._rows("MATCH (a:Artifacts) RETURN count(a) AS count")[0]["count"])
+
+    def list_artifacts(self, *, limit: int | None = None) -> list[Artifact]:
+        """Read artifact headers only, newest first.
+
+        Listing views need titles and lanes, not evidence. Hydrating whole
+        records for them costs nine queries per artifact and grows with the
+        graph, so overviews stay on this single-query path.
+        """
+
+        with self._lock:
+            rows = self._rows("MATCH (a:Artifacts) RETURN a.payload AS payload")
+            artifacts = [Artifact.model_validate_json(str(row["payload"])) for row in rows]
+        artifacts.sort(key=lambda artifact: artifact.captured_at, reverse=True)
+        return artifacts if limit is None else artifacts[:limit]
+
     def load_records(self, artifact_ids: Sequence[str]) -> list[ArtifactRecord]:
         with self._lock:
             records = [self.get_record(artifact_id) for artifact_id in dict.fromkeys(artifact_ids)]
@@ -714,13 +909,13 @@ class LadybugArtifactRepository:
 
     def _load_search_extension(self, extension: str) -> None:
         try:
-            self._connection.execute(f"LOAD {extension}")
+            self._execute(f"LOAD {extension}")
             return
         except RuntimeError:
             pass
         try:
-            self._connection.execute(f"INSTALL {extension}")
-            self._connection.execute(f"LOAD {extension}")
+            self._execute(f"INSTALL {extension}")
+            self._execute(f"LOAD {extension}")
         except RuntimeError as exc:
             raise SearchIndexError(
                 f"Ladybug {extension.lower()} extension is unavailable; "
@@ -814,11 +1009,11 @@ class LadybugArtifactRepository:
             old_fts = self._active_index_name(FTS_STATE_NAME)
             old_vector = self._active_index_name(VECTOR_STATE_NAME)
             try:
-                self._connection.execute(
+                self._execute(
                     f"""CALL CREATE_FTS_INDEX('Chunks', '{new_fts}', ['text'],
                     stemmer := 'porter', stopwords := 'SearchStopwords')"""
                 )
-                self._connection.execute(
+                self._execute(
                     f"""CALL CREATE_VECTOR_INDEX('Chunks', '{new_vector}', 'embedding',
                     metric := 'cosine')"""
                 )
@@ -829,7 +1024,7 @@ class LadybugArtifactRepository:
                 raise SearchIndexError("Ladybug failed to build replacement search indexes") from exc
             built_at = datetime.now(UTC).isoformat()
             with self._transaction():
-                self._connection.execute(
+                self._execute(
                     """MERGE (s:SearchIndexState {name: $name})
                     SET s.index_type = 'FTS', s.active_index_name = $index_name,
                         s.status = 'ready', s.built_at = $built_at, s.row_count = $row_count""",
@@ -840,7 +1035,7 @@ class LadybugArtifactRepository:
                         "row_count": chunk_count,
                     },
                 )
-                self._connection.execute(
+                self._execute(
                     """MERGE (s:SearchIndexState {name: $name})
                     SET s.index_type = 'HNSW', s.active_index_name = $index_name,
                         s.status = 'ready', s.built_at = $built_at, s.row_count = $row_count,
@@ -874,7 +1069,7 @@ class LadybugArtifactRepository:
         if not INDEX_IDENTIFIER.fullmatch(name):
             raise SearchIndexError("refusing to use an invalid Ladybug index identifier")
         procedure = "DROP_FTS_INDEX" if index_type == "fts" else "DROP_VECTOR_INDEX"
-        self._connection.execute(f"CALL {procedure}('Chunks', '{name}')")
+        self._execute(f"CALL {procedure}('Chunks', '{name}')")
 
     def search_index_status(self) -> list[dict[str, Any]]:
         with self._lock:
@@ -1078,7 +1273,7 @@ class LadybugArtifactRepository:
 
     def save_job(self, job: IngestionJob) -> None:
         with self._transaction():
-            self._connection.execute(
+            self._execute(
                 """MERGE (j:IngestionJobs {id: $id})
                 SET j.status = $status, j.created_at = $created_at,
                     j.updated_at = $updated_at, j.payload = $payload""",
@@ -1146,7 +1341,7 @@ class LadybugArtifactRepository:
 
     def save_project(self, project: Project) -> Project:
         with self._transaction():
-            self._connection.execute(
+            self._execute(
                 """MERGE (p:Projects {id: $id})
                 SET p.name = $name, p.created_at = $created_at, p.payload = $payload""",
                 {
@@ -1164,7 +1359,7 @@ class LadybugArtifactRepository:
 
     def save_decision(self, decision: Decision) -> Decision:
         with self._transaction():
-            self._connection.execute(
+            self._execute(
                 """MERGE (d:Decisions {id: $id})
                 SET d.project_id = $project_id, d.artifact_id = $artifact_id,
                     d.created_at = $created_at, d.payload = $payload""",
@@ -1180,7 +1375,7 @@ class LadybugArtifactRepository:
 
     def save_outcome(self, outcome: ExperimentOutcome) -> ExperimentOutcome:
         with self._transaction():
-            self._connection.execute(
+            self._execute(
                 """MERGE (o:ExperimentOutcomes {id: $id})
                 SET o.project_id = $project_id, o.decision_id = $decision_id,
                     o.artifact_id = $artifact_id, o.recorded_at = $recorded_at,
@@ -1198,7 +1393,7 @@ class LadybugArtifactRepository:
 
     def save_review_run(self, review_run: ReviewRun) -> ReviewRun:
         with self._transaction():
-            self._connection.execute(
+            self._execute(
                 """MERGE (r:ReviewRuns {id: $id})
                 SET r.project_id = $project_id, r.created_at = $created_at, r.payload = $payload""",
                 {
@@ -1212,7 +1407,7 @@ class LadybugArtifactRepository:
 
     def save_mention(self, mention: Mention) -> Mention:
         with self._transaction():
-            self._connection.execute(
+            self._execute(
                 """MERGE (m:Mentions {id: $id})
                 SET m.artifact_id = $artifact_id, m.entity_id = $entity_id, m.payload = $payload""",
                 {
@@ -1300,7 +1495,7 @@ class LadybugArtifactRepository:
                 cursor = next_entity
             changed_at = datetime.now(UTC)
             mapping_id = new_id("canonical")
-            self._connection.execute(
+            self._execute(
                 """CREATE (m:CanonicalMappings {
                     id: $id, entity_id: $entity_id, canonical_entity_id: $canonical_entity_id,
                     previous_canonical_entity_id: $previous, changed_at: $changed_at,
@@ -1335,7 +1530,7 @@ class LadybugArtifactRepository:
                 raise KeyError(entity_id)
             mapping = rows[0]
             reverted_at = datetime.now(UTC).isoformat()
-            self._connection.execute(
+            self._execute(
                 """MATCH (m:CanonicalMappings {id: $id})
                 SET m.active = false, m.reverted_at = $reverted_at""",
                 {"id": mapping["id"], "reverted_at": reverted_at},

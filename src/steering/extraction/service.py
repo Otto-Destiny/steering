@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import re
 import unicodedata
 from collections.abc import Sequence
@@ -38,6 +39,7 @@ from steering.extraction.prompts import (
 )
 from steering.extraction.schemas import KnowledgeExtraction
 
+LOGGER = logging.getLogger(__name__)
 HEADING = re.compile(r"(?m)^(?:#{1,6}\s+.+|[A-Z][A-Z0-9 ]{4,})$")
 _QUOTE_TRANSLATION = str.maketrans(
     {
@@ -55,6 +57,19 @@ _QUOTE_TRANSLATION = str.maketrans(
 )
 
 
+#: Capture-provenance recorded by a resolver that must survive onto the artifact,
+#: so a reader can tell how complete the capture actually was.
+CAPTURE_PROVENANCE_KEYS = (
+    "capture_scope",
+    "capture_advice",
+    "capture_degraded",
+    "long_form_truncated",
+    "reply_count",
+    "bundled_self_replies",
+    "thread_escalation",
+)
+
+
 class EvidenceValidationError(ValueError):
     pass
 
@@ -69,6 +84,23 @@ def content_hash(text: str) -> str:
 
 def stable_id(prefix: str, value: str) -> str:
     return f"{prefix}_{hashlib.blake2b(value.encode('utf-8'), digest_size=12).hexdigest()}"
+
+
+def _declared_license(sources: Sequence[ResolvedSource]) -> tuple[str | None, str | None]:
+    """The license a source states about itself, and which source stated it.
+
+    A registry answer -- GitHub's own license field, a model card's frontmatter --
+    beats anything read out of prose, because a license that is guessed is worse
+    than one that is missing: it is the kind of fact an architecture decision is
+    made against. Supporting sources are searched too, since a captured post's
+    license belongs to the repository it points at, not to the post.
+    """
+
+    for source in sources:
+        value = source.metadata.get("license")
+        if isinstance(value, str) and value.strip():
+            return value.strip(), source.canonical_url
+    return None, None
 
 
 def _unique(values: Sequence[str]) -> list[str]:
@@ -305,6 +337,7 @@ class ExtractionService:
         ]
         combined_hash = content_hash("\n".join(snapshot.content_hash for snapshot in snapshots))
         evidence_quality = self._evidence_quality(payload, sources[0].source_kind)
+        declared_license, license_source = _declared_license(sources)
         artifact = Artifact(
             id=artifact_id,
             canonical_url=sources[0].canonical_url,
@@ -318,7 +351,7 @@ class ExtractionService:
             trust_lane=self._trust_lane(payload.artifact_type, sources[0].source_kind),
             evidence_quality=evidence_quality,
             maturity=payload.maturity,
-            license=payload.license,
+            license=declared_license or payload.license,
             aliases=_unique(payload.aliases),
             capabilities=_unique(payload.capabilities),
             limitations=_unique(payload.limitations),
@@ -329,19 +362,57 @@ class ExtractionService:
             metadata={
                 "resolver": sources[0].extraction_method,
                 "supporting_sources": [source.canonical_url for source in sources[1:]],
+                # Every destination the post pointed at, including ones that
+                # ranked too low to follow. Without this the artifact keeps no
+                # trace of where the author was actually sending the reader.
+                "outbound_urls": [sanitized_persistence_source(url) for url in sources[0].outbound_urls],
                 "media_sources": [sanitized_persistence_source(url) for url in sources[0].media_urls],
                 "media_decision": sources[0].metadata.get("media_decision"),
+                # Which source stated the license, so a reader can tell a registry
+                # answer from something a model read out of prose.
+                **({"license_source": license_source} if license_source else {}),
+                # A license file that exists but cannot be identified has to be read;
+                # no license file at all reserves every right. Collapsing the two
+                # would hide the distinction that matters for adopting a component.
+                **(
+                    {"license_unidentified": True}
+                    if not declared_license
+                    and any(source.metadata.get("license_unidentified") for source in sources)
+                    else {}
+                ),
                 "reported_results": [row.model_dump(mode="json") for row in payload.reported_results],
+                # What the capture could and could not reach belongs on the stored
+                # artifact, not only in a log. Dropping it here would leave a
+                # root-post-only capture indistinguishable from a complete one.
+                **{
+                    key: sources[0].metadata[key]
+                    for key in CAPTURE_PROVENANCE_KEYS
+                    if key in sources[0].metadata
+                },
             },
         )
         claims: list[Claim] = []
         spans: list[EvidenceSpan] = []
+        unsupported = 0
         for claim_data in payload.claims:
-            snapshot, start, end = self._locate_quote(
-                snapshots,
-                claim_data.source_index,
-                claim_data.exact_quote,
-            )
+            try:
+                snapshot, start, end = self._locate_quote(
+                    snapshots,
+                    claim_data.source_index,
+                    claim_data.exact_quote,
+                )
+            except EvidenceValidationError as exc:
+                # A model that paraphrases one quote must not cost the user the
+                # whole capture. The claim is discarded so every stored claim
+                # still carries an exact source span, and the count is recorded
+                # on the artifact so the omission is visible rather than silent.
+                unsupported += 1
+                LOGGER.info(
+                    "dropping a claim whose quote is not verbatim in its source (%s): %r",
+                    exc,
+                    claim_data.exact_quote[:120],
+                )
+                continue
             claim_id = stable_id("claim", f"{artifact_id}:{claim_data.text}:{claim_data.exact_quote}")
             span_id = stable_id("span", f"{snapshot.id}:{start}:{end}")
             spans.append(
@@ -366,9 +437,16 @@ class ExtractionService:
                 )
             )
 
-        result_claims, result_spans = self._reported_result_claims(artifact_id, snapshots, payload)
-        claims.extend(result_claims)
-        spans.extend(result_spans)
+        try:
+            result_claims, result_spans = self._reported_result_claims(artifact_id, snapshots, payload)
+        except EvidenceValidationError as exc:
+            unsupported += 1
+            LOGGER.info("dropping unsupported reported results (%s)", exc)
+        else:
+            claims.extend(result_claims)
+            spans.extend(result_spans)
+        if unsupported:
+            artifact.metadata["unsupported_claims_dropped"] = unsupported
         entities: list[Entity] = []
         concepts: list[Concept] = []
         relations: list[Relation] = []
@@ -388,11 +466,15 @@ class ExtractionService:
                 )
             span_ids: list[str] = []
             if relation_data.exact_quote:
-                snapshot, start, end = self._locate_quote(
-                    snapshots,
-                    relation_data.source_index,
-                    relation_data.exact_quote,
-                )
+                try:
+                    snapshot, start, end = self._locate_quote(
+                        snapshots,
+                        relation_data.source_index,
+                        relation_data.exact_quote,
+                    )
+                except EvidenceValidationError as exc:
+                    LOGGER.info("dropping a relation whose quote is not verbatim (%s)", exc)
+                    continue
                 relation_claim_id = stable_id("claim", f"relation:{artifact_id}:{target_id}")
                 span_id = stable_id("span", f"{snapshot.id}:{start}:{end}:relation")
                 spans.append(

@@ -1,0 +1,96 @@
+{% set sort_labels = {"newest": "Newest", "oldest": "Oldest", "title": "A–Z"} %}
+{# hx-target is set explicitly: htmx inherits a target from enclosing elements,
+   and without it a swap replaces the wrong node. #}
+<section id="knowledge-directory">
+  <div class="section-heading">
+    <h2>All knowledge <span class="hint">{{ artifacts|length }} of {{ record_count }}</span></h2>
+    <nav class="sort-group" aria-label="Sort knowledge">
+      {% for option in sorts %}
+        <a class="sort-option{{ ' is-active' if option == sort }}"
+           href="/search?sort={{ option }}"
+           {% if option == sort %}aria-current="true"{% endif %}>{{ sort_labels[option] }}</a>
+      {% endfor %}
+    </nav>
+  </div>
+
+  {% if retired %}
+    <div class="notice success" role="status">Retired {{ retired }} record{{ '' if retired == 1 else 's' }}.</div>
+  {% endif %}
+
+  {% if artifacts %}
+    <form action="/artifacts/retire" method="post"
+          hx-post="/artifacts/retire"
+          hx-target="#knowledge-directory"
+          hx-swap="outerHTML"
+          hx-confirm="Retire the selected records? Their snapshots, claims, and quotes are removed permanently.">
+      <input type="hidden" name="sort" value="{{ sort }}">
+      {# Selection mode is a plain checkbox so the whole toolbar reveals through
+         CSS alone. Scripting only adds the live count and hover-to-select. #}
+      <input type="checkbox" id="selection-mode" class="selection-toggle sr-only">
+
+      <div class="directory-toolbar">
+        <label class="button subtle selection-enter" for="selection-mode">Select</label>
+        <div class="selection-actions">
+          <span class="selection-count" aria-live="polite">0 selected</span>
+          <label class="inline"><input type="checkbox" id="directory-select-all"> Select all</label>
+          <button class="button danger" type="submit">Retire</button>
+          <label class="button subtle" for="selection-mode">Cancel</label>
+        </div>
+      </div>
+
+      <div class="card-list" id="directory-list">
+        {% for artifact in artifacts %}
+          {% with selectable = True %}{% include "partials/artifact_card.html" %}{% endwith %}
+        {% endfor %}
+      </div>
+    </form>
+  {% else %}
+    <div class="empty"><p>No knowledge captured yet.</p><a href="/add">Add your first source</a></div>
+  {% endif %}
+</section>
+<script>
+  (() => {
+    const root = document.getElementById("knowledge-directory");
+    if (!root || root.dataset.wired === "true") return;
+    root.dataset.wired = "true";
+
+    const mode = root.querySelector("#selection-mode");
+    const selectAll = root.querySelector("#directory-select-all");
+    const count = root.querySelector(".selection-count");
+    const boxes = () => [...root.querySelectorAll('input[name="artifact_ids"]')];
+    if (!mode) return;
+
+    const sync = () => {
+      const chosen = boxes().filter((box) => box.checked);
+      if (count) count.textContent = `${chosen.length} selected`;
+      for (const box of boxes()) {
+        box.closest(".card")?.classList.toggle("is-selected", box.checked);
+      }
+      if (selectAll) {
+        selectAll.checked = chosen.length > 0 && chosen.length === boxes().length;
+        selectAll.indeterminate = chosen.length > 0 && chosen.length < boxes().length;
+      }
+    };
+
+    root.addEventListener("change", (event) => {
+      const target = event.target;
+      if (target === mode) {
+        // Leaving selection mode must not leave hidden records still selected.
+        if (!mode.checked) for (const box of boxes()) box.checked = false;
+        sync();
+        return;
+      }
+      if (target === selectAll) {
+        for (const box of boxes()) box.checked = selectAll.checked;
+        sync();
+        return;
+      }
+      if (target instanceof HTMLInputElement && target.name === "artifact_ids") {
+        // Ticking a card from hover is itself a request to start selecting.
+        if (target.checked) mode.checked = true;
+        sync();
+      }
+    });
+    sync();
+  })();
+</script>

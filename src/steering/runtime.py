@@ -20,9 +20,11 @@ from steering.domain.protocols import (
 )
 from steering.extraction.service import ExtractionService, default_cache
 from steering.ingestion.browser import ManagedBrowserCapture
+from steering.ingestion.login_session import BrowserLoginSession
 from steering.ingestion.resolvers import default_registry
 from steering.ingestion.security import SafeFetcher
-from steering.ingestion.service import IngestionService
+from steering.ingestion.service import IngestionService, ThreadReading
+from steering.ingestion.x_api import ApiThreadReader, XApiClient, XApiToken
 from steering.intelligence.service import SteeringEngine
 from steering.providers import (
     FastEmbedEmbeddingProvider,
@@ -39,6 +41,10 @@ from steering.providers.fastembed_local import LOCAL_PROVIDER_ID
 from steering.retrieval.hybrid import HybridRetriever
 
 _EVALUATION_RUNTIMES: list[DatabaseRuntime] = []
+#: Keyring account for the X API token. It is stored under its own provider key
+#: rather than a provider "role", which means generation or embedding models,
+#: and it never reaches the JSON configuration.
+X_API_SECRET_KEY = "x-api-token"  # noqa: S105 - keyring account name, not a secret
 
 
 class SteeringRuntime:
@@ -89,6 +95,7 @@ class SteeringRuntime:
                 repository=self.repository,
                 media_fetcher=self.fetcher,
                 image_provider=image_provider,
+                thread_reading=ThreadReading(config.read_threads),
                 on_record_changed=self.retriever.mark_dirty,
             )
             configured_generation = self.generation if config.generation_provider is not None else None
@@ -98,12 +105,39 @@ class SteeringRuntime:
                 generation=configured_generation,
             )
             self.browser = ManagedBrowserCapture(
-                profile_directory=user_data_path("steering", appauthor=False) / "browser-profile"
+                profile_directory=user_data_path("steering", appauthor=False) / "browser-profile",
+                link_resolver=self.fetcher,
+                headless=config.browser_headless,
             )
+            self.browser_login = BrowserLoginSession(self.browser)
+            self.ingestion.thread_capture = self.browser
+            # Opt-in and billed, so it sits behind the free browser in priority
+            # and reports itself unavailable until a user authorizes it.
+            self.x_api = self._x_api_client()
+            if self.x_api is not None:
+                self.ingestion.add_thread_reader(ApiThreadReader(self.x_api))
         except BaseException:
             self.database.close()
             raise
         self._closed = False
+
+    def _x_api_client(self) -> XApiClient | None:
+        client_id = self.config.x_api_client_id
+        if not client_id:
+            return None
+        stored = self.secret_store.get(X_API_SECRET_KEY)
+        token = XApiToken.deserialize(stored) if stored else None
+        return XApiClient(
+            client=self._http_client,
+            client_id=client_id,
+            token=token,
+            on_token_refreshed=self.store_x_api_token,
+        )
+
+    def store_x_api_token(self, token: XApiToken) -> None:
+        """Persist a token in the OS keyring, never in the JSON configuration."""
+
+        self.secret_store.set(X_API_SECRET_KEY, token.serialize())
 
     def _role_secret(self, role: str, provider_id: str | None) -> str | None:
         getter = getattr(self.secret_store, "get_for_role", None)
@@ -188,7 +222,7 @@ class SteeringRuntime:
             "version": __version__,
             "schema_revision": SCHEMA_REVISION,
             "database_path": str(self.config.database_file),
-            "artifact_count": len(self.repository.list_records()),
+            "artifact_count": self.repository.count_artifacts(),
             "unresolved_issue_count": len(self.repository.list_issues(unresolved_only=True)),
             "generation_provider": generation_id,
             "embedding_provider": embedding_id or "unconfigured",
@@ -215,6 +249,7 @@ class SteeringRuntime:
     async def aclose(self) -> None:
         if self._closed:
             return
+        await self.browser_login.aclose()
         for client in self._provider_clients:
             await client.close()
         await self._http_client.aclose()

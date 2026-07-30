@@ -1,0 +1,85 @@
+{# Setup you do once, kept out of the capture path. Redrawn on its own after a
+   sign-out so the panel always shows what is actually available. #}
+<aside class="rail" id="sources-rail" aria-labelledby="rail-heading">
+  <h2 class="rail-heading" id="rail-heading">Sources</h2>
+
+  {% for platform in platforms %}
+    <div class="conn" data-source-host="{{ platform.host }}"
+         data-source-signed-in="{{ 'true' if platform.signed_in else 'false' }}">
+      <span class="status {{ 'is-on' if platform.signed_in else 'is-off' }}" aria-hidden="true"></span>
+      <div class="conn-body">
+        <strong>
+          {{ platform.name }}{% if platform.signed_in %} <span class="conn-state">signed in</span>{% endif %}
+        </strong>
+        {% if not browser_available %}
+          <em>The browser extra is not installed. Public capture still works.</em>
+        {% elif platform.signed_in %}
+          <em>Deep capture is available.</em>
+          {# Signing out is the honest way back: it clears this platform's session,
+             so the panel can offer signing in again instead of guessing. #}
+          <form class="conn-form" action="/browser/signout" method="post"
+                hx-post="/browser/signout" hx-target="#sources-rail" hx-swap="outerHTML"
+                hx-disabled-elt="find button" data-source-signout>
+            <input type="hidden" name="host" value="{{ platform.host }}">
+            <button class="button conn-action conn-action-secondary" type="submit">Sign out</button>
+          </form>
+        {% else %}
+          {% set progress_id = 'browser-login-progress-' ~ loop.index %}
+          <em>Not signed in.</em>
+          <form class="conn-form" action="/browser/login" method="post"
+                hx-post="/browser/login" hx-target="#browser-login-result" hx-swap="innerHTML"
+                hx-indicator="#{{ progress_id }}" hx-disabled-elt="find button"
+                data-source-login="{{ platform.host }}">
+            {# Pressing this button is the authorization; it does one thing and says so. #}
+            <input type="hidden" name="authorize_login" value="on">
+            <input type="hidden" name="login_url" value="{{ platform.login_url }}">
+            <button class="button conn-action" type="submit">Sign in</button>
+            <span id="{{ progress_id }}" class="htmx-indicator conn-progress" role="status">Opening…</span>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+  {% endfor %}
+
+  <div id="browser-login-result" class="conn-result" aria-live="polite"></div>
+
+  {# Always listed, even unconfigured. A paid path that is faster than the browser
+     is worth knowing exists; hiding it until it is set up means nobody discovers
+     it. #}
+  <div class="conn" data-source-host="x-api" data-source-signed-in="{{ 'true' if x_api_authorized else 'false' }}">
+    <span class="status {{ 'is-on' if x_api_authorized else 'is-off' }}" aria-hidden="true"></span>
+    <div class="conn-body">
+      <strong>X API{% if x_api_authorized %} <span class="conn-state">authorized</span>{% endif %}</strong>
+      {% if x_api_authorized %}
+        <em>Reads threads and bookmarks with no browser, which suits unattended runs.</em>
+        <form class="conn-form" action="/api/ingestion/x-bookmarks" method="post"
+              hx-post="/api/ingestion/x-bookmarks" hx-target="#add-result" hx-swap="innerHTML"
+              hx-disabled-elt="find button">
+          <button class="button conn-action" type="submit">Import bookmarks</button>
+        </form>
+      {% elif x_api_configured %}
+        <em>Optional, billed per read. Faster than the browser and needs no window open.</em>
+        <form class="conn-form" action="/oauth/x/authorize" method="post">
+          <button class="button conn-action" type="submit">Authorize</button>
+        </form>
+      {% else %}
+        <em>Optional, billed per read. The fastest way to bulk-import, with no browser.
+          Set <code>STEERING_X_API_CLIENT_ID</code> to your X app's client ID, then restart
+          STEERING to authorize it here.</em>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="conn">
+    <span class="status is-on" aria-hidden="true"></span>
+    <div class="conn-body">
+      <strong>Bookmarks</strong>
+          <em>Drag to your bookmarks bar, use it on
+            <a href="https://x.com/i/bookmarks" target="_blank" rel="noopener noreferrer">X bookmarks</a>,
+            then drop the saved file above.</em>
+      <p class="conn-form">
+        <a class="button conn-action" href="{{ bookmarklet }}" onclick="return false;" draggable="true">Save X bookmarks</a>
+      </p>
+    </div>
+  </div>
+</aside>

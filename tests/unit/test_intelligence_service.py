@@ -112,6 +112,27 @@ def _seed(database: DatabaseRuntime) -> None:
         database.repository.upsert_record(record)
 
 
+async def _embed_all(database: DatabaseRuntime) -> None:
+    """Leave every stored chunk embedded, the way real ingestion does.
+
+    Storing chunks without vectors is not a state the pipeline can produce, and
+    retrieval deliberately refuses to search a partially embedded index, so a
+    fixture that skipped this would be testing an impossible database.
+    """
+
+    retriever = HybridRetriever(
+        repository=database.repository,
+        embedding_provider=HashEmbeddingProvider(dimension=768),
+    )
+    embedded, _backup = await retriever.reembed_all()
+    assert embedded > 0
+
+
+async def _seed_and_embed(database: DatabaseRuntime) -> None:
+    _seed(database)
+    await _embed_all(database)
+
+
 def _engine(database: DatabaseRuntime, generation: FakeGenerationProvider | None = None) -> SteeringEngine:
     retriever = HybridRetriever(
         repository=database.repository,
@@ -127,7 +148,7 @@ def _engine(database: DatabaseRuntime, generation: FakeGenerationProvider | None
 @pytest.mark.asyncio
 async def test_architecture_review_returns_diverse_evidence_bound_cards(tmp_path: Path) -> None:
     with DatabaseRuntime(tmp_path / "knowledge.lbug") as database:
-        _seed(database)
+        await _seed_and_embed(database)
         engine = _engine(database)
 
         review = await engine.explore_design_options(
@@ -149,7 +170,7 @@ async def test_generation_can_refine_only_proposals_for_retrieved_artifacts(
     tmp_path: Path,
 ) -> None:
     with DatabaseRuntime(tmp_path / "knowledge.lbug") as database:
-        _seed(database)
+        await _seed_and_embed(database)
         baseline = await _engine(database).review_architecture("agent memory retrieval evaluation")
         generated = baseline.model_copy(deep=True)
         generated.observations = ["Unsupported generated factual synthesis"]
@@ -219,6 +240,7 @@ async def test_unresolved_experimental_knowledge_keeps_lane_and_warning(tmp_path
             }
         )
         database.repository.upsert_record(value)
+        await _embed_all(database)
         baseline = await _engine(database).review_architecture("agent memory")
         generated = baseline.model_copy(update={"observations": ["Relabeled synthesis"]}, deep=True)
         generated.idea_cards[0].trust_lane = TrustLane.PROMISING
@@ -321,6 +343,7 @@ async def test_accepted_correction_prefers_primary_evidence_without_removing_cla
             }
         )
         database.repository.upsert_record(value)
+        await _embed_all(database)
 
         resolved = database.repository.resolve_issue(issue.id, "accept_correction")
         assert resolved.status == IssueStatus.ACCEPTED_CORRECTION
@@ -341,7 +364,7 @@ async def test_accepted_correction_prefers_primary_evidence_without_removing_cla
 @pytest.mark.asyncio
 async def test_compare_decisions_outcomes_and_empty_graph_are_explicit(tmp_path: Path) -> None:
     with DatabaseRuntime(tmp_path / "knowledge.lbug") as database:
-        _seed(database)
+        await _seed_and_embed(database)
         engine = _engine(database)
 
         comparison = await engine.compare_entities(

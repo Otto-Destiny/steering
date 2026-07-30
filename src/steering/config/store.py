@@ -25,6 +25,9 @@ _RECOGNIZED_ENV = frozenset(
         "STEERING_HOST",
         "STEERING_PORT",
         "STEERING_LOG_LEVEL",
+        "STEERING_BROWSER_HEADLESS",
+        "STEERING_X_API_CLIENT_ID",
+        "STEERING_READ_THREADS",
         "STEERING_GENERATION_PROVIDER",
         "STEERING_GENERATION_BASE_URL",
         "STEERING_GENERATION_MODEL",
@@ -55,6 +58,21 @@ def _assert_secret_free(value: Any, path: str = "config") -> None:
             _assert_secret_free(child, f"{path}[{index}]")
     elif isinstance(value, str):
         reject_high_confidence_credentials(value)
+
+
+def _boolean(value: str) -> bool:
+    """Read a flag the way a person would write one in `.env.local`.
+
+    Silently treating an unrecognised value as false would leave a user who
+    wrote `yes` believing a setting is on when it is not.
+    """
+
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off", ""}:
+        return False
+    raise ValueError(f"expected a true/false value, received {value!r}")
 
 
 def _set_provider_override(
@@ -108,10 +126,14 @@ def apply_environment_overrides(
         ("STEERING_HOST", "host", str),
         ("STEERING_PORT", "port", int),
         ("STEERING_LOG_LEVEL", "log_level", str),
+        ("STEERING_X_API_CLIENT_ID", "x_api_client_id", str),
+        ("STEERING_READ_THREADS", "read_threads", str),
     )
     for env_name, field_name, converter in scalar_overrides:
         if env_name in env:
             data[field_name] = converter(env[env_name])
+    if "STEERING_BROWSER_HEADLESS" in env:
+        data["browser_headless"] = _boolean(env["STEERING_BROWSER_HEADLESS"])
     _apply_simple_provider(data, env)
     _set_provider_override(data, env, "generation")
     _set_provider_override(data, env, "embedding")

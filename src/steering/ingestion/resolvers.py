@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
 import re
 import warnings
 from datetime import datetime
@@ -16,19 +17,23 @@ from steering.domain.models import ResolvedSource, SourceKind
 from steering.domain.protocols import SourceResolver
 from steering.ingestion.pdf import extract_bounded_pdf
 from steering.ingestion.security import SafeFetcher, SourceUnavailableError
+from steering.ingestion.x import XResolver
+
+LOGGER = logging.getLogger(__name__)
 
 URL = re.compile(r"https?://[^\s<>\]\[\"']+")
-X_HOSTS = {"x.com", "www.x.com", "twitter.com", "www.twitter.com"}
-PAPER_HOSTS = {
-    "arxiv.org",
-    "export.arxiv.org",
-    "openreview.net",
-    "aclanthology.org",
-    "pubmed.ncbi.nlm.nih.gov",
-    "pmc.ncbi.nlm.nih.gov",
-    "doi.org",
-    "dx.doi.org",
-}
+PAPER_HOSTS = frozenset(
+    {
+        "arxiv.org",
+        "export.arxiv.org",
+        "openreview.net",
+        "aclanthology.org",
+        "pubmed.ncbi.nlm.nih.gov",
+        "pmc.ncbi.nlm.nih.gov",
+        "doi.org",
+        "dx.doi.org",
+    }
+)
 
 
 def canonical_http_url(url: str) -> str:
@@ -189,45 +194,22 @@ class TextResolver:
         )
 
 
-class XResolver:
-    name = "x_oembed"
+#: The YAML block a model or dataset card opens with, and the license it declares.
+#: Read from text already fetched, so it costs no extra request.
+_CARD_FRONTMATTER = re.compile(r"\A---\s*\n(.*?)\n---\s*(?:\n|\Z)", re.DOTALL)
+_CARD_LICENSE = re.compile(r"""^license:\s*(?:-\s*)?["']?([^"'\n]+?)["']?\s*$""", re.MULTILINE)
 
-    def __init__(self, fetcher: SafeFetcher) -> None:
-        self.fetcher = fetcher
 
-    def can_resolve(self, source: str) -> bool:
-        return (urlsplit(source).hostname or "").lower() in X_HOSTS and "/status/" in source
+def frontmatter_license(text: str) -> str | None:
+    """Read the license a model or dataset card states about itself."""
 
-    async def resolve(self, source: str) -> ResolvedSource:
-        canonical = canonical_http_url(source)
-        parts = urlsplit(canonical)
-        if (parts.hostname or "").lower() in {"twitter.com", "www.twitter.com"}:
-            canonical = canonical.replace(f"//{parts.netloc}", "//x.com", 1)
-        endpoint = "https://publish.x.com/oembed"
-        data, _, _ = await self.fetcher.get(
-            endpoint,
-            params={"url": canonical, "omit_script": "1", "dnt": "1"},
-        )
-        try:
-            payload = json.loads(data)
-            html = str(payload["html"])
-        except (json.JSONDecodeError, KeyError, TypeError) as exc:
-            raise SourceUnavailableError("X oEmbed returned an invalid payload") from exc
-        soup = BeautifulSoup(html, "html.parser")
-        text = soup.get_text(" ", strip=True)
-        links = [str(anchor["href"]) for anchor in soup.find_all("a", href=True)]
-        return ResolvedSource(
-            canonical_url=canonical,
-            source_kind=SourceKind.X,
-            title=f"X post by {payload.get('author_name') or 'unknown author'}",
-            text=text,
-            author=str(payload.get("author_name") or "") or None,
-            mime_type="text/html",
-            extraction_method="x_public_oembed",
-            partial=True,
-            outbound_urls=[url for url in dict.fromkeys(links) if "status/" not in url],
-            metadata={"provider_url": payload.get("provider_url")},
-        )
+    block = _CARD_FRONTMATTER.match(text)
+    if block is None:
+        return None
+    found = _CARD_LICENSE.search(block.group(1))
+    if found is None:
+        return None
+    return found.group(1).strip() or None
 
 
 class GitHubResolver:
@@ -262,6 +244,7 @@ class GitHubResolver:
                 raise SourceUnavailableError("GitHub README API returned invalid content") from exc
         else:
             text = data.decode("utf-8", errors="replace")
+        declared, unidentified = await self._repository_license(owner, repo)
         return ResolvedSource(
             canonical_url=f"https://github.com/{owner}/{repo}",
             source_kind=SourceKind.GITHUB,
@@ -270,8 +253,43 @@ class GitHubResolver:
             mime_type="text/markdown",
             extraction_method="github_readme_api",
             outbound_urls=extract_links(text),
-            metadata={"owner": owner, "repository": repo},
+            metadata={
+                "owner": owner,
+                "repository": repo,
+                **({"license": declared} if declared else {}),
+                **({"license_unidentified": True} if unidentified else {}),
+            },
         )
+
+    async def _repository_license(self, owner: str, repo: str) -> tuple[str | None, bool]:
+        """Ask GitHub what the repository is licensed under.
+
+        Returns the identifier and whether a license exists that GitHub could not
+        identify. ``NOASSERTION`` means a license file is present but non-standard,
+        which is a different decision from having no license at all: one has to be
+        read, the other reserves all rights. Inventing an SPDX id for it would be
+        worse than either.
+
+        Best effort by design: an unauthenticated client is rate limited, and a
+        license lookup must never cost the capture itself.
+        """
+
+        try:
+            data, _, _ = await self.fetcher.get(
+                f"https://api.github.com/repos/{quote(owner, safe='')}/{quote(repo, safe='')}",
+                headers={"Accept": "application/vnd.github+json", "User-Agent": "steering/0.1"},
+            )
+            payload = json.loads(data)
+        except (SourceUnavailableError, json.JSONDecodeError) as exc:
+            LOGGER.info("license lookup for %s/%s failed (%s)", owner, repo, exc)
+            return None, False
+        block = payload.get("license") if isinstance(payload, dict) else None
+        if not isinstance(block, dict):
+            return None, False
+        identifier = block.get("spdx_id") or block.get("name")
+        if not isinstance(identifier, str) or identifier.strip() in {"", "NOASSERTION"}:
+            return None, True
+        return identifier.strip(), False
 
 
 class HuggingFaceResolver:
@@ -316,6 +334,7 @@ class HuggingFaceResolver:
                 "owner": owner,
                 "repository": repository,
                 "project_type": prefix.rstrip("/") or "model",
+                **({"license": declared} if (declared := frontmatter_license(text)) else {}),
             },
         )
 

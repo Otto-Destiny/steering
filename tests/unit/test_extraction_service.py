@@ -164,13 +164,19 @@ async def test_single_call_combines_social_and_primary_and_builds_exact_evidence
 
 
 @pytest.mark.asyncio
-async def test_non_verbatim_evidence_is_rejected() -> None:
+async def test_non_verbatim_evidence_is_never_stored_as_a_claim() -> None:
+    """The guarantee is that no stored claim lacks an exact span, not that the
+    whole capture is discarded when a model paraphrases."""
+
     source = resolved_source(url="https://example.org/source", text="Only exact source text exists.")
     generation = ScriptedGeneration([extraction_payload(quote="Paraphrased unsupported evidence")])
     service = ExtractionService(generation=generation, embedding=FixtureEmbedding())
 
-    with pytest.raises(EvidenceValidationError, match="does not occur exactly"):
-        await service.extract(source)
+    record = await service.extract(source)
+
+    assert record.claims == []
+    assert record.evidence_spans == []
+    assert record.artifact.metadata["unsupported_claims_dropped"] == 1
 
 
 @pytest.mark.asyncio
@@ -481,8 +487,11 @@ async def test_cache_hit_skips_generation_and_invalid_source_index_fails(tmp_pat
         generation=invalid_generation,
         embedding=FixtureEmbedding(),
     )
-    with pytest.raises(EvidenceValidationError, match="invalid source index"):
-        await invalid_service.extract(source)
+    # A source index the model invented cannot be anchored, so that claim is
+    # dropped exactly like a paraphrased quote.
+    invalid = await invalid_service.extract(source)
+    assert invalid.claims == []
+    assert invalid.artifact.metadata["unsupported_claims_dropped"] == 1
 
 
 @pytest.mark.asyncio
@@ -502,3 +511,224 @@ async def test_generated_credential_is_refused_before_cache_or_record_write(tmp_
         )
 
     assert not cache.directory.exists() or not any(cache.directory.iterdir())
+
+
+@pytest.mark.asyncio
+async def test_capture_provenance_survives_onto_the_stored_artifact() -> None:
+    """A root-post-only capture must not be indistinguishable from a complete one."""
+
+    source = resolved_source(
+        url="https://x.com/researcher/status/1",
+        text="Root claim with the link kept in the replies.",
+    )
+    source = source.model_copy(
+        update={
+            "source_kind": SourceKind.X,
+            "metadata": {
+                **source.metadata,
+                "capture_scope": "root_post_only",
+                "reply_count": 4,
+                "long_form_truncated": True,
+                "capture_advice": "Use authorized signed-in capture.",
+                "thread_escalation": "failed_BrowserAuthenticationRequired",
+                "media_decision": "skip_no_candidate",
+            },
+        }
+    )
+    service = ExtractionService(
+        generation=ScriptedGeneration(
+            [
+                KnowledgeExtraction(
+                    artifact_type=ArtifactType.SOCIAL_POST,
+                    title="Root only",
+                    summary="Only the root post was captured.",
+                )
+            ]
+        ),
+        embedding=FixtureEmbedding(),
+    )
+
+    record = await service.extract(source)
+
+    metadata = record.artifact.metadata
+    assert metadata["capture_scope"] == "root_post_only"
+    assert metadata["reply_count"] == 4
+    assert metadata["long_form_truncated"] is True
+    assert metadata["capture_advice"] == "Use authorized signed-in capture."
+    assert metadata["thread_escalation"] == "failed_BrowserAuthenticationRequired"
+    # The pre-existing keys are untouched.
+    assert metadata["resolver"] == source.extraction_method
+    assert metadata["media_decision"] == "skip_no_candidate"
+
+
+@pytest.mark.asyncio
+async def test_an_unsupported_quote_drops_one_claim_rather_than_the_whole_capture() -> None:
+    """A paraphrased quote must not discard a thread and the sources it reached."""
+
+    source = resolved_source(
+        url="https://x.com/researcher/status/1",
+        text="Stateful memory retains agent state with explicit decay.",
+    )
+    supported = "Stateful memory retains agent state"
+    service = ExtractionService(
+        generation=ScriptedGeneration(
+            [
+                KnowledgeExtraction(
+                    artifact_type=ArtifactType.TECHNIQUE,
+                    title="Stateful memory",
+                    summary="A memory technique.",
+                    claims=[
+                        ExtractedClaim(
+                            text="It retains state.",
+                            category=EvidenceCategory.SOCIAL_CLAIM,
+                            confidence=0.8,
+                            exact_quote=supported,
+                            source_index=0,
+                        ),
+                        ExtractedClaim(
+                            text="It is the fastest method available.",
+                            category=EvidenceCategory.SOCIAL_CLAIM,
+                            confidence=0.9,
+                            exact_quote="a sentence the model invented wholesale",
+                            source_index=0,
+                        ),
+                    ],
+                )
+            ]
+        ),
+        embedding=FixtureEmbedding(),
+    )
+
+    record = await service.extract(source)
+
+    # The artifact survives, and every claim it kept still has an exact span.
+    assert record.artifact.title == "Stateful memory"
+    assert [claim.text for claim in record.claims] == ["It retains state."]
+    assert record.evidence_spans[0].quote == supported
+    # The omission is recorded rather than silent.
+    assert record.artifact.metadata["unsupported_claims_dropped"] == 1
+
+
+@pytest.mark.asyncio
+async def test_a_capture_with_no_supportable_claim_is_still_stored() -> None:
+    source = resolved_source(url="https://x.com/researcher/status/2", text="A short post.")
+    service = ExtractionService(
+        generation=ScriptedGeneration(
+            [
+                KnowledgeExtraction(
+                    artifact_type=ArtifactType.SOCIAL_POST,
+                    title="A short post",
+                    summary="Nothing quotable was produced.",
+                    claims=[
+                        ExtractedClaim(
+                            text="Invented.",
+                            category=EvidenceCategory.SOCIAL_CLAIM,
+                            confidence=0.5,
+                            exact_quote="not present anywhere in the source text",
+                            source_index=0,
+                        )
+                    ],
+                )
+            ]
+        ),
+        embedding=FixtureEmbedding(),
+    )
+
+    record = await service.extract(source)
+
+    assert record.claims == []
+    assert record.artifact.metadata["unsupported_claims_dropped"] == 1
+    assert record.snapshots[0].text == "A short post."
+
+
+@pytest.mark.asyncio
+async def test_outbound_links_are_persisted_even_when_not_followed() -> None:
+    """Without this the artifact keeps no trace of where the author pointed."""
+
+    source = resolved_source(url="https://x.com/researcher/status/3", text="An exact quote here.")
+    source = source.model_copy(
+        update={
+            "outbound_urls": [
+                "https://github.com/example/repo",
+                "https://substack.example/essay",
+            ]
+        }
+    )
+    service = ExtractionService(
+        generation=ScriptedGeneration([extraction_payload(quote="An exact quote here.")]),
+        embedding=FixtureEmbedding(),
+    )
+
+    record = await service.extract(source)
+
+    assert record.artifact.metadata["outbound_urls"] == [
+        "https://github.com/example/repo",
+        "https://substack.example/essay",
+    ]
+
+
+# --------------------------------------------------------------------------- #
+# License provenance
+# --------------------------------------------------------------------------- #
+
+
+def licensed_repository(license_value: str) -> ResolvedSource:
+    source = resolved_source(
+        url="https://github.com/example/project",
+        text="# project\n\nA useful tool.",
+        kind=SourceKind.GITHUB,
+    )
+    return source.model_copy(update={"metadata": {"license": license_value}})
+
+
+@pytest.mark.asyncio
+async def test_a_license_stated_by_a_followed_repository_reaches_the_artifact() -> None:
+    """The post is source 0, but the license belongs to the repository it points at."""
+
+    post = resolved_source(url="https://x.com/a/status/1", text="A tool worth reading about.")
+    generation = ScriptedGeneration([extraction_payload()])
+    service = ExtractionService(generation=generation, embedding=FixtureEmbedding())
+
+    record = await service.extract(post, [licensed_repository("Apache-2.0")])
+
+    assert record.artifact.license == "Apache-2.0"
+    assert record.artifact.metadata["license_source"] == "https://github.com/example/project"
+
+
+@pytest.mark.asyncio
+async def test_a_stated_license_outranks_one_the_model_wrote() -> None:
+    """A registry answer beats prose; a guessed license is worse than a missing one."""
+
+    post = resolved_source(url="https://x.com/a/status/2", text="A tool worth reading about.")
+    payload = extraction_payload()
+    payload.license = "MIT"
+    service = ExtractionService(generation=ScriptedGeneration([payload]), embedding=FixtureEmbedding())
+
+    record = await service.extract(post, [licensed_repository("AGPL-3.0")])
+
+    assert record.artifact.license == "AGPL-3.0"
+
+
+@pytest.mark.asyncio
+async def test_without_a_stated_license_the_extraction_is_used_and_left_unattributed() -> None:
+    post = resolved_source(url="https://x.com/a/status/3", text="A tool worth reading about.")
+    payload = extraction_payload()
+    payload.license = "MIT"
+    service = ExtractionService(generation=ScriptedGeneration([payload]), embedding=FixtureEmbedding())
+
+    record = await service.extract(post)
+
+    assert record.artifact.license == "MIT"
+    assert "license_source" not in record.artifact.metadata
+
+
+@pytest.mark.asyncio
+async def test_an_unstated_license_stays_absent_rather_than_becoming_a_guess() -> None:
+    post = resolved_source(url="https://x.com/a/status/4", text="A tool worth reading about.")
+    service = ExtractionService(
+        generation=ScriptedGeneration([extraction_payload()]), embedding=FixtureEmbedding()
+    )
+
+    record = await service.extract(post)
+
+    assert record.artifact.license is None

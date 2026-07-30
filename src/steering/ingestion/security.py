@@ -85,6 +85,24 @@ class SafeFetcher:
             else require_connected_peer
         )
 
+    def _validate_peer(self, response: httpx.Response) -> None:
+        network_stream = response.extensions.get("network_stream")
+        get_extra_info = getattr(network_stream, "get_extra_info", None)
+        peer = get_extra_info("server_addr") if callable(get_extra_info) else None
+        if isinstance(peer, (tuple, list)) and peer:
+            self.guard.validate_connected_address(str(peer[0]))
+        elif isinstance(peer, str):
+            self.guard.validate_connected_address(peer)
+        elif self.require_connected_peer:
+            raise SourceUnavailableError("source connection peer could not be verified")
+
+    @staticmethod
+    def _redirect_target(response: httpx.Response, current: str) -> str:
+        location = response.headers.get("location")
+        if not location:
+            raise SourceUnavailableError("source redirect did not include a location")
+        return str(urljoin(current, location))
+
     async def get(
         self,
         url: str,
@@ -105,20 +123,9 @@ class SafeFetcher:
                         params=params,
                         follow_redirects=False,
                     ) as response:
-                        network_stream = response.extensions.get("network_stream")
-                        get_extra_info = getattr(network_stream, "get_extra_info", None)
-                        peer = get_extra_info("server_addr") if callable(get_extra_info) else None
-                        if isinstance(peer, (tuple, list)) and peer:
-                            self.guard.validate_connected_address(str(peer[0]))
-                        elif isinstance(peer, str):
-                            self.guard.validate_connected_address(peer)
-                        elif self.require_connected_peer:
-                            raise SourceUnavailableError("source connection peer could not be verified")
+                        self._validate_peer(response)
                         if response.status_code in {301, 302, 303, 307, 308}:
-                            location = response.headers.get("location")
-                            if not location:
-                                raise SourceUnavailableError("source redirect did not include a location")
-                            current = urljoin(current, location)
+                            current = self._redirect_target(response, current)
                             params = None
                             redirected = True
                             break
@@ -138,4 +145,27 @@ class SafeFetcher:
                     raise SourceUnavailableError(f"source request failed ({type(exc).__name__})") from None
             if redirected:
                 continue
+        raise SourceUnavailableError("source exceeded the redirect limit")
+
+    async def resolve_redirects(self, url: str) -> str:
+        """Follow a shortlink to its destination without downloading the target.
+
+        Every hop is validated exactly as it is in :meth:`get`, and the response
+        body is never read, so unwrapping a link costs one request rather than a
+        full page download.
+        """
+
+        current = url
+        for hop in range(self.max_redirects + 1):
+            await self.guard.validate_url(current)
+            try:
+                async with self.client.stream("GET", current, follow_redirects=False) as response:
+                    self._validate_peer(response)
+                    if response.status_code not in {301, 302, 303, 307, 308}:
+                        if hop == 0:
+                            raise SourceUnavailableError("source did not redirect to a destination")
+                        return current
+                    current = self._redirect_target(response, current)
+            except httpx.HTTPError as exc:
+                raise SourceUnavailableError(f"source request failed ({type(exc).__name__})") from None
         raise SourceUnavailableError("source exceeded the redirect limit")

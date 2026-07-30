@@ -20,14 +20,10 @@
   <div class="two-column">
     <section>
       <div class="section-heading"><h2>Recently captured</h2><a href="/search">Search all</a></div>
-      {% if records %}
+      {% if artifacts %}
         <div class="card-list">
-          {% for record in records %}
-            <article class="card">
-              <div class="meta"><span class="lane">{{ record.artifact.trust_lane.value }}</span><span>{{ record.artifact.strategy_family }}</span></div>
-              <h3><a href="/artifacts/{{ record.artifact.id }}">{{ record.artifact.title }}</a></h3>
-              <p>{{ record.artifact.summary }}</p>
-            </article>
+          {% for artifact in artifacts %}
+            {% with selectable = False %}{% include "partials/artifact_card.html" %}{% endwith %}
           {% endfor %}
         </div>
       {% else %}

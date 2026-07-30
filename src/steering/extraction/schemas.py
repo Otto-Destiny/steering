@@ -54,7 +54,13 @@ class KnowledgeExtraction(ExtractionModel):
     summary: str = Field(min_length=1)
     strategy_family: str = "uncategorized"
     maturity: str | None = None
-    license: str | None = None
+    license: str | None = Field(
+        default=None,
+        description=(
+            "The license a source states outright, preferably its SPDX identifier "
+            "(for example MIT, Apache-2.0, CC-BY-4.0). Null when no source states one."
+        ),
+    )
     aliases: list[str] = Field(default_factory=list)
     capabilities: list[str] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)

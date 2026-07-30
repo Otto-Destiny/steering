@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Unreadable record · STEERING{% endblock %}
+{% block content %}
+  <article class="error-panel">
+    <p class="eyebrow">Unreadable record</p>
+    <h1>This record's stored data could not be read.</h1>
+    <p>
+      STEERING saved this artifact, but part of it no longer matches the shape it was written in,
+      so the page cannot be built. This usually means the write was interrupted — a full disk or a
+      process killed mid-write are the common causes.
+    </p>
+    <p><strong>Reported problem:</strong> {{ detail }}</p>
+    <p>
+      The evidence for this artifact cannot be recovered. Retiring it removes the damaged record so
+      the source can be captured again.
+    </p>
+    <div class="actions">
+      <form action="/artifacts/{{ artifact_id }}/retire" method="post">
+        <button class="button danger" type="submit">Retire this record</button>
+      </form>
+      <a class="button" href="/">Return to dashboard</a>
+    </div>
+  </article>
+{% endblock %}
