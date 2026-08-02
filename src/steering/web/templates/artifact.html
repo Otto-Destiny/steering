@@ -52,6 +52,8 @@
       </section>
     </div>
 
+    {% include "partials/connections.html" %}
+
     <section><div class="section-heading"><h2>Source-backed claims</h2><span>{{ record.claims|length }}</span></div>
       <div class="card-list">{% for claim in record.claims %}<article class="card"><p>{{ claim.text }}</p><div class="meta"><span>{{ claim.category.value }}</span><span>confidence {{ '%.2f'|format(claim.confidence) }}</span></div></article>{% else %}<div class="empty">No claims extracted.</div>{% endfor %}</div>
     </section>

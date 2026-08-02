@@ -18,7 +18,7 @@ from starlette.templating import Jinja2Templates
 
 from steering import SCHEMA_VERSION, __version__
 from steering.database.repository import CorruptRecordError
-from steering.domain.models import Project, SearchQuery
+from steering.domain.models import SENSITIVE_RELATIONS, Project, SearchQuery
 from steering.domain.protocols import ArtifactRepository, ImageUnderstandingProvider
 from steering.extraction.service import EvidenceValidationError
 from steering.ingestion.bookmarks import (
@@ -678,9 +678,58 @@ class WebController:
             "artifact.html",
             record=record,
             actions=ISSUE_ACTIONS,
+            connections=self._connections(record),
             issue_evidence=self._issue_evidence(record.issues),
             linked_sources=self._linked_sources(record),
         )
+
+    def _connections(self, record: Any) -> list[dict[str, Any]]:
+        """This artifact's relations, named rather than shown as identifiers.
+
+        A relation stores the id of the concept or entity it points at. On its own
+        that says nothing, so it is resolved back to the name the capture used.
+        """
+
+        names = {item.id: item.name for item in [*record.concepts, *record.entities]}
+        kinds = {concept.id: "concept" for concept in record.concepts}
+        kinds.update({entity.id: entity.entity_type or "entity" for entity in record.entities})
+        return [
+            {
+                "id": relation.id,
+                "predicate": relation.predicate.value.replace("_", " "),
+                "target": names.get(relation.object_id, relation.object_id),
+                "kind": kinds.get(relation.object_id, "artifact"),
+                "active": relation.approved,
+                "evidence": len(relation.evidence_span_ids),
+                # Offering a control that can only fail is worse than not offering
+                # it: this one is refused by the relation itself, so say why.
+                "locked": relation.predicate in SENSITIVE_RELATIONS and not relation.evidence_span_ids,
+                "rationale": relation.rationale,
+            }
+            for relation in record.relations
+        ]
+
+    async def set_relation_active_ui(self, request: Request) -> Response:
+        form = await _form(request)
+        artifact_id = request.path_params["artifact_id"]
+        active = _string(form, "active") == "on"
+        try:
+            self.repository.set_relation_active(request.path_params["relation_id"], active)
+        except KeyError:
+            raise HTTPException(404, "That connection no longer exists.") from None
+        except ValueError as exc:
+            # A sensitive relation with no quote refuses to be activated.
+            raise HTTPException(422, str(exc)) from None
+        if self.on_record_changed is not None:
+            self.on_record_changed()
+        record = self.engine.get_knowledge_record(artifact_id)
+        if record is None:
+            raise HTTPException(404, "Knowledge record not found.")
+        if self.is_htmx(request):
+            return self.template(
+                request, "partials/connections.html", record=record, connections=self._connections(record)
+            )
+        return RedirectResponse(f"/artifacts/{artifact_id}", status_code=303)
 
     def _linked_sources(self, record: Any) -> list[dict[str, Any]]:
         """Where the capture led, which is the point of capturing a social post.
@@ -1182,6 +1231,11 @@ def create_web_app(
         Route("/search", controller.search_submit, methods=["POST"]),
         Route("/artifacts/{artifact_id:str}", controller.artifact_page, methods=["GET"]),
         Route("/artifacts/retire", controller.retire_selected_ui, methods=["POST"]),
+        Route(
+            "/artifacts/{artifact_id:str}/connections/{relation_id:str}",
+            controller.set_relation_active_ui,
+            methods=["POST"],
+        ),
         Route(
             "/artifacts/{artifact_id:str}/retire",
             controller.retire_artifact_ui,

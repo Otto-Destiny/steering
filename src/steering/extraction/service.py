@@ -12,6 +12,7 @@ from pathlib import Path
 from steering import SCHEMA_VERSION
 from steering.domain.credentials import reject_high_confidence_credentials, sanitized_persistence_source
 from steering.domain.models import (
+    SENSITIVE_RELATIONS,
     Artifact,
     ArtifactRecord,
     ArtifactType,
@@ -22,6 +23,7 @@ from steering.domain.models import (
     EvidenceCategory,
     EvidenceSpan,
     Relation,
+    RelationType,
     ResolvedSource,
     ReviewIssue,
     ReviewStatus,
@@ -84,6 +86,24 @@ def content_hash(text: str) -> str:
 
 def stable_id(prefix: str, value: str) -> str:
     return f"{prefix}_{hashlib.blake2b(value.encode('utf-8'), digest_size=12).hexdigest()}"
+
+
+def _relation_is_traversable(predicate: RelationType, evidence_span_ids: Sequence[str]) -> bool:
+    """Whether a relation becomes an edge search is allowed to walk.
+
+    Active by default. A relation is a retrieval signal rather than a stated fact:
+    it decides what else gets shown beside a result, and each result still carries
+    its own evidence. A graph that starts empty and waits to be approved is a graph
+    nobody ever sees, so the optimistic default is the useful one, and the artifact
+    page can switch any single relation off.
+
+    The exception is the three that can end an argument -- one thing superseding,
+    deprecating, or being recommended over another. Their consequence is a rewrite,
+    so they travel only with a quote that says so. That is also enforced on the
+    model itself, which refuses to be constructed approved without one.
+    """
+
+    return predicate not in SENSITIVE_RELATIONS or bool(evidence_span_ids)
 
 
 def _declared_license(sources: Sequence[ResolvedSource]) -> tuple[str | None, str | None]:
@@ -495,7 +515,7 @@ class ExtractionService:
                     subject_id=artifact_id,
                     predicate=relation_data.predicate,
                     object_id=target_id,
-                    approved=False,
+                    approved=_relation_is_traversable(relation_data.predicate, span_ids),
                     evidence_span_ids=span_ids,
                     rationale=relation_data.rationale,
                 )

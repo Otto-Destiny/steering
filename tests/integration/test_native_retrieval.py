@@ -295,3 +295,110 @@ async def test_search_refuses_partially_embedded_chunk_set(tmp_path: Path) -> No
 
         with pytest.raises(SearchIndexError, match="need embeddings"):
             await retriever.search(SearchQuery(query="vector", limit=2))
+
+
+def _relating_record(
+    identifier: str,
+    *,
+    concept_id: str,
+    concept_name: str,
+    predicate: RelationType,
+) -> ArtifactRecord:
+    """An artifact that points at a shared concept, as extraction now produces."""
+
+    return ArtifactRecord(
+        artifact=Artifact(
+            id=identifier,
+            canonical_url=f"https://example.com/{identifier}",
+            source_kind=SourceKind.GITHUB,
+            artifact_type=ArtifactType.OPEN_SOURCE_TOOL,
+            title=identifier,
+            summary=f"{identifier} summary",
+            strategy_family="memory",
+            review_status=ReviewStatus.REVIEWED,
+            content_hash=f"hash-{identifier}",
+        ),
+        concepts=[Concept(id=concept_id, name=concept_name)],
+        relations=[
+            Relation(
+                id=f"rel-{identifier}",
+                subject_id=identifier,
+                predicate=predicate,
+                object_id=concept_id,
+                approved=True,
+            )
+        ],
+    )
+
+
+@pytest.mark.integration
+def test_two_artifacts_sharing_a_concept_become_reachable_from_each_other(tmp_path: Path) -> None:
+    """A concept is only worth anything once a second artifact also owns it.
+
+    One artifact pointing at an idea links to nothing, because a record is never
+    linked to itself. The connection appears when something else arrives holding
+    the same idea, which is the whole reason concepts are hashed from their name.
+    """
+
+    concept_id = "concept_paged_cache"
+    with DatabaseRuntime(tmp_path / "graph.lbug") as runtime:
+        repository = runtime.repository
+        repository.upsert_record(
+            _relating_record(
+                "pocketmemory",
+                concept_id=concept_id,
+                concept_name="paged cache",
+                predicate=RelationType.SOLVES,
+            )
+        )
+        query = SearchQuery(query="paged cache", limit=5)
+
+        # Alone, it has nothing to reach.
+        assert repository.graph_candidates(["pocketmemory"], query) == []
+
+        repository.upsert_record(
+            _relating_record(
+                "shelfcache",
+                concept_id=concept_id,
+                concept_name="paged cache",
+                predicate=RelationType.IMPLEMENTS,
+            )
+        )
+
+        from_first = repository.graph_candidates(["pocketmemory"], query)
+        from_second = repository.graph_candidates(["shelfcache"], query)
+
+    assert [candidate.artifact_id for candidate in from_first] == ["shelfcache"]
+    assert [candidate.artifact_id for candidate in from_second] == ["pocketmemory"]
+
+
+@pytest.mark.integration
+def test_an_inactive_relation_is_not_walkable(tmp_path: Path) -> None:
+    """Switching a connection off has to remove the edge, not just a flag."""
+
+    concept_id = "concept_paged_cache"
+    with DatabaseRuntime(tmp_path / "graph-off.lbug") as runtime:
+        repository = runtime.repository
+        for name, predicate in (
+            ("pocketmemory", RelationType.SOLVES),
+            ("shelfcache", RelationType.IMPLEMENTS),
+        ):
+            repository.upsert_record(
+                _relating_record(name, concept_id=concept_id, concept_name="paged cache", predicate=predicate)
+            )
+        query = SearchQuery(query="paged cache", limit=5)
+        assert repository.graph_candidates(["pocketmemory"], query)
+
+        # Each artifact derives its own link from the concept it owns, and the
+        # traversal reads both directions, so both have to go for the pair to part.
+        repository.set_relation_active("rel-shelfcache", False)
+        one_off = repository.graph_candidates(["pocketmemory"], query)
+        repository.set_relation_active("rel-pocketmemory", False)
+        both_off = repository.graph_candidates(["pocketmemory"], query)
+
+        repository.set_relation_active("rel-pocketmemory", True)
+        back_on = repository.graph_candidates(["pocketmemory"], query)
+
+    assert [candidate.artifact_id for candidate in one_off] == ["shelfcache"]
+    assert both_off == []
+    assert [candidate.artifact_id for candidate in back_on] == ["shelfcache"]

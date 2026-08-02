@@ -17,6 +17,7 @@ from steering.domain.models import (
     ArtifactRecord,
     ArtifactType,
     Claim,
+    Concept,
     Decision,
     EvidenceCategory,
     EvidenceSpan,
@@ -26,6 +27,8 @@ from steering.domain.models import (
     IssueStatus,
     JobStatus,
     Project,
+    Relation,
+    RelationType,
     ResolvedSource,
     ReviewIssue,
     ScoreBreakdown,
@@ -184,6 +187,17 @@ class FakeRepository:
 
     def unreadable_records(self) -> list[dict[str, str]]:
         return list(self.unreadable)
+
+    def set_relation_active(self, relation_id: str, active: bool) -> Any:
+        for record in self.records:
+            for index, relation in enumerate(record.relations):
+                if relation.id == relation_id:
+                    updated = Relation.model_validate(
+                        {**relation.model_dump(mode="json"), "approved": active}
+                    )
+                    record.relations[index] = updated
+                    return updated
+        raise KeyError(relation_id)
 
     def list_jobs(self, limit: int = 100) -> list[IngestionJob]:
         return self.jobs[:limit]
@@ -1908,3 +1922,91 @@ def test_the_favicon_carries_the_sizes_a_browser_asks_for() -> None:
     icon = imaging.open(Path(__file__).resolve().parents[2] / "src/steering/web/static/favicon.ico")
 
     assert sorted(icon.info["sizes"]) == [(16, 16), (32, 32), (48, 48)]
+
+
+def connected_record() -> ArtifactRecord:
+    record = make_record("art_connected")
+    record.concepts = [Concept(id="concept_paged_cache", name="paged cache")]
+    record.relations = [
+        Relation(
+            id="rel_solves",
+            subject_id="art_connected",
+            predicate=RelationType.SOLVES,
+            object_id="concept_paged_cache",
+            approved=True,
+        ),
+        Relation(
+            id="rel_deprecates",
+            subject_id="art_connected",
+            predicate=RelationType.DEPRECATED_BY,
+            object_id="concept_paged_cache",
+            approved=False,
+        ),
+    ]
+    return record
+
+
+def connected_client() -> tuple[TestClient, FakeRepository]:
+    repository = FakeRepository()
+    repository.records = [connected_record()]
+    app = create_web_app(
+        engine=FakeEngine(repository),  # type: ignore[arg-type]
+        ingestion=FakeIngestion(repository),  # type: ignore[arg-type]
+        repository=repository,  # type: ignore[arg-type]
+        provider_settings=FakeProviders(),
+    )
+    return TestClient(app, base_url="http://localhost"), repository
+
+
+def test_the_artifact_page_names_its_connections_rather_than_showing_ids() -> None:
+    client, _ = connected_client()
+    with client:
+        page = client.get("/artifacts/art_connected").text
+
+    assert "Connections" in page
+    assert "paged cache" in page
+    assert "solves" in page
+    # The identifier a relation stores would tell a reader nothing.
+    assert "concept_paged_cache" not in page
+    assert "1 of 2 active" in page
+
+
+def test_a_connection_can_be_switched_off_and_back_on_from_the_page() -> None:
+    client, repository = connected_client()
+    with client:
+        off = client.post(
+            "/artifacts/art_connected/connections/rel_solves",
+            data={"active": ""},
+            headers={"HX-Request": "true"},
+        )
+        assert off.status_code == 200
+        assert repository.records[0].relations[0].approved is False
+        assert "0 of 2 active" in off.text
+
+        on = client.post(
+            "/artifacts/art_connected/connections/rel_solves",
+            data={"active": "on"},
+            headers={"HX-Request": "true"},
+        )
+        assert on.status_code == 200
+        assert repository.records[0].relations[0].approved is True
+        assert "1 of 2 active" in on.text
+
+
+def test_an_unquoted_supersedes_offers_no_control_and_refuses_one_anyway() -> None:
+    """The relation itself refuses it, so the page must not present it as possible."""
+
+    client, repository = connected_client()
+    with client:
+        page = client.get("/artifacts/art_connected").text
+        forced = client.post(
+            "/artifacts/art_connected/connections/rel_deprecates",
+            data={"active": "on"},
+        )
+
+    # No button that could only ever fail.
+    assert "needs a quote before it can be switched on" in page
+    assert page.count("Switch on") == 0
+    # And the route refuses it even when asked directly.
+    assert forced.status_code == 422
+    assert repository.records[0].relations[1].approved is False

@@ -214,10 +214,12 @@ async def test_chunk_fallback_remaps_supporting_source_indices_before_reconcilia
             extraction_payload(quote=paper_quote, source_index=1, title="Reconciled fixture"),
         ]
     )
+    # Sized so both sources together overflow but either alone fits, which is what
+    # makes this exercise one fragment per source rather than several.
     service = ExtractionService(
         generation=generation,
         embedding=FixtureEmbedding(),
-        context_window_tokens=2000,
+        context_window_tokens=2400,
         reserved_output_tokens=400,
     )
 
@@ -227,7 +229,12 @@ async def test_chunk_fallback_remaps_supporting_source_indices_before_reconcilia
     reconciliation = generation.calls[-1][1]
     assert "Reconcile these structure-aware extraction fragments" in reconciliation
     assert '"source_index": 1' in reconciliation
-    assert all((len(SYSTEM_PROMPT) + len(prompt) + 3) // 4 <= 1200 for _, prompt in generation.calls)
+    # Stated against the service's own budget rather than a fixed number, which
+    # would need re-tuning every time the system prompt changes length.
+    assert all(
+        (len((SYSTEM_PROMPT + prompt).encode("utf-8")) + 2) // 3 <= service._safe_input_tokens
+        for _, prompt in generation.calls
+    )
     span = record.evidence_spans[0]
     assert span.snapshot_id == record.snapshots[1].id
     assert record.snapshots[1].text[span.start : span.end] == paper_quote
@@ -732,3 +739,86 @@ async def test_an_unstated_license_stays_absent_rather_than_becoming_a_guess() -
     record = await service.extract(post)
 
     assert record.artifact.license is None
+
+
+# --------------------------------------------------------------------------- #
+# Connections
+# --------------------------------------------------------------------------- #
+
+
+def relating_payload(
+    *,
+    predicate: RelationType,
+    target: str,
+    target_type: str = "concept",
+    quote: str | None = None,
+) -> KnowledgeExtraction:
+    payload = extraction_payload()
+    payload.relations = [
+        ExtractedRelation(
+            predicate=predicate,
+            target_name=target,
+            target_type=target_type,
+            exact_quote=quote,
+            source_index=0,
+        )
+    ]
+    return payload
+
+
+async def extract_with(payload: KnowledgeExtraction, text: str) -> Any:
+    source = resolved_source(url="https://example.com/tool", text=text)
+    service = ExtractionService(generation=ScriptedGeneration([payload]), embedding=FixtureEmbedding())
+    return await service.extract(source)
+
+
+@pytest.mark.asyncio
+async def test_a_relation_is_active_so_the_graph_is_walkable_from_the_start() -> None:
+    """A graph that waits to be approved is a graph nobody ever sees."""
+
+    text = "PocketMemory keeps a paged cache so lookups stay cheap."
+    record = await extract_with(
+        relating_payload(predicate=RelationType.SOLVES, target="paged cache", quote=text), text
+    )
+
+    assert [relation.approved for relation in record.relations] == [True]
+    assert [concept.name for concept in record.concepts] == ["paged cache"]
+
+
+@pytest.mark.asyncio
+async def test_a_relation_without_a_quote_is_still_active() -> None:
+    """A connection steers what else is shown; it is not asserted as fact."""
+
+    record = await extract_with(
+        relating_payload(predicate=RelationType.INTEGRATES_WITH, target="SQLite", target_type="library"),
+        "PocketMemory stores its index on disk.",
+    )
+
+    assert record.relations[0].approved is True
+    assert record.relations[0].evidence_span_ids == []
+    assert [entity.name for entity in record.entities] == ["SQLite"]
+
+
+@pytest.mark.asyncio
+async def test_a_quoted_supersedes_is_active_because_a_source_said_so() -> None:
+    text = "PocketMemory supersedes the older ring buffer design entirely."
+    record = await extract_with(
+        relating_payload(predicate=RelationType.SUPERSEDES, target="ring buffer", quote=text), text
+    )
+
+    assert record.relations[0].approved is True
+    assert record.relations[0].evidence_span_ids
+
+
+@pytest.mark.asyncio
+async def test_an_unquoted_supersedes_stays_inactive_and_waits_for_a_person() -> None:
+    """Telling someone their technology is obsolete costs a rewrite when wrong."""
+
+    record = await extract_with(
+        relating_payload(predicate=RelationType.DEPRECATED_BY, target="ring buffer"),
+        "PocketMemory stores its index on disk.",
+    )
+
+    assert record.relations[0].approved is False
+    # The proposal is kept, so a person can still see and accept it.
+    assert record.relations[0].predicate is RelationType.DEPRECATED_BY
