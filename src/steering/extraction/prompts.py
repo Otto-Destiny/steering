@@ -23,9 +23,10 @@ addresses, named as a short lowercase noun phrase such as "retrieval augmented g
 "kv cache paging". Use a concrete target_type such as "library", "model", "dataset", "framework", or
 "open_source_tool" for a named thing the artifact depends on, extends, or replaces. Prefer solves,
 implements, requires, integrates_with, alternative_to, limited_by, and evaluates.
-A relation carrying no exact verbatim quote is recorded but never becomes a connection, so quote the
-sentence that establishes it, exactly as a claim does.
-Never assert supersedes, deprecated_by, or recommended_over unless a source says so outright.
+Quote the sentence that establishes a relation whenever the source contains one; a quoted relation is
+the difference between something a reader can check and something they have to take on trust.
+Never assert supersedes, deprecated_by, or recommended_over unless a source says so outright: those
+three are only accepted with a verbatim quote, and are otherwise held back for a person to decide.
 Return exactly the requested JSON schema and nothing else."""
 
 

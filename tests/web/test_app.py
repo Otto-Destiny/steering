@@ -188,10 +188,10 @@ class FakeRepository:
     def unreadable_records(self) -> list[dict[str, str]]:
         return list(self.unreadable)
 
-    def set_relation_active(self, relation_id: str, active: bool) -> Any:
+    def set_relation_active(self, artifact_id: str, relation_id: str, active: bool) -> Any:
         for record in self.records:
             for index, relation in enumerate(record.relations):
-                if relation.id == relation_id:
+                if relation.id == relation_id and relation.subject_id == artifact_id:
                     updated = Relation.model_validate(
                         {**relation.model_dump(mode="json"), "approved": active}
                     )
@@ -1934,6 +1934,7 @@ def connected_record() -> ArtifactRecord:
             predicate=RelationType.SOLVES,
             object_id="concept_paged_cache",
             approved=True,
+            rationale="The README says it keeps only touched pages resident.",
         ),
         Relation(
             id="rel_deprecates",
@@ -1969,6 +1970,8 @@ def test_the_artifact_page_names_its_connections_rather_than_showing_ids() -> No
     # The identifier a relation stores would tell a reader nothing.
     assert "concept_paged_cache" not in page
     assert "1 of 2 active" in page
+    # The reason the model gave was computed and then never shown.
+    assert "keeps only touched pages resident" in page
 
 
 def test_a_connection_can_be_switched_off_and_back_on_from_the_page() -> None:

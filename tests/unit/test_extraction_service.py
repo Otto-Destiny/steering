@@ -426,10 +426,13 @@ async def test_chunk_reconciliation_is_recursively_bounded() -> None:
         kind=SourceKind.PAPER,
     )
     generation = RepeatingGeneration()
+    # Small enough that one pass cannot consolidate everything, so reconciliation
+    # has to recurse; large enough that two fragments still fit together, which is
+    # what stops it giving up instead.
     service = ExtractionService(
         generation=generation,
         embedding=FixtureEmbedding(),
-        context_window_tokens=1600,
+        context_window_tokens=2400,
         reserved_output_tokens=400,
     )
 
@@ -441,7 +444,12 @@ async def test_chunk_reconciliation_is_recursively_bounded() -> None:
         if "Reconcile these structure-aware extraction fragments" in prompt
     ]
     assert len(reconciliation_calls) >= 2
-    assert all((len(SYSTEM_PROMPT) + len(prompt) + 3) // 4 <= 1200 for _, prompt in generation.calls)
+    # Stated against the service's own budget, so a longer system prompt cannot
+    # quietly invalidate it again.
+    assert all(
+        (len((SYSTEM_PROMPT + prompt).encode("utf-8")) + 2) // 3 <= service._safe_input_tokens
+        for _, prompt in generation.calls
+    )
 
 
 @pytest.mark.asyncio

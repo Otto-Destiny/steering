@@ -714,7 +714,7 @@ class WebController:
         artifact_id = request.path_params["artifact_id"]
         active = _string(form, "active") == "on"
         try:
-            self.repository.set_relation_active(request.path_params["relation_id"], active)
+            self.repository.set_relation_active(artifact_id, request.path_params["relation_id"], active)
         except KeyError:
             raise HTTPException(404, "That connection no longer exists.") from None
         except ValueError as exc:

@@ -88,6 +88,20 @@ def stable_id(prefix: str, value: str) -> str:
     return f"{prefix}_{hashlib.blake2b(value.encode('utf-8'), digest_size=12).hexdigest()}"
 
 
+#: A relation's target type arrives as free text, so an idea can be labelled a
+#: dozen ways. These all mean "an idea rather than a named thing", and they matter
+#: because a concept and an entity of the same name hash to different nodes: one
+#: capture writing "concept" and another writing "technique" would silently fail
+#: to meet.
+CONCEPT_TARGET_TYPES = frozenset({"concept", "technique", "idea", "topic", "problem", "approach", "method"})
+
+
+def _normalized_target_type(target_type: str) -> str:
+    """Reduce a free-text target type to something two captures can agree on."""
+
+    return re.sub(r"[\s-]+", "_", target_type.strip().lower()) or "concept"
+
+
 def _relation_is_traversable(predicate: RelationType, evidence_span_ids: Sequence[str]) -> bool:
     """Whether a relation becomes an edge search is allowed to walk.
 
@@ -472,16 +486,17 @@ class ExtractionService:
         relations: list[Relation] = []
         for relation_data in payload.relations:
             target_key = relation_data.target_name.strip().lower()
-            if relation_data.target_type == "concept":
+            target_type = _normalized_target_type(relation_data.target_type)
+            if target_type in CONCEPT_TARGET_TYPES:
                 target_id = stable_id("concept", target_key)
                 concepts.append(Concept(id=target_id, name=relation_data.target_name))
             else:
-                target_id = stable_id("entity", f"{relation_data.target_type}:{target_key}")
+                target_id = stable_id("entity", f"{target_type}:{target_key}")
                 entities.append(
                     Entity(
                         id=target_id,
                         name=relation_data.target_name,
-                        entity_type=relation_data.target_type,
+                        entity_type=target_type,
                     )
                 )
             span_ids: list[str] = []

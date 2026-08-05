@@ -391,14 +391,36 @@ def test_an_inactive_relation_is_not_walkable(tmp_path: Path) -> None:
 
         # Each artifact derives its own link from the concept it owns, and the
         # traversal reads both directions, so both have to go for the pair to part.
-        repository.set_relation_active("rel-shelfcache", False)
+        repository.set_relation_active("shelfcache", "rel-shelfcache", False)
         one_off = repository.graph_candidates(["pocketmemory"], query)
-        repository.set_relation_active("rel-pocketmemory", False)
+        repository.set_relation_active("pocketmemory", "rel-pocketmemory", False)
         both_off = repository.graph_candidates(["pocketmemory"], query)
 
-        repository.set_relation_active("rel-pocketmemory", True)
+        repository.set_relation_active("pocketmemory", "rel-pocketmemory", True)
         back_on = repository.graph_candidates(["pocketmemory"], query)
 
     assert [candidate.artifact_id for candidate in one_off] == ["shelfcache"]
     assert both_off == []
     assert [candidate.artifact_id for candidate in back_on] == ["shelfcache"]
+
+
+@pytest.mark.integration
+def test_a_relation_cannot_be_switched_by_naming_a_different_artifact(tmp_path: Path) -> None:
+    """The artifact in the request is part of the lookup, not decoration."""
+
+    concept_id = "concept_paged_cache"
+    with DatabaseRuntime(tmp_path / "graph-owner.lbug") as runtime:
+        repository = runtime.repository
+        for name, predicate in (
+            ("pocketmemory", RelationType.SOLVES),
+            ("shelfcache", RelationType.IMPLEMENTS),
+        ):
+            repository.upsert_record(
+                _relating_record(name, concept_id=concept_id, concept_name="paged cache", predicate=predicate)
+            )
+
+        with pytest.raises(KeyError):
+            repository.set_relation_active("pocketmemory", "rel-shelfcache", False)
+
+        # Untouched, so a request naming the wrong owner changes nothing.
+        assert repository.graph_candidates(["pocketmemory"], SearchQuery(query="paged cache", limit=5))

@@ -14,6 +14,9 @@
             <span class="predicate">{{ connection.predicate }}</span>
             <strong>{{ connection.target }}</strong>
             <span class="hint">{{ connection.kind }}</span>
+            {% if connection.rationale %}
+              <span class="connection-rationale">{{ connection.rationale }}</span>
+            {% endif %}
           </span>
           <span class="connection-meta">
             {% if connection.evidence %}

@@ -239,6 +239,7 @@ dd { margin: 0; }
 .button.connection-toggle:hover { color: var(--text); border-color: var(--accent); }
 .connection-note { margin: .6rem 0 0; color: var(--muted); font-size: .85rem; }
 .connection-locked { max-width: 12rem; text-align: right; line-height: 1.35; }
+.connection-rationale { flex-basis: 100%; color: var(--muted); font-size: .85rem; }
 
 @media (max-width: 900px) {
   .capture-layout { grid-template-columns: minmax(0, 1fr); }
