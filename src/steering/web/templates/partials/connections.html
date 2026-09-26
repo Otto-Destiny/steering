@@ -1,0 +1,50 @@
+{# What this artifact is connected to, and whether search may walk each link.
+   Active is the default: a connection decides what else appears beside a result,
+   not what is asserted as fact, so it earns its place until switched off. #}
+<section id="connections" aria-labelledby="connections-heading">
+  <div class="section-heading">
+    <h2 id="connections-heading">Connections</h2>
+    <span>{{ connections|selectattr('active')|list|length }} of {{ connections|length }} active</span>
+  </div>
+  {% if connections %}
+    <ul class="connection-list">
+      {% for connection in connections %}
+        <li class="connection {{ 'is-off' if not connection.active else '' }}">
+          <span class="connection-claim">
+            <span class="predicate">{{ connection.predicate }}</span>
+            <strong>{{ connection.target }}</strong>
+            <span class="hint">{{ connection.kind }}</span>
+            {% if connection.rationale %}
+              <span class="connection-rationale">{{ connection.rationale }}</span>
+            {% endif %}
+          </span>
+          <span class="connection-meta">
+            {% if connection.evidence %}
+              <span class="hint">quoted</span>
+            {% else %}
+              <span class="hint">no quote</span>
+            {% endif %}
+            {% if connection.locked %}
+              <span class="hint connection-locked">needs a quote before it can be switched on</span>
+            {% else %}
+            <form action="/artifacts/{{ record.artifact.id }}/connections/{{ connection.id }}" method="post"
+                  hx-post="/artifacts/{{ record.artifact.id }}/connections/{{ connection.id }}"
+                  hx-target="#connections" hx-swap="outerHTML" hx-disabled-elt="find button">
+              <input type="hidden" name="active" value="{{ '' if connection.active else 'on' }}">
+              <button class="button connection-toggle" type="submit">
+                {{ 'Switch off' if connection.active else 'Switch on' }}
+              </button>
+            </form>
+            {% endif %}
+          </span>
+        </li>
+      {% endfor %}
+    </ul>
+    <p class="hint connection-note">
+      An active connection lets a search that found this artifact also surface what it points at.
+      Switching one off keeps the record and removes the link.
+    </p>
+  {% else %}
+    <p class="hint">No connections were extracted from this capture.</p>
+  {% endif %}
+</section>

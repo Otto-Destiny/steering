@@ -763,6 +763,35 @@ class LadybugArtifactRepository:
             records = [self.get_record(str(row["id"])) for row in rows]
             return [record for record in records if record is not None]
 
+    def set_relation_active(self, artifact_id: str, relation_id: str, active: bool) -> Relation:
+        """Turn one of an artifact's relations into a traversable edge, or take it out.
+
+        Rebuilds the edge rather than only flipping the flag, because the flag is
+        what the projection is derived from: a relation nobody can walk is not a
+        different record, it is an absent edge.
+
+        The artifact is part of the lookup, not decoration. Matching on the relation
+        alone would let a request name one artifact and change another's connection,
+        and then be shown the untouched page of the artifact it named.
+        """
+
+        with self._transaction():
+            rows = self._rows(
+                "MATCH (n:Relations {id: $id}) RETURN n.payload AS payload", {"id": relation_id}
+            )
+            if not rows:
+                raise KeyError(relation_id)
+            stored = Relation.model_validate_json(rows[0]["payload"])
+            if stored.subject_id != artifact_id:
+                raise KeyError(relation_id)
+            # Revalidated rather than copied, so a sensitive relation cannot be
+            # activated without the quote its own model insists on.
+            updated = Relation.model_validate({**stored.model_dump(mode="json"), "approved": active})
+            self._save_model(updated)
+            self._sync_native_knowledge_edge(updated)
+        LOGGER.info("relation %s is now %s", relation_id, "active" if active else "inactive")
+        return updated
+
     def unreadable_records(self) -> list[dict[str, str]]:
         """Find every record whose stored data can no longer be read.
 

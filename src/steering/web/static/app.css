@@ -226,6 +226,20 @@ dd { margin: 0; }
 .failure-list .failure-source { overflow-wrap: anywhere; }
 .failure-list .hint { color: var(--muted); }
 .ingestion-feedback { display: flex; flex-direction: column; gap: .6rem; }
+.connection-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .5rem; }
+.connection { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; padding: .7rem .9rem; border: 1px solid var(--line); border-radius: .55rem; background: var(--surface); }
+.connection.is-off { background: transparent; }
+.connection.is-off .connection-claim { opacity: .55; }
+.connection-claim { display: flex; flex-wrap: wrap; align-items: baseline; gap: .45rem; min-width: 0; }
+.connection-claim .predicate { color: var(--accent); font-size: .8rem; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
+.connection-claim strong { overflow-wrap: anywhere; }
+.connection-meta { display: flex; align-items: center; gap: .6rem; }
+.connection-meta .hint { color: var(--muted); font-size: .8rem; }
+.button.connection-toggle { padding: .28rem .6rem; font-size: .82rem; font-weight: 600; color: var(--muted); background: transparent; }
+.button.connection-toggle:hover { color: var(--text); border-color: var(--accent); }
+.connection-note { margin: .6rem 0 0; color: var(--muted); font-size: .85rem; }
+.connection-locked { max-width: 12rem; text-align: right; line-height: 1.35; }
+.connection-rationale { flex-basis: 100%; color: var(--muted); font-size: .85rem; }
 
 @media (max-width: 900px) {
   .capture-layout { grid-template-columns: minmax(0, 1fr); }
